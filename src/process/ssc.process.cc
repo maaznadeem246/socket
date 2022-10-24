@@ -7,8 +7,11 @@ module;
 #include <stdexcept>
 
 #if defined(_WIN32)
+
 #include <tlhelp32.h>
+
 #else
+
 #include <algorithm>
 #include <bitset>
 #include <cstdlib>
@@ -18,6 +21,7 @@ module;
 #include <unistd.h>
 #include <sstream>
 #include <signal.h>
+
 #endif
 
 export module ssc.process;
