@@ -40,7 +40,7 @@ export namespace ssc {
     const int bufsize = 128;
     std::array<char, 128> buffer;
 
-    #ifdef _WIN32
+    #if defined(_WIN32)
       //
       // https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/popen-wpopen?view=msvc-160
       // _popen works fine in a console application... ok fine that's all we need it for... thanks.
@@ -208,6 +208,10 @@ export namespace ssc {
     void read() noexcept;
     void close_fds() noexcept;
   };
+
+  inline bool Process::write (const ssc::String &s) {
+    return Process::write(s.c_str(), s.size());
+  }
 
   inline void Process::open () noexcept {
     if (this->command.size() == 0) return;
@@ -901,8 +905,4 @@ export namespace ssc {
     }
   }
 #endif
-
-  bool Process::write(const ssc::String &s) {
-    return Process::write(s.c_str(), s.size());
-  };
 }
