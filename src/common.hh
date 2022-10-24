@@ -142,7 +142,7 @@
 #define ToWString(string) WString(L##string)
 #define ToString(string) String(string)
 
-namespace SSC {
+namespace ssc {
   namespace fs = std::filesystem;
 
   using String = std::string;
@@ -193,7 +193,7 @@ namespace SSC {
   //
   // Reporting on the platform.
   //
-  static struct {
+  struct Platform {
     #if defined(__x86_64__) || defined(_M_X64)
       const String arch = "x86_64";
     #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -276,7 +276,7 @@ namespace SSC {
       #endif
 
     #endif
-  } platform;
+  };
 
   inline const Vector<String>
   splitc (const String& s, const char& c) {
@@ -656,7 +656,7 @@ namespace SSC {
   // encoded as a URI component. This prevents escaping the
   // protocol.
   //
-  static const signed char HEX2DEC[256] = {
+  const signed char HEX2DEC[256] = {
     /*       0  1  2  3   4  5  6  7   8  9  A  B   C  D  E  F */
     /* 0 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 1 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
@@ -718,7 +718,7 @@ namespace SSC {
     return sResult;
   }
 
-  static const char SAFE[256] = {
+  const char SAFE[256] = {
       /*      0 1 2 3  4 5 6 7  8 9 A B  C D E F */
       /* 0 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
       /* 1 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,

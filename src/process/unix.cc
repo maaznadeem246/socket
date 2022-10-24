@@ -1,3 +1,5 @@
+import socket.process;
+
 #include <algorithm>
 #include <bitset>
 #include <cstdlib>
@@ -11,11 +13,10 @@
 #include <sstream>
 #include <signal.h>
 
-#include "process.hh"
+namespace ssc {
+using namespace process;
 
-namespace SSC {
-
-const static SSC::StringStream initial;
+const static ssc::StringStream initial;
 
 Process::Data::Data() noexcept : id(-1) {}
 
@@ -166,17 +167,17 @@ Process::id_type Process::open(const std::function<int()> &function) noexcept {
   return pid;
 }
 
-Process::id_type Process::open(const SSC::String &command, const SSC::String &path) noexcept {
+Process::id_type Process::open(const ssc::String &command, const ssc::String &path) noexcept {
   return open([&command, &path] {
     auto command_c_str = command.c_str();
-    SSC::String cd_path_and_command;
+    ssc::String cd_path_and_command;
 
     if (!path.empty()) {
       auto path_escaped = path;
       size_t pos = 0;
 
       // Based on https://www.reddit.com/r/cpp/comments/3vpjqg/a_new_platform_independent_process_library_for_c11/cxsxyb7
-      while((pos = path_escaped.find('\'', pos)) != SSC::String::npos) {
+      while((pos = path_escaped.find('\'', pos)) != ssc::String::npos) {
         path_escaped.replace(pos, 1, "'\\''");
         pos += 4;
       }
@@ -213,7 +214,7 @@ void Process::read() noexcept {
 
     auto buffer = std::unique_ptr<char[]>(new char[config.buffer_size]);
     bool any_open = !pollfds.empty();
-    SSC::StringStream ss;
+    ssc::StringStream ss;
 
     while (any_open && (poll(pollfds.data(), static_cast<nfds_t>(pollfds.size()), -1) > 0 || errno == EINTR)) {
       any_open = false;
@@ -227,17 +228,17 @@ void Process::read() noexcept {
 
           if (n > 0) {
             if (fd_is_stdout[i]) {
-              auto b = SSC::String(buffer.get());
+              auto b = ssc::String(buffer.get());
               auto parts = splitc(b, '\n');
 
               if (parts.size() > 1) {
                 for (int i = 0; i < parts.size() - 1; i++) {
                   ss << parts[i];
 
-                  SSC::String s(ss.str());
+                  ssc::String s(ss.str());
                   read_stdout(s);
 
-                  ss.str(SSC::String());
+                  ss.str(ssc::String());
                   ss.clear();
                   ss.copyfmt(initial);
                 }
@@ -246,7 +247,7 @@ void Process::read() noexcept {
                 ss << b;
               }
             } else {
-              read_stderr(SSC::String(buffer.get()));
+              read_stderr(ssc::String(buffer.get()));
             }
           } else if (n < 0 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
             pollfds[i].fd = -1;
@@ -295,7 +296,7 @@ bool Process::write(const char *bytes, size_t n) {
   std::lock_guard<std::mutex> lock(stdin_mutex);
 
   if (stdin_fd) {
-    SSC::String b(bytes);
+    ssc::String b(bytes);
 
     while (true && (b.size() > 0)) {
       int bytesWritten = ::write(*stdin_fd, b.c_str(), b.size());
@@ -345,4 +346,4 @@ void Process::kill(id_type id) noexcept {
   }
 }
 
-} // namespace SSC
+} // namespace ssc

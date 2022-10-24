@@ -76,17 +76,42 @@ if [ "$(uname)" == "Linux" ]; then
   die $? "not ok - missing pkg-config tool, \"$(advice 'pkg-config')\""
 fi
 
-function _build {
+function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
-  "$CXX" src/cli/cli.cc ${CXX_FLAGS} ${CXXFLAGS} \
-    -o bin/cli \
-    -std=c++2a \
-    -DSSC_BUILD_TIME="$(date '+%s')" \
+  "$CXX" ${CXX_FLAGS} ${CXXFLAGS}                   \
+    -o bin/cli                                      \
+    -std=c++2a                                      \
+    -L$ASSETS_DIR/lib                               \
+    -lsocket                                        \
+    -fprebuilt-module-path=$ASSETS_DIR/modules      \
+    -DSSC_BUILD_TIME="$(date '+%s')"                \
     -DSSC_VERSION_HASH=`git rev-parse --short HEAD` \
-    -DSSC_VERSION=`cat VERSION.txt`
+    -DSSC_VERSION=`cat VERSION.txt`                 \
+    src/cli/cli.cc
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - built the cli for desktop"
+}
+
+function _precompile {
+  echo "# precompiling modules"
+  local modules=($(find src -name "ssc.*"))
+
+  for module in "${modules[@]}"; do
+    local outfile=$(basename "$module")
+
+    "$CXX" -std=c++2a                              \
+      -x c++-module                                \
+      --precompile "$module"                       \
+      -o "$ASSETS_DIR/modules/${outfile/.cc/.pcm}"
+
+    "$CXX" -std=c++2a                              \
+      -c "$ASSETS_DIR/modules/${outfile/.cc/.pcm}" \
+      -o "$ASSETS_DIR/build/${outfile/.cc/.o}"
+  done
+
+  echo "# building a static library"
+  ar crus $ASSETS_DIR/lib/libsocket.a $ASSETS_DIR/build/*.o
 }
 
 function _prepare {
@@ -98,7 +123,7 @@ function _prepare {
 
   echo "# preparing directories..."
   rm -rf "$ASSETS_DIR"
-  mkdir -p $ASSETS_DIR/{lib,src,include}
+  mkdir -p $ASSETS_DIR/{lib,src,include,build,modules}
   mkdir -p $LIB_DIR
 
   if [ ! -d "$BUILD_DIR/input" ]; then
@@ -218,12 +243,14 @@ function _compile_libuv {
 
 function _check_compiler_features {
   echo "# checking compiler features"
-  $CXX -std=c++2a -x c++ -o /dev/null - << EOF_CC >/dev/null 2>&1
+  $CXX -std=c++2a -x c++-module --precompile -fmodule-name=X -o /dev/null - << EOF_CC >/dev/null 2>&1
+    module;
     #include <semaphore>
-    int main () {}
+    export module X;
+    export namespace X { void X () {} }
 EOF_CC
 
-  die $? "not ok - $CXX (`$CXX -dumpversion`) version is likely less than 12"
+  die $? "not ok - $CXX (`$CXX -dumpversion`) clang > 15 is required for building socket"
 }
 
 _check_compiler_features
@@ -280,5 +307,6 @@ die $? "not ok - could not copy headers"
 echo "ok - copied headers"
 cd $WORK_DIR
 
-_build
+_precompile
+_build_cli
 _install

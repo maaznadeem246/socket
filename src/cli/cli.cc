@@ -1,6 +1,7 @@
 #include "../common.hh"
-#include "../process/process.hh"
-#include "templates.hh"
+
+import ssc.templates;
+import ssc.process;
 
 #include <filesystem>
 
@@ -34,9 +35,10 @@
 #define SSC_BUILD_TIME 0
 #endif
 
-using namespace SSC;
+using namespace ssc;
 using namespace std::chrono;
 
+Platform platform;
 String _settings;
 Map settings = {{}};
 
@@ -44,7 +46,7 @@ auto start = system_clock::now();
 
 bool flagDebugMode = true;
 bool flagQuietMode = false;
-Map defaultTemplateAttrs = {{ "ssc_version", SSC::VERSION_FULL_STRING }};
+Map defaultTemplateAttrs = {{ "ssc_version", ssc::VERSION_FULL_STRING }};
 
 void log (const String s) {
   if (flagQuietMode) return;
@@ -405,7 +407,7 @@ int main (const int argc, const char* argv[]) {
   auto const subcommand = argv[1];
 
   if (is(subcommand, "-v") || is(subcommand, "--version")) {
-    std::cout << SSC::VERSION_FULL_STRING << std::endl;
+    std::cout << ssc::VERSION_FULL_STRING << std::endl;
     exit(0);
   }
 
@@ -572,9 +574,9 @@ int main (const int argc, const char* argv[]) {
 
   createSubcommand("init", {}, false, [&](const std::span<const char *>& options) -> void {
     fs::create_directories(targetPath / "src");
-    SSC::writeFile(targetPath / "src" / "index.html", gHelloWorld);
-    SSC::writeFile(targetPath / "ssc.config", tmpl(gDefaultConfig, defaultTemplateAttrs));
-    SSC::writeFile(targetPath / ".gitignore", gDefaultGitignore);
+    ssc::writeFile(targetPath / "src" / "index.html", gHelloWorld);
+    ssc::writeFile(targetPath / "ssc.config", tmpl(gDefaultConfig, defaultTemplateAttrs));
+    ssc::writeFile(targetPath / ".gitignore", gDefaultGitignore);
     exit(0);
   });
 
@@ -942,6 +944,8 @@ int main (const int argc, const char* argv[]) {
       flags += " -I" + prefixFile("include");
       flags += " -L" + prefixFile("lib");
       flags += " -luv";
+      flags += " -lsocket";
+      flags += " -fprebuilt-module-path=" + prefixFile("modules");
       flags += " " + getCxxFlags();
 
       files += prefixFile("src/app/app.cc");
@@ -1194,8 +1198,8 @@ int main (const int argc, const char* argv[]) {
         << "-DDEBUG=" << (flagDebugMode ? 1 : 0) << " "
         << "-DANDROID=1" << " "
         << "-DSSC_SETTINGS=\"" << encodeURIComponent(_settings) << "\" "
-        << "-DSSC_VERSION=" << SSC::VERSION_STRING << " "
-        << "-DSSC_VERSION_HASH=" << SSC::VERSION_HASH_STRING << " ";
+        << "-DSSC_VERSION=" << ssc::VERSION_STRING << " "
+        << "-DSSC_VERSION_HASH=" << ssc::VERSION_HASH_STRING << " ";
 
       Map makefileContext;
 
@@ -1899,8 +1903,8 @@ int main (const int argc, const char* argv[]) {
         << " -DDEBUG=" << (flagDebugMode ? 1 : 0)
         << " -DPORT=" << devPort
         << " -DSSC_SETTINGS=\"" << encodeURIComponent(_settings) << "\""
-        << " -DSSC_VERSION=" << SSC::VERSION_STRING
-        << " -DSSC_VERSION_HASH=" << SSC::VERSION_HASH_STRING
+        << " -DSSC_VERSION=" << ssc::VERSION_STRING
+        << " -DSSC_VERSION_HASH=" << ssc::VERSION_HASH_STRING
       ;
 
       // log(compileCommand.str());
@@ -2267,7 +2271,7 @@ int main (const int argc, const char* argv[]) {
         return hr;
       };
 
-      WString appx(SSC::StringToWString(paths.pathPackage.string()) + L".appx");
+      WString appx(ssc::StringToWString(paths.pathPackage.string()) + L".appx");
 
       HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 

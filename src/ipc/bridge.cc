@@ -5,6 +5,8 @@
 using namespace SSC;
 using namespace SSC::IPC;
 
+Platform platform;
+
 #if defined(__APPLE__)
 static dispatch_queue_attr_t qos = dispatch_queue_attr_make_with_qos_class(
   DISPATCH_QUEUE_CONCURRENT,

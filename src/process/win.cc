@@ -1,13 +1,14 @@
+import socket.process;
+
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
 #include <tlhelp32.h>
 
-#include "process.hh"
+namespace ssc {
+using namespace process;
 
-namespace SSC {
-
-const static SSC::StringStream initial;
+const static ssc::StringStream initial;
 
 Process::Data::Data() noexcept : id(0) {}
 
@@ -43,7 +44,7 @@ class Handle {
 std::mutex create_process_mutex;
 
 //Based on the example at https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx.
-Process::id_type Process::open(const SSC::String &command, const SSC::String &path) noexcept {
+Process::id_type Process::open(const ssc::String &command, const ssc::String &path) noexcept {
   if (open_stdin) {
     stdin_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
   }
@@ -140,7 +141,7 @@ Process::id_type Process::open(const SSC::String &command, const SSC::String &pa
   );
 
   if (!bSuccess) {
-    auto msg = SSC::String("Unable to execute: " + process_command);
+    auto msg = ssc::String("Unable to execute: " + process_command);
     MessageBoxA(nullptr, &msg[0], "Alert", MB_OK | MB_ICONSTOP);
     return 0;
   } else {
@@ -185,7 +186,7 @@ void Process::read() noexcept {
       DWORD n;
 
       std::unique_ptr<char[]> buffer(new char[config.buffer_size]);
-      SSC::StringStream ss;
+      ssc::StringStream ss;
 
       for (;;) {
         memset(buffer.get(), 0, config.buffer_size);
@@ -195,15 +196,15 @@ void Process::read() noexcept {
           break;
         }
 
-        auto b = SSC::String(buffer.get());
+        auto b = ssc::String(buffer.get());
         auto parts = splitc(b, '\n');
 
         if (parts.size() > 1) {
           for (int i = 0; i < parts.size() - 1; i++) {
             ss << parts[i];
-            SSC::String s(ss.str());
+            ssc::String s(ss.str());
             read_stdout(s);
-            ss.str(SSC::String());
+            ss.str(ssc::String());
             ss.clear();
             ss.copyfmt(initial);
           }
@@ -223,7 +224,7 @@ void Process::read() noexcept {
       for (;;) {
         BOOL bSuccess = ReadFile(*stderr_fd, static_cast<CHAR *>(buffer.get()), static_cast<DWORD>(config.buffer_size), &n, nullptr);
         if (!bSuccess || n == 0) break;
-        read_stderr(SSC::String(buffer.get()));
+        read_stderr(ssc::String(buffer.get()));
       }
     });
   }
@@ -266,7 +267,7 @@ bool Process::write(const char *bytes, size_t n) {
 
   std::lock_guard<std::mutex> lock(stdin_mutex);
   if (stdin_fd) {
-    SSC::String b(bytes);
+    ssc::String b(bytes);
 
     while (true && (b.size() > 0)) {
       DWORD bytesWritten;
@@ -341,4 +342,4 @@ void Process::kill(id_type id) noexcept {
   }
 }
 
-} // namespace SSC
+} // namespace ssc
