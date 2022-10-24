@@ -861,13 +861,7 @@ int main (const int argc, const char* argv[]) {
     }
 
     if (getEnv("CXX").size() == 0) {
-      log("warning! $CXX env var not set, assuming defaults");
-
-      if (platform.win) {
-        setEnv("CXX=clang++");
-      } else {
-        setEnv("CXX=/usr/bin/g++");
-      }
+      setEnv("CXX=clang++");
     }
 
     targetPlatform = targetPlatform.size() > 0 ? targetPlatform : platform.os;
