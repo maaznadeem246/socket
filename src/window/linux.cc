@@ -18,7 +18,7 @@ namespace SSC {
     this->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     this->popup = nullptr;
 
-    this->bridge = new IPC::Bridge(app.core);
+    this->bridge = new IPC::Bridge(app.runtime);
     this->bridge->router.dispatchFunction = [&app] (auto callback) {
       app.dispatch([callback] { callback(); });
     };

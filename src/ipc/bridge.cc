@@ -157,7 +157,7 @@ void initFunctionsTable (Router *router) {
 
     router->core->dns.lookup(
       message.seq,
-      Core::DNS::LookupOptions { message.get("hostname"), family },
+      Runtime::DNS::LookupOptions { message.get("hostname"), family },
       resultCallback(message, reply)
     );
   });
@@ -890,7 +890,7 @@ void initFunctionsTable (Router *router) {
    * @param reuseAddr Reuse underlying UDP socket address (default: false)
    */
   router->map("udp.bind", [=](auto message, auto router, auto reply) {
-    Core::UDP::BindOptions options;
+    Runtime::UDP::BindOptions options;
     auto err = validateMessageParameters(message, {"id", "port"});
 
     if (err.type != JSON::Type::Null) {
@@ -943,7 +943,7 @@ void initFunctionsTable (Router *router) {
       return reply(Result::Err { message, err });
     }
 
-    Core::UDP::ConnectOptions options;
+    Runtime::UDP::ConnectOptions options;
     uint64_t id;
     getMessageParam(id, "id", std::stoull);
     getMessageParam(options.port, "port", std::stoi);
@@ -1105,7 +1105,7 @@ void initFunctionsTable (Router *router) {
       return reply(Result::Err { message, err });
     }
 
-    Core::UDP::SendOptions options;
+    Runtime::UDP::SendOptions options;
     uint64_t id;
     getMessageParam(id, "id", std::stoull);
     getMessageParam(options.port, "port", std::stoi);
@@ -1319,7 +1319,7 @@ static void registerSchemeHandler (Router *router) {
 #endif
 
 namespace SSC::IPC {
-  Bridge::Bridge (Core *core) {
+  Bridge::Bridge (Runtime *runtime) {
     this->core = core;
     this->router.core = core;
     this->router.bridge = this;

@@ -1,7 +1,7 @@
 #ifndef SSC_IPC_H
 #define SSC_IPC_H
 
-#include "../core/core.hh"
+#include "../runtime/runtime.hh"
 
 namespace SSC::IPC {
   class Router;
@@ -138,7 +138,7 @@ namespace SSC::IPC {
       BufferMap buffers;
       Mutex mutex;
       Table table;
-      Core *core = nullptr;
+      Runtime *runtime = nullptr;
       Bridge *bridge = nullptr;
 #if defined(__APPLE__)
       SSCIPCNetworkStatusObserver* networkStatusObserver = nullptr;
@@ -182,9 +182,9 @@ namespace SSC::IPC {
     public:
       Router router;
       Bluetooth bluetooth;
-      Core *core = nullptr;
+      Runtime *runtime = nullptr;
 
-      Bridge (Core *core);
+      Bridge (Runtime *runtime);
       bool route (const String& msg, char *bytes, size_t size);
   };
 

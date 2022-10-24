@@ -1,4 +1,4 @@
-#include "../core/core.hh"
+#include "../runtime/runtime.hh"
 #include "../ipc/ipc.hh"
 #include "../window/window.hh"
 
@@ -24,7 +24,7 @@ static dispatch_queue_t queue = dispatch_queue_create(
   UIScrollViewDelegate
 > {
   SSC::IPC::Bridge* bridge;
-  Core* core;
+  Runtime* runtime;
 }
 @property (strong, nonatomic) UIWindow* window;
 @property (strong, nonatomic) SSCNavigationDelegate* navDelegate;
@@ -53,15 +53,15 @@ static dispatch_queue_t queue = dispatch_queue_create(
 
 - (void) applicationDidBecomeActive: (UIApplication*) application {
   dispatch_async(queue, ^{
-    self->core->resumeAllPeers();
-    self->core->runEventLoop();
+    self->runtime->resumeAllPeers();
+    self->runtime->runEventLoop();
   });
 }
 
 - (void) applicationWillResignActive: (UIApplication*) application {
   dispatch_async(queue, ^{
-    self->core->stopEventLoop();
-    self->core->pauseAllPeers();
+    self->runtime->stopEventLoop();
+    self->runtime->pauseAllPeers();
   });
 }
 
@@ -162,8 +162,8 @@ static dispatch_queue_t queue = dispatch_queue_create(
 
   platform.os = "ios";
 
-  core = new Core;
-  bridge = new IPC::Bridge(core);
+  runtime = new Runtime;
+  bridge = new IPC::Bridge(runtime);
   bridge->router.dispatchFunction = [=] (auto callback) {
     dispatch_async(queue, ^{ callback(); });
   };

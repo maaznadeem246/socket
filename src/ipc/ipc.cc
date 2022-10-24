@@ -1,4 +1,4 @@
-#include "../core/core.hh"
+#include "../runtime/runtime.hh"
 #include "ipc.hh"
 
 namespace SSC::IPC {

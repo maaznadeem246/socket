@@ -23,7 +23,7 @@ namespace SSC {
       bool shouldExit = false;
       bool fromSSC = false;
       Map appData;
-      Core *core;
+      Runtime *runtime;
 
 #ifdef _WIN32
       App (void *);

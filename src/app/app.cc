@@ -24,7 +24,7 @@ static dispatch_queue_t queue = dispatch_queue_create(
 
 namespace SSC {
   App::App () {
-    this->core = new Core();
+    this->runtime = new Runtime();
   }
 
   App::App (int) : App() {

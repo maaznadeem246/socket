@@ -402,7 +402,7 @@ namespace SSC {
   static bool isDelegateSet = false;
 
   Window::Window (App& app, WindowOptions opts) : app(app), opts(opts) {
-    this->bridge = new IPC::Bridge(app.core);
+    this->bridge = new IPC::Bridge(app.runtime);
 
     this->bridge->router.dispatchFunction = [this] (auto callback) {
       this->app.dispatch(callback);
