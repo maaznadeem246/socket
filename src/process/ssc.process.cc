@@ -3,10 +3,10 @@ module;
 #include "../common.hh"
 
 #include <cstring>
-
-#if defined(_WIN32)
 #include <iostream>
 #include <stdexcept>
+
+#if defined(_WIN32)
 #include <tlhelp32.h>
 #else
 #include <algorithm>
@@ -15,9 +15,7 @@ module;
 #include <fcntl.h>
 #include <poll.h>
 #include <set>
-#include <stdexcept>
 #include <unistd.h>
-#include <iostream>
 #include <sstream>
 #include <signal.h>
 #endif
@@ -236,8 +234,12 @@ export namespace ssc {
     this->path = path;
   }
 
-#if defined(_WIN32)
   ssc::StringStream initial;
+
+#if defined(_WIN32)
+  //
+  // Windows processes
+  //
 
   Process::Data::Data() noexcept : id(0) {}
 
@@ -568,7 +570,9 @@ export namespace ssc {
     }
   }
 #else
-  const ssc::StringStream initial;
+  //
+  // UNIX-LIKE processes
+  //
 
   Process::Data::Data() noexcept : id(-1) {}
 
