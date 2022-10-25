@@ -20,7 +20,10 @@ module;
   #include <signal.h>
 #endif
 
-export module ssc.process;
+import :interfaces;
+import :json;
+
+export module ssc.runtime:process;
 
 export namespace ssc {
   ssc::MessageCallback exitCallback;

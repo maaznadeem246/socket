@@ -2,7 +2,7 @@ module;
 
 #include "../window/options.hh"
 
-export module preload;
+export module ssc.runtime:preload;
 
 export namespace ssc {
   inline ssc::String createPreload (WindowOptions opts) {

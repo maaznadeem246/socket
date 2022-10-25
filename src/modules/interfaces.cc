@@ -1,9 +1,8 @@
-
 #include "../common.hh"
 
 import :json;
 
-export module ssc.runtime:index;
+export module ssc.runtime:interfaces;
 
 export namespace ssc {
   struct Post {
@@ -236,6 +235,28 @@ export namespace ssc {
             Module::Callback cb
           );
           void networkInterfaces (const String seq, Module::Callback cb) const;
+      };
+
+      class Platform : public Module {
+        public:
+          Platform (auto runtime) : Module(runtime) {}
+          void event (
+            const String seq,
+            const String event,
+            const String data,
+            Module::Callback cb
+          );
+          void notify (
+            const String seq,
+            const String title,
+            const String body,
+            Module::Callback cb
+          );
+          void openExternal (
+            const String seq,
+            const String value,
+            Module::Callback cb
+          );
       };
 
       DNS dns;

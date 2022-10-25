@@ -2,7 +2,10 @@ module;
 
 #include "../platform.hh"
 
-export module ssc.udp;
+import :interfaces;
+import :json;
+
+export module ssc.runtime:udp;
 
 export namespace ssc {
   static JSON::Object::Entries ERR_SOCKET_ALREADY_BOUND (

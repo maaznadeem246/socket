@@ -2,6 +2,9 @@ module;
 
 #include "../platform.hh"
 
+import :interfaces;
+import :json;
+
 export module ssc.runtime:peer;
 
 export namespace ssc {

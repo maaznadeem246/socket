@@ -2,9 +2,12 @@ module;
 
 #include "../platform.hh"
 
-export module ssc.core:os;
+import :interfaces;
+import :json;
+
+export module ssc.runtime:os;
 export namespace ssc {
-  void Core::OS::networkInterfaces (
+  void Runtime::OS::networkInterfaces (
     const String seq,
     Module::Callback cb
   ) const {
@@ -77,7 +80,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Core::OS::bufferSize (
+  void Runtime::OS::bufferSize (
     const String seq,
     uint64_t peerId,
     size_t size,
@@ -85,13 +88,13 @@ export namespace ssc {
     Module::Callback cb
   ) {
     if (buffer < 0) {
-      buffer = Core::OS::SEND_BUFFER;
+      buffer = Runtime::OS::SEND_BUFFER;
     } else if (buffer > 1) {
-      buffer = Core::OS::RECV_BUFFER;
+      buffer = Runtime::OS::RECV_BUFFER;
     }
 
-    this->core->dispatchEventLoop([=, this]() {
-      auto peer = this->core->getPeer(peerId);
+    this->runtime->dispatchEventLoop([=, this]() {
+      auto peer = this->runtime->getPeer(peerId);
 
       if (peer == nullptr) {
         auto json = JSON::Object::Entries {

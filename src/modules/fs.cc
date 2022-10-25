@@ -1,5 +1,6 @@
 module;
 
+import :interfaces;
 import :json;
 
 export module ssc.runtime:fs;

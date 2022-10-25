@@ -2,6 +2,8 @@ module;
 
 #include "../platform.hh"
 
+import :interfaces;
+
 export module ssc.core:timers;
 
 export namespace ssc {

@@ -2,6 +2,7 @@ module;
 
 #include "../platform.hh"
 
+import :interfaces;
 export module ssc.runtime:loop;
 
 export namespace ssc {
@@ -11,18 +12,18 @@ export namespace ssc {
     struct UVSource {
       GSource base; // should ALWAYS be first member
       gpointer tag;
-      Core *core;
+      Runtime *runtime;
     };
 
     // @see https://api.gtkd.org/glib.c.types.GSourceFuncs.html
     static GSourceFuncs loopSourceFunctions = {
       .prepare = [](GSource *source, gint *timeout) -> gboolean {
-        auto core = reinterpret_cast<UVSource *>(source)->core;
-        if (!core->isLoopAlive() || !core->isLoopRunning) {
+        auto runtime = reinterpret_cast<UVSource *>(source)->runtime;
+        if (!runtime->isLoopAlive() || !runtime->isLoopRunning) {
           return false;
         }
 
-        *timeout = core->getEventLoopTimeout();
+        *timeout = runtime->getEventLoopTimeout();
         return 0 == *timeout;
       },
 
@@ -31,16 +32,16 @@ export namespace ssc {
         GSourceFunc callback,
         gpointer user_data
       ) -> gboolean {
-        auto core = reinterpret_cast<UVSource *>(source)->core;
-        Lock lock(core->loopMutex);
-        auto loop = core->getEventLoop();
+        auto runtime = reinterpret_cast<UVSource *>(source)->runtime;
+        Lock lock(runtime->loopMutex);
+        auto loop = runtime->getEventLoop();
         uv_run(loop, UV_RUN_NOWAIT);
         return G_SOURCE_CONTINUE;
       }
     };
   #endif
 
-  void Core::initEventLoop () {
+  void Runtime::initEventLoop () {
     if (didLoopInit) {
       return;
     }
@@ -50,20 +51,20 @@ export namespace ssc {
     uv_loop_init(&eventLoop);
     eventLoopAsync.data = (void *) this;
     uv_async_init(&eventLoop, &eventLoopAsync, [](uv_async_t *handle) {
-      auto core = reinterpret_cast<ssc::Core  *>(handle->data);
+      auto runtime = reinterpret_cast<ssc::Runtime  *>(handle->data);
       while (true) {
-        Lock lock(core->loopMutex);
-        if (core->eventLoopDispatchQueue.size() == 0) break;
-        auto dispatch = core->eventLoopDispatchQueue.front();
+        Lock lock(runtime->loopMutex);
+        if (runtime->eventLoopDispatchQueue.size() == 0) break;
+        auto dispatch = runtime->eventLoopDispatchQueue.front();
         if (dispatch != nullptr) dispatch();
-        core->eventLoopDispatchQueue.pop();
+        runtime->eventLoopDispatchQueue.pop();
       }
     });
 
 #if defined(__linux__) && !defined(__ANDROID__)
     GSource *source = g_source_new(&loopSourceFunctions, sizeof(UVSource));
     UVSource *uvSource = (UVSource *) source;
-    uvSource->core = this;
+    uvSource->runtime = this;
     uvSource->tag = g_source_add_unix_fd(
       source,
       uv_backend_fd(&eventLoop),
@@ -74,22 +75,22 @@ export namespace ssc {
 #endif
   }
 
-  uv_loop_t* Core::getEventLoop () {
+  uv_loop_t* Runtime::getEventLoop () {
     initEventLoop();
     return &eventLoop;
   }
 
-  int Core::getEventLoopTimeout () {
+  int Runtime::getEventLoopTimeout () {
     auto loop = getEventLoop();
     uv_update_time(loop);
     return uv_backend_timeout(loop);
   }
 
-  bool Core::isLoopAlive () {
+  bool Runtime::isLoopAlive () {
     return uv_loop_alive(getEventLoop());
   }
 
-  void Core::stopEventLoop() {
+  void Runtime::stopEventLoop() {
     isLoopRunning = false;
     uv_stop(&eventLoop);
 #if defined(__APPLE__)
@@ -107,7 +108,7 @@ export namespace ssc {
 #endif
   }
 
-  void Core::sleepEventLoop (int64_t ms) {
+  void Runtime::sleepEventLoop (int64_t ms) {
     if (ms > 0) {
       auto timeout = getEventLoopTimeout();
       ms = timeout > ms ? timeout : ms;
@@ -115,37 +116,37 @@ export namespace ssc {
     }
   }
 
-  void Core::sleepEventLoop () {
+  void Runtime::sleepEventLoop () {
     sleepEventLoop(getEventLoopTimeout());
   }
 
-  void Core::signalDispatchEventLoop () {
+  void Runtime::signalDispatchEventLoop () {
     initEventLoop();
     runEventLoop();
     uv_async_send(&eventLoopAsync);
   }
 
-  void Core::dispatchEventLoop (EventLoopDispatchCallback callback) {
+  void Runtime::dispatchEventLoop (EventLoopDispatchCallback callback) {
     Lock lock(loopMutex);
     eventLoopDispatchQueue.push(callback);
     signalDispatchEventLoop();
   }
 
-  void pollEventLoop (Core *core) {
-    auto loop = core->getEventLoop();
+  void pollEventLoop (Runtime *runtime) {
+    auto loop = runtime->getEventLoop();
 
-    while (core->isLoopRunning) {
-      core->sleepEventLoop(EVENT_LOOP_POLL_TIMEOUT);
+    while (runtime->isLoopRunning) {
+      runtime->sleepEventLoop(EVENT_LOOP_POLL_TIMEOUT);
 
       do {
         uv_run(loop, UV_RUN_DEFAULT);
-      } while (core->isLoopRunning && core->isLoopAlive());
+      } while (runtime->isLoopRunning && runtime->isLoopAlive());
     }
 
-    core->isLoopRunning = false;
+    runtime->isLoopRunning = false;
   }
 
-  void Core::runEventLoop () {
+  void Runtime::runEventLoop () {
     if (isLoopRunning) {
       return;
     }

@@ -2,9 +2,9 @@ module;
 
 #include "../platform.hh"
 
-import ssc.json;
+import :json;
 
-export module ssc.javascript;
+export module ssc.runtime:javascript;
 
 export namespace ssc {
   String createJavaScript (const String& name, const String& source) {
