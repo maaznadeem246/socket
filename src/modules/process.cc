@@ -243,8 +243,10 @@ export namespace ssc {
   }
 
   ssc::StringStream initial;
+}
 
 #if defined(_WIN32)
+export namespace ssc {
   //
   // Windows processes
   //
@@ -577,11 +579,14 @@ export namespace ssc {
       TerminateProcess(process_handle, 2);
     }
   }
-#else
-  //
-  // UNIX-LIKE processes
-  //
+}
+#endif
 
+//
+// UNIX-Like processes
+//
+#if !defined(_WIN32)
+export namespace ssc {
   Process::Data::Data() noexcept : id(-1) {}
 
   Process::Process(
@@ -908,5 +913,5 @@ export namespace ssc {
       }
     }
   }
-#endif
 }
+#endif

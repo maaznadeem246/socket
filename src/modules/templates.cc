@@ -427,7 +427,7 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 		17DA350E28ECA38D00ED23A7 /* udp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17DA34E528ECA38C00ED23A7 /* udp.cc */; };
 		17DA350F28ECA38D00ED23A7 /* peer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17DA34E628ECA38C00ED23A7 /* peer.cc */; };
 		17DA351128ECA38D00ED23A7 /* fs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17DA34E928ECA38C00ED23A7 /* fs.cc */; };
-		17DA351328ECA38D00ED23A7 /* core.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17DA34EC28ECA38C00ED23A7 /* core.cc */; };
+		17DA351328ECA38D00ED23A7 /* runtime.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17DA34EC28ECA38C00ED23A7 /* runtime.cc */; };
 		17DA351428ECA38D00ED23A7 /* ios.mm in Sources */ = {isa = PBXBuildFile; fileRef = 17DA34EF28ECA38C00ED23A7 /* ios.mm */; };
 		17E73FD828FCC90A0087604F /* json.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17E73FD528FCC90A0087604F /* json.cc */; };
 		17E73FD928FCC90A0087604F /* bluetooth.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17E73FD728FCC90A0087604F /* bluetooth.cc */; };
@@ -452,8 +452,8 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 		17DA34E528ECA38C00ED23A7 /* udp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = udp.cc; sourceTree = "<group>"; };
 		17DA34E628ECA38C00ED23A7 /* peer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = peer.cc; sourceTree = "<group>"; };
 		17DA34E928ECA38C00ED23A7 /* fs.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = fs.cc; sourceTree = "<group>"; };
-		17DA34EC28ECA38C00ED23A7 /* core.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = core.cc; sourceTree = "<group>"; };
-		17DA34ED28ECA38C00ED23A7 /* core.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = core.hh; sourceTree = "<group>"; };
+		17DA34EC28ECA38C00ED23A7 /* runtime.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = runtime.cc; sourceTree = "<group>"; };
+		17DA34ED28ECA38C00ED23A7 /* runtime.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = runtime.hh; sourceTree = "<group>"; };
 		17DA34EF28ECA38C00ED23A7 /* ios.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ios.mm; sourceTree = "<group>"; };
 		17DA34F828ECA38C00ED23A7 /* app.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = app.hh; sourceTree = "<group>"; };
 		17DA34FA28ECA38C00ED23A7 /* options.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = options.hh; sourceTree = "<group>"; };
@@ -498,11 +498,11 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		17DA34DF28ECA38C00ED23A7 /* core */ = {
+		17DA34DF28ECA38C00ED23A7 /* runtime */ = {
 			isa = PBXGroup;
 			children = (
-				17DA34EC28ECA38C00ED23A7 /* core.cc */,
-				17DA34ED28ECA38C00ED23A7 /* core.hh */,
+				17DA34EC28ECA38C00ED23A7 /* runtime.cc */,
+				17DA34ED28ECA38C00ED23A7 /* runtime.hh */,
 				17E73FD728FCC90A0087604F /* bluetooth.cc */,
 				17DA34E928ECA38C00ED23A7 /* fs.cc */,
 				17DA34E128ECA38C00ED23A7 /* javascript.cc */,
@@ -512,7 +512,7 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 				17DA34E328ECA38C00ED23A7 /* runtime-preload.hh */,
 				17DA34E528ECA38C00ED23A7 /* udp.cc */,
 			);
-			path = core;
+			path = runtime;
 			sourceTree = "<group>";
 		};
 		17DA34EE28ECA38C00ED23A7 /* mobile */ = {
@@ -571,7 +571,7 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			children = (
 				17E73FDA28FCC9320087604F /* common.hh */,
 				17DA34F728ECA38C00ED23A7 /* app */,
-				17DA34DF28ECA38C00ED23A7 /* core */,
+				17DA34DF28ECA38C00ED23A7 /* runtime */,
 				17DA34FB28ECA38C00ED23A7 /* include */,
 				17E73FE628FCC9C80087604F /* ipc */,
 				17DA34EE28ECA38C00ED23A7 /* mobile */,
@@ -686,7 +686,7 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 				17DA351128ECA38D00ED23A7 /* fs.cc in Sources */,
 				17DA351428ECA38D00ED23A7 /* ios.mm in Sources */,
 				17E73FDD28FCC98A0087604F /* apple.mm in Sources */,
-				17DA351328ECA38D00ED23A7 /* core.cc in Sources */,
+				17DA351328ECA38D00ED23A7 /* runtime.cc in Sources */,
 				17DA350E28ECA38D00ED23A7 /* udp.cc in Sources */,
 				17E73FD828FCC90A0087604F /* json.cc in Sources */,
 			);
@@ -1244,16 +1244,16 @@ LOCAL_CFLAGS += \
 LOCAL_CFLAGS += {{cflags}}
 
 LOCAL_LDLIBS := -landroid -llog
-LOCAL_SRC_FILES =    \
-  core/android.cc    \
-  core/core.cc       \
-  core/fs.cc         \
-  core/javascript.cc \
-  core/json.cc       \
-  core/peer.cc       \
-  core/udp.cc        \
-  ipc/bridge.cc      \
-  ipc/ipc.cc         \
+LOCAL_SRC_FILES =       \
+  runtime/android.cc    \
+  runtime/runtime.cc    \
+  runtime/fs.cc         \
+  runtime/javascript.cc \
+  runtime/json.cc       \
+  runtime/peer.cc       \
+  runtime/udp.cc        \
+  ipc/bridge.cc         \
+  ipc/ipc.cc            \
   mobile/android.cc
 
 LOCAL_SRC_FILES += $(wildcard $(LOCAL_PATH)/ext/*.cc)
