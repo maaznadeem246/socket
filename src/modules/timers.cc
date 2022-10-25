@@ -1,9 +1,19 @@
 module;
 
-#include "core.hh"
+#include "../platform.hh"
 
 export module ssc.core:timers;
+
 export namespace ssc {
+  struct Timer {
+    uv_timer_t handle;
+    bool repeated = false;
+    bool started = false;
+    uint64_t timeout = 0;
+    uint64_t interval = 0;
+    uv_timer_cb invoke;
+  };
+
   Timer releaseWeakDescriptors = {
     .timeout = 256, // in milliseconds
     .invoke = [](uv_timer_t *handle) {
@@ -109,4 +119,4 @@ export namespace ssc {
 
     didTimersStart = false;
   }
-};
+}

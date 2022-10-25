@@ -1,6 +1,6 @@
 module;
 
-#include "core.hh"
+#include "../platform.hh"
 
 export module ssc.core:os;
 export namespace ssc {
@@ -140,4 +140,4 @@ export namespace ssc {
       cb(seq, json, Post{});
     });
   }
-};
+}

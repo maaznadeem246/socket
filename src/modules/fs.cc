@@ -1,6 +1,10 @@
-#include "core.hh"
+module;
 
-namespace ssc {
+import :json;
+
+export module ssc.runtime:fs;
+
+export namespace ssc {
   #define SET_CONSTANT(c) constants[#c] = (c);
   static std::map<String, int32_t> getFSConstantsMap () {
     std::map<String, int32_t> constants;

@@ -1,6 +1,10 @@
-#include "runtime.hh"
+module;
 
-namespace SSC {
+#include "../platform.hh"
+
+export module ssc.udp;
+
+export namespace ssc {
   static JSON::Object::Entries ERR_SOCKET_ALREADY_BOUND (
     const String& source,
     uint64_t id
@@ -90,6 +94,56 @@ namespace SSC {
       }}
     };
   }
+
+  class UDP : public Module {
+    public:
+      UDP (auto core) : Module(core) {}
+
+      struct BindOptions {
+        String address;
+        int port;
+        bool reuseAddr = false;
+      };
+
+      struct ConnectOptions {
+        String address;
+        int port;
+      };
+
+      struct SendOptions {
+        String address = "";
+        int port = 0;
+        char *bytes = nullptr;
+        size_t size = 0;
+        bool ephemeral = false;
+      };
+
+      void bind (
+        const String seq,
+        uint64_t id,
+        BindOptions options,
+        Module::Callback cb
+      );
+      void close (const String seq, uint64_t id, Module::Callback cb);
+      void connect (
+        const String seq,
+        uint64_t id,
+        ConnectOptions options,
+        Module::Callback cb
+      );
+      void disconnect (const String seq, uint64_t id, Module::Callback cb);
+      void getPeerName (const String seq, uint64_t id, Module::Callback cb);
+      void getSockName (const String seq, uint64_t id, Module::Callback cb);
+      void getState (const String seq, uint64_t id,  Module::Callback cb);
+      void readStart (const String seq, uint64_t id, Module::Callback cb);
+      void readStop (const String seq, uint64_t id, Module::Callback cb);
+      void send (
+        const String seq,
+        uint64_t id,
+        SendOptions options,
+        Module::Callback cb
+      );
+  };
 
   void Runtime::UDP::bind (
     const String seq,

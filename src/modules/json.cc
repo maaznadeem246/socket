@@ -2,7 +2,7 @@ module;
 
 #include "../common.hh"
 
-export module ssc.json;
+export module ssc.runtime:json;
 
 export namespace ssc::JSON {
   enum class Type {

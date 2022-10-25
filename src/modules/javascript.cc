@@ -1,19 +1,17 @@
-#include "runtime.hh"
-#include "json.hh"
+module;
 
-namespace SSC {
+#include "../platform.hh"
+
+import ssc.json;
+
+export module ssc.javascript;
+
+export namespace ssc {
   String createJavaScript (const String& name, const String& source) {
     return String(
       ";(() => {\n" + trim(source) + "\n})();\n"
       "//# sourceURL=" + name + "\n"
     );
-  }
-
-  String getEmitToRenderProcessJavaScript (
-    const String& event,
-    const String& value
-  ) {
-    return getEmitToRenderProcessJavaScript(event, value, "window", JSON::Object {});
   }
 
   String getEmitToRenderProcessJavaScript (
@@ -45,6 +43,13 @@ namespace SSC {
       "target.dispatchEvent(event);                                        \n"
     "}                                                                     \n"
     );
+  }
+
+  String getEmitToRenderProcessJavaScript (
+    const String& event,
+    const String& value
+  ) {
+    return getEmitToRenderProcessJavaScript(event, value, "window", JSON::Object {});
   }
 
   String getResolveMenuSelectionJavaScript (

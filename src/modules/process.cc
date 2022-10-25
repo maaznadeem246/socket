@@ -7,21 +7,17 @@ module;
 #include <stdexcept>
 
 #if defined(_WIN32)
-
-#include <tlhelp32.h>
-
+  #include <tlhelp32.h>
 #else
-
-#include <algorithm>
-#include <bitset>
-#include <cstdlib>
-#include <fcntl.h>
-#include <poll.h>
-#include <set>
-#include <unistd.h>
-#include <sstream>
-#include <signal.h>
-
+  #include <algorithm>
+  #include <bitset>
+  #include <cstdlib>
+  #include <fcntl.h>
+  #include <poll.h>
+  #include <set>
+  #include <unistd.h>
+  #include <sstream>
+  #include <signal.h>
 #endif
 
 export module ssc.process;

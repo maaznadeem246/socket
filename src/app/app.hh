@@ -1,7 +1,7 @@
 #ifndef SSC_APP_APP_H
 #define SSC_APP_APP_H
 
-#include "../core/core.hh"
+#include "../platform.hh"
 #include "../ipc/ipc.hh"
 
 namespace SSC {

@@ -1,27 +1,22 @@
-<<<<<<<< Updated upstream:src/runtime/runtime.cc
-#include "runtime.hh"
-========
 module;
->>>>>>>> Stashed changes:src/core.cc
 
-#include "core/core.hh"
+#include "../platform.hh"
 
-export module ssc.core;
-//export import :bluetooth;
-//export import :headers;
-//export import :javascript;
-//export import :fs;
-//export import :json;
-//export import :peer;
-//export import :runtime-preload;
-//export import :udp;
+import ssc.runtime:index;
 
-<<<<<<<< Updated upstream:src/runtime/runtime.cc
+export module ssc.runtime;
+
+export import :bluetooth;
+export import :headers;
+export import :javascript;
+export import :fs;
+export import :json;
+export import :peer;
+export import :runtime-preload;
+export import :udp;
+
+export namespace ssc {
   Post Runtime::getPost (uint64_t id) {
-========
-namespace ssc {
-  Post Core::getPost (uint64_t id) {
->>>>>>>> Stashed changes:src/core.cc
     Lock lock(postsMutex);
     if (posts->find(id) == posts->end()) return Post{};
     return posts->at(id);
@@ -141,7 +136,6 @@ namespace ssc {
     }
   }
 
-<<<<<<<< Updated upstream:src/runtime/runtime.cc
   void Runtime::OS::networkInterfaces (
     const String seq,
     Module::Callback cb
@@ -280,9 +274,6 @@ namespace ssc {
   }
 
   void Runtime::Platform::event (
-========
-  void Core::Platform::event (
->>>>>>>> Stashed changes:src/core.cc
     const String seq,
     const String event,
     const String data,
@@ -556,283 +547,4 @@ namespace ssc {
       }
     });
   }
-<<<<<<<< Updated upstream:src/runtime/runtime.cc
-
-#if defined(__linux__) && !defined(__ANDROID__)
-  struct UVSource {
-    GSource base; // should ALWAYS be first member
-    gpointer tag;
-    Runtime *runtime;
-  };
-
-    // @see https://api.gtkd.org/glib.c.types.GSourceFuncs.html
-  static GSourceFuncs loopSourceFunctions = {
-    .prepare = [](GSource *source, gint *timeout) -> gboolean {
-      auto core = reinterpret_cast<UVSource *>(source)->runtime;
-      if (!runtime->isLoopAlive() || !core->isLoopRunning) {
-        return false;
-      }
-
-      *timeout = runtime->getEventLoopTimeout();
-      return 0 == *timeout;
-    },
-
-    .dispatch = [](
-      GSource *source,
-      GSourceFunc callback,
-      gpointer user_data
-    ) -> gboolean {
-      auto core = reinterpret_cast<UVSource *>(source)->runtime;
-      Lock lock(runtime->loopMutex);
-      auto loop = runtime->getEventLoop();
-      uv_run(loop, UV_RUN_NOWAIT);
-      return G_SOURCE_CONTINUE;
-    }
-  };
-#endif
-
-  void Runtime::initEventLoop () {
-    if (didLoopInit) {
-      return;
-    }
-
-    didLoopInit = true;
-    Lock lock(loopMutex);
-    uv_loop_init(&eventLoop);
-    eventLoopAsync.data = (void *) this;
-    uv_async_init(&eventLoop, &eventLoopAsync, [](uv_async_t *handle) {
-      auto core = reinterpret_cast<SSC::Runtime*>(handle->data);
-      while (true) {
-        Lock lock(runtime->loopMutex);
-        if (runtime->eventLoopDispatchQueue.size() == 0) break;
-        auto dispatch = runtime->eventLoopDispatchQueue.front();
-        if (dispatch != nullptr) dispatch();
-        runtime->eventLoopDispatchQueue.pop();
-      }
-    });
-
-#if defined(__linux__) && !defined(__ANDROID__)
-    GSource *source = g_source_new(&loopSourceFunctions, sizeof(UVSource));
-    UVSource *uvSource = (UVSource *) source;
-    uvSource->runtime = this;
-    uvSource->tag = g_source_add_unix_fd(
-      source,
-      uv_backend_fd(&eventLoop),
-      (GIOCondition) (G_IO_IN | G_IO_OUT | G_IO_ERR)
-    );
-
-    g_source_attach(source, nullptr);
-#endif
-  }
-
-  uv_loop_t* Runtime::getEventLoop () {
-    initEventLoop();
-    return &eventLoop;
-  }
-
-  int Runtime::getEventLoopTimeout () {
-    auto loop = getEventLoop();
-    uv_update_time(loop);
-    return uv_backend_timeout(loop);
-  }
-
-  bool Runtime::isLoopAlive () {
-    return uv_loop_alive(getEventLoop());
-  }
-
-  void Runtime::stopEventLoop() {
-    isLoopRunning = false;
-    uv_stop(&eventLoop);
-#if defined(__APPLE__)
-    // noop
-#elif defined(__ANDROID__) || !defined(__linux__)
-    Lock lock(loopMutex);
-    if (eventLoopThread != nullptr) {
-      if (eventLoopThread->joinable()) {
-        eventLoopThread->join();
-      }
-
-      delete eventLoopThread;
-      eventLoopThread = nullptr;
-    }
-#endif
-  }
-
-  void Runtime::sleepEventLoop (int64_t ms) {
-    if (ms > 0) {
-      auto timeout = getEventLoopTimeout();
-      ms = timeout > ms ? timeout : ms;
-      std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-    }
-  }
-
-  void Runtime::sleepEventLoop () {
-    sleepEventLoop(getEventLoopTimeout());
-  }
-
-  void Runtime::signalDispatchEventLoop () {
-    initEventLoop();
-    runEventLoop();
-    uv_async_send(&eventLoopAsync);
-  }
-
-  void Runtime::dispatchEventLoop (EventLoopDispatchCallback callback) {
-    Lock lock(loopMutex);
-    eventLoopDispatchQueue.push(callback);
-    signalDispatchEventLoop();
-  }
-
-  void pollEventLoop (Runtime *runtime) {
-    auto loop = runtime->getEventLoop();
-
-    while (runtime->isLoopRunning) {
-      runtime->sleepEventLoop(EVENT_LOOP_POLL_TIMEOUT);
-
-      do {
-        uv_run(loop, UV_RUN_DEFAULT);
-      } while (runtime->isLoopRunning && core->isLoopAlive());
-    }
-
-    runtime->isLoopRunning = false;
-  }
-
-  void Runtime::runEventLoop () {
-    if (isLoopRunning) {
-      return;
-    }
-
-    isLoopRunning = true;
-
-    initEventLoop();
-    dispatchEventLoop([=, this]() {
-      initTimers();
-      startTimers();
-    });
-
-#if defined(__APPLE__)
-    Lock lock(loopMutex);
-    dispatch_async(eventLoopQueue, ^{ pollEventLoop(this); });
-#elif defined(__ANDROID__) || !defined(__linux__)
-    Lock lock(loopMutex);
-    // clean up old thread if still running
-    if (eventLoopThread != nullptr) {
-      if (eventLoopThread->joinable()) {
-        eventLoopThread->join();
-      }
-
-      delete eventLoopThread;
-      eventLoopThread = nullptr;
-    }
-
-    eventLoopThread = new std::thread(&pollEventLoop, this);
-#endif
-  }
-
-  static Timer releaseWeakDescriptors = {
-    .timeout = 256, // in milliseconds
-    .invoke = [](uv_timer_t *handle) {
-      auto core = reinterpret_cast<Runtime*>(handle->data);
-      Vector<uint64_t> ids;
-      String msg = "";
-
-      Lock lock(runtime->fs.mutex);
-      for (auto const &tuple : runtime->fs.descriptors) {
-        ids.push_back(tuple.first);
-      }
-
-      for (auto const id : ids) {
-        Lock lock(runtime->fs.mutex);
-        auto desc = runtime->fs.descriptors.at(id);
-
-        if (desc == nullptr) {
-          runtime->fs.descriptors.erase(id);
-          continue;
-        }
-
-        if (desc->isRetained() || !desc->isStale()) {
-          continue;
-        }
-
-        if (desc->isDirectory()) {
-          runtime->fs.closedir("", id, [](auto seq, auto msg, auto post) {});
-        } else if (desc->isFile()) {
-          runtime->fs.close("", id, [](auto seq, auto msg, auto post) {});
-        } else {
-          // free
-          runtime->fs.descriptors.erase(id);
-          delete desc;
-        }
-      }
-    }
-  };
-
-  void Runtime::initTimers () {
-    if (didTimersInit) {
-      return;
-    }
-
-    Lock lock(timersMutex);
-
-    auto loop = getEventLoop();
-
-    std::vector<Timer *> timersToInit = {
-      &releaseWeakDescriptors
-    };
-
-    for (const auto& timer : timersToInit) {
-      uv_timer_init(loop, &timer->handle);
-      timer->handle.data = (void *) this;
-    }
-
-    didTimersInit = true;
-  }
-
-  void Runtime::startTimers () {
-    Lock lock(timersMutex);
-
-    std::vector<Timer *> timersToStart = {
-      &releaseWeakDescriptors
-    };
-
-    for (const auto &timer : timersToStart) {
-      if (timer->started) {
-        uv_timer_again(&timer->handle);
-      } else {
-        timer->started = 0 == uv_timer_start(
-          &timer->handle,
-          timer->invoke,
-          timer->timeout,
-          !timer->repeated
-            ? 0
-            : timer->interval > 0
-              ? timer->interval
-              : timer->timeout
-        );
-      }
-    }
-
-    didTimersStart = false;
-  }
-
-  void Runtime::stopTimers () {
-    if (didTimersStart == false) {
-      return;
-    }
-
-    Lock lock(timersMutex);
-
-    std::vector<Timer *> timersToStop = {
-      &releaseWeakDescriptors
-    };
-
-    for (const auto& timer : timersToStop) {
-      if (timer->started) {
-        uv_timer_stop(&timer->handle);
-      }
-    }
-
-    didTimersStart = false;
-  }
-========
->>>>>>>> Stashed changes:src/core.cc
 }

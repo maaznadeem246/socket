@@ -1,9 +1,25 @@
-#include "runtime.hh"
-#include "../ipc/ipc.hh"
+#include "../platform.hh"
 
 using namespace ssc;
 
 #if defined(__APPLE__)
+@interface SSCBluetoothController : NSObject<
+  CBCentralManagerDelegate,
+  CBPeripheralManagerDelegate,
+  CBPeripheralDelegate
+>
+@property (strong, nonatomic) CBCentralManager* centralManager;
+@property (strong, nonatomic) CBPeripheralManager* peripheralManager;
+@property (strong, nonatomic) CBPeripheral* bluetoothPeripheral;
+@property (strong, nonatomic) NSMutableArray* peripherals;
+@property (strong, nonatomic) NSMutableDictionary* services;
+@property (strong, nonatomic) NSMutableDictionary* characteristics;
+@property (strong, nonatomic) NSMutableDictionary* serviceMap;
+- (void) startAdvertising;
+- (void) startScanning;
+- (id) init;
+@end
+
 @interface SSCBluetoothController ()
 @property (nonatomic) Bluetooth* bluetooth;
 @end
@@ -424,6 +440,43 @@ using namespace ssc;
 #endif
 
 namespace SSC {
+  class Bluetooth {
+    public:
+      using SendFunction = std::function<void(const String, JSON::Any, Post)>;
+      using EmitFunction = std::function<void(const String, JSON::Any)>;
+
+      Runtime *runtime = nullptr;
+      #if defined(__APPLE__)
+      SSCBluetoothController* controller= nullptr;
+      #endif
+
+      SendFunction sendFunction;
+      EmitFunction emitFunction;
+
+      Bluetooth ();
+      ~Bluetooth ();
+      bool send (const String& seq, JSON::Any json, Post post);
+      bool send (const String& seq, JSON::Any json);
+      bool emit (const String& seq, JSON::Any json);
+      void startScanning ();
+      void publishCharacteristic (
+        const String& seq,
+        char* bytes,
+        size_t size,
+        const String& serviceId,
+        const String& characteristicId
+      );
+      void subscribeCharacteristic (
+        const String& seq,
+        const String& serviceId,
+        const String& characteristicId
+      );
+      void startService (
+        const String& seq,
+        const String& serviceId
+      );
+  };
+
   Bluetooth::Bluetooth () {
     #if defined(__APPLE__)
     this->controller = [SSCBluetoothController new];

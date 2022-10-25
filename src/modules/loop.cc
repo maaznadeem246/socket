@@ -1,42 +1,44 @@
 module;
 
-#include "core.hh"
+#include "../platform.hh"
 
-export module ssc.core:loop;
+export module ssc.runtime:loop;
 
 export namespace ssc {
-#if defined(__linux__) && !defined(__ANDROID__)
-  struct UVSource {
-    GSource base; // should ALWAYS be first member
-    gpointer tag;
-    Core *core;
-  };
+  constexpr int EVENT_LOOP_POLL_TIMEOUT = 32; // in milliseconds
+
+  #if defined(__linux__) && !defined(__ANDROID__)
+    struct UVSource {
+      GSource base; // should ALWAYS be first member
+      gpointer tag;
+      Core *core;
+    };
 
     // @see https://api.gtkd.org/glib.c.types.GSourceFuncs.html
-  static GSourceFuncs loopSourceFunctions = {
-    .prepare = [](GSource *source, gint *timeout) -> gboolean {
-      auto core = reinterpret_cast<UVSource *>(source)->core;
-      if (!core->isLoopAlive() || !core->isLoopRunning) {
-        return false;
+    static GSourceFuncs loopSourceFunctions = {
+      .prepare = [](GSource *source, gint *timeout) -> gboolean {
+        auto core = reinterpret_cast<UVSource *>(source)->core;
+        if (!core->isLoopAlive() || !core->isLoopRunning) {
+          return false;
+        }
+
+        *timeout = core->getEventLoopTimeout();
+        return 0 == *timeout;
+      },
+
+      .dispatch = [](
+        GSource *source,
+        GSourceFunc callback,
+        gpointer user_data
+      ) -> gboolean {
+        auto core = reinterpret_cast<UVSource *>(source)->core;
+        Lock lock(core->loopMutex);
+        auto loop = core->getEventLoop();
+        uv_run(loop, UV_RUN_NOWAIT);
+        return G_SOURCE_CONTINUE;
       }
-
-      *timeout = core->getEventLoopTimeout();
-      return 0 == *timeout;
-    },
-
-    .dispatch = [](
-      GSource *source,
-      GSourceFunc callback,
-      gpointer user_data
-    ) -> gboolean {
-      auto core = reinterpret_cast<UVSource *>(source)->core;
-      Lock lock(core->loopMutex);
-      auto loop = core->getEventLoop();
-      uv_run(loop, UV_RUN_NOWAIT);
-      return G_SOURCE_CONTINUE;
-    }
-  };
-#endif
+    };
+  #endif
 
   void Core::initEventLoop () {
     if (didLoopInit) {
@@ -174,4 +176,4 @@ export namespace ssc {
     eventLoopThread = new std::thread(&pollEventLoop, this);
 #endif
   }
-};
+}
