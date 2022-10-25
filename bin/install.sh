@@ -95,7 +95,7 @@ function _build_cli {
 
 function _precompile {
   echo "# precompiling modules"
-  local modules=($(find src -name "ssc.*"))
+  local modules=($(find src/modules))
 
   for module in "${modules[@]}"; do
     local outfile=$(basename "$module")

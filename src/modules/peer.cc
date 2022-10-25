@@ -1,7 +1,9 @@
+module;
+
 #include "runtime.hh"
 
-namespace SSC {
-  void Core::resumeAllPeers () {
+namespace ssc {
+  void Runtime::resumeAllPeers () {
     dispatchEventLoop([=, this]() {
       Lock lock(this->peersMutex);
       for (auto const &tuple : this->peers) {
@@ -13,7 +15,7 @@ namespace SSC {
     });
   }
 
-  void Core::pauseAllPeers () {
+  void Runtime::pauseAllPeers () {
     dispatchEventLoop([=, this]() {
       Lock lock(this->peersMutex);
       for (auto const &tuple : this->peers) {
@@ -25,16 +27,16 @@ namespace SSC {
     });
   }
 
-  bool Core::hasPeer (uint64_t peerId) {
+  bool Runtime::hasPeer (uint64_t peerId) {
     Lock lock(this->peersMutex);
     return this->peers.find(peerId) != this->peers.end();
   }
 
-  void Core::removePeer (uint64_t peerId) {
+  void Runtime::removePeer (uint64_t peerId) {
     return this->removePeer(peerId, false);
   }
 
-  void Core::removePeer (uint64_t peerId, bool autoClose) {
+  void Runtime::removePeer (uint64_t peerId, bool autoClose) {
     if (this->hasPeer(peerId)) {
       if (autoClose) {
         auto peer = this->getPeer(peerId);
@@ -48,17 +50,17 @@ namespace SSC {
     }
   }
 
-  Peer* Core::getPeer (uint64_t peerId) {
+  Peer* Runtime::getPeer (uint64_t peerId) {
     if (!this->hasPeer(peerId)) return nullptr;
     Lock lock(this->peersMutex);
     return this->peers.at(peerId);
   }
 
-  Peer* Core::createPeer (peer_type_t peerType, uint64_t peerId) {
+  Peer* Runtime::createPeer (peer_type_t peerType, uint64_t peerId) {
     return this->createPeer(peerType, peerId, false);
   }
 
-  Peer* Core::createPeer (
+  Peer* Runtime::createPeer (
     peer_type_t peerType,
     uint64_t peerId,
     bool isEphemeral

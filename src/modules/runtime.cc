@@ -1,51 +1,27 @@
+<<<<<<<< Updated upstream:src/runtime/runtime.cc
 #include "runtime.hh"
+========
+module;
+>>>>>>>> Stashed changes:src/core.cc
 
-namespace SSC {
-  Headers::Header::Header (const Header& header) {
-    this->key = header.key;
-    this->value = header.value;
-  }
+#include "core/core.hh"
 
-  Headers::Header::Header (const String& key, const Value& value) {
-    this->key = key;
-    this->value = value;
-  }
+export module ssc.core;
+//export import :bluetooth;
+//export import :headers;
+//export import :javascript;
+//export import :fs;
+//export import :json;
+//export import :peer;
+//export import :runtime-preload;
+//export import :udp;
 
-  Headers::Headers (const Headers& headers) {
-    this->entries = headers.entries;
-  }
-
-  Headers::Headers (const Vector<std::map<String, Value>>& entries) {
-    for (const auto& entry : entries) {
-      for (const auto& pair : entry) {
-        this->entries.push_back(Header { pair.first, pair.second });
-      }
-    }
-  }
-
-  Headers::Headers (const Entries& entries) {
-    for (const auto& entry : entries) {
-      this->entries.push_back(entry);
-    }
-  }
-
-  size_t Headers::size () const {
-    return this->entries.size();
-  }
-
-  String Headers::str () const {
-    StringStream headers;
-    auto count = this->size();
-    for (const auto& entry : this->entries) {
-      headers << entry.key << ": " << entry.value.str();;
-      if (--count > 0) {
-        headers << "\n";
-      }
-    }
-    return headers.str();
-  }
-
+<<<<<<<< Updated upstream:src/runtime/runtime.cc
   Post Runtime::getPost (uint64_t id) {
+========
+namespace ssc {
+  Post Core::getPost (uint64_t id) {
+>>>>>>>> Stashed changes:src/core.cc
     Lock lock(postsMutex);
     if (posts->find(id) == posts->end()) return Post{};
     return posts->at(id);
@@ -165,6 +141,7 @@ namespace SSC {
     }
   }
 
+<<<<<<<< Updated upstream:src/runtime/runtime.cc
   void Runtime::OS::networkInterfaces (
     const String seq,
     Module::Callback cb
@@ -303,6 +280,9 @@ namespace SSC {
   }
 
   void Runtime::Platform::event (
+========
+  void Core::Platform::event (
+>>>>>>>> Stashed changes:src/core.cc
     const String seq,
     const String event,
     const String data,
@@ -576,6 +556,7 @@ namespace SSC {
       }
     });
   }
+<<<<<<<< Updated upstream:src/runtime/runtime.cc
 
 #if defined(__linux__) && !defined(__ANDROID__)
   struct UVSource {
@@ -852,4 +833,6 @@ namespace SSC {
 
     didTimersStart = false;
   }
+========
+>>>>>>>> Stashed changes:src/core.cc
 }

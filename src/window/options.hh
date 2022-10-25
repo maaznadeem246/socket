@@ -3,7 +3,7 @@
 
 #include "../common.hh"
 
-namespace SSC {
+namespace ssc {
   struct WindowOptions {
     bool resizable = true;
     bool frameless = false;

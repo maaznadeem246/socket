@@ -8,20 +8,7 @@
 
 #include <uv.h>
 
-#if defined(__APPLE__)
-#import <Webkit/Webkit.h>
-#import <Network/Network.h>
-#import <Foundation/Foundation.h>
-#import <CoreBluetooth/CoreBluetooth.h>
-#import <UserNotifications/UserNotifications.h>
-#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
-
-#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-#import <UIKit/UIKit.h>
-#else
-#import <Cocoa/Cocoa.h>
-#endif
-#elif defined(__linux__) && !defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
 #include <JavaScriptCore/JavaScript.h>
 #include <webkit2/webkit2.h>
 #include <gtk/gtk.h>
@@ -62,7 +49,7 @@
 @end
 #endif
 
-namespace SSC {
+namespace ssc {
   constexpr int EVENT_LOOP_POLL_TIMEOUT = 32; // in milliseconds
 
   // forward
@@ -409,7 +396,7 @@ namespace SSC {
             RequestContext (String seq, Callback cb)
               : RequestContext(nullptr, seq, cb) {}
             RequestContext (Descriptor *desc, String seq, Callback cb) {
-              this->id = SSC::rand64();
+              this->id = ssc::rand64();
               this->cb = cb;
               this->seq = seq;
               this->desc = desc;

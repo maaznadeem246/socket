@@ -2,13 +2,16 @@
 #define RUNTIME_PRELOAD_HH
 
 #include "../window/options.hh"
+#include "../common.hh"
 
-namespace SSC {
-  inline SSC::String createPreload (WindowOptions opts) {
-    SSC::String cleanCwd = SSC::String(opts.cwd);
+static ssc::Platform platform;
+
+namespace ssc {
+  inline ssc::String createPreload (WindowOptions opts) {
+    ssc::String cleanCwd = ssc::String(opts.cwd);
     std::replace(cleanCwd.begin(), cleanCwd.end(), '\\', '/');
 
-    auto preload = SSC::String(
+    auto preload = ssc::String(
       "\n;(() => {                                                    \n"
       "window.__args = {                                              \n"
       "  arch: '" + platform.arch + "',                               \n"
@@ -77,7 +80,7 @@ namespace SSC {
     preload += "  Object.seal(Object.freeze(window.__args.config));\n";
 
     // deprecate usage of 'window.system' in favor of 'window.__args'
-    preload += SSC::String(
+    preload += ssc::String(
       "  Object.defineProperty(window, 'system', {         \n"
       "    configurable: false,                            \n"
       "    enumerable: false,                              \n"

@@ -1,9 +1,9 @@
-#include "ipc.hh"
+module;
 
 #define IPC_CONTENT_TYPE "application/octet-stream"
 
-using namespace SSC;
-using namespace SSC::IPC;
+using namespace ssc;
+using namespace ssc::ipc;
 
 Platform platform;
 
