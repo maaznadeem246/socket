@@ -100,14 +100,14 @@ function _precompile {
   for module in "${modules[@]}"; do
     local outfile=$(basename "$module")
 
-    "$CXX" -std=c++2a                              \
-      -x c++-module                                \
-      --precompile "$module"                       \
-      -o "$ASSETS_DIR/modules/${outfile/.cc/.pcm}"
+    "$CXX" -std=c++2a                                  \
+      -x c++-module                                    \
+      --precompile "$module"                           \
+      -o "$ASSETS_DIR/modules/ssc.${outfile/.cc/.pcm}"
 
-    "$CXX" -std=c++2a                              \
-      -c "$ASSETS_DIR/modules/${outfile/.cc/.pcm}" \
-      -o "$ASSETS_DIR/build/${outfile/.cc/.o}"
+    "$CXX" -std=c++2a                                  \
+      -c "$ASSETS_DIR/modules/ssc.${outfile/.cc/.pcm}" \
+      -o "$ASSETS_DIR/build/ssc.${outfile/.cc/.o}"
   done
 
   echo "# building a static library"

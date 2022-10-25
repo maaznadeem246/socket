@@ -1,7 +1,7 @@
 #include "runtime.hh"
 #include "../ipc/ipc.hh"
 
-using namespace SSC;
+using namespace ssc;
 
 #if defined(__APPLE__)
 @interface SSCBluetoothController ()
