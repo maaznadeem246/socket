@@ -3,11 +3,28 @@ module;
 #include "../platform.hh"
 
 import :interfaces;
+import :module;
 import :json;
 
 export module ssc.runtime:os;
 export namespace ssc {
-  void Runtime::OS::networkInterfaces (
+  class OS : public Module {
+    public:
+      static const int RECV_BUFFER = 1;
+      static const int SEND_BUFFER = 0;
+
+      OS (auto runtime) : Module(runtime) {}
+      void bufferSize (
+        const String seq,
+        uint64_t peerId,
+        size_t size,
+        int buffer,
+        Module::Callback cb
+      );
+      void networkInterfaces (const String seq, Module::Callback cb) const;
+  };
+
+  void OS::networkInterfaces (
     const String seq,
     Module::Callback cb
   ) const {
@@ -80,7 +97,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Runtime::OS::bufferSize (
+  void OS::bufferSize (
     const String seq,
     uint64_t peerId,
     size_t size,
@@ -88,9 +105,9 @@ export namespace ssc {
     Module::Callback cb
   ) {
     if (buffer < 0) {
-      buffer = Runtime::OS::SEND_BUFFER;
+      buffer = OS::SEND_BUFFER;
     } else if (buffer > 1) {
-      buffer = Runtime::OS::RECV_BUFFER;
+      buffer = OS::RECV_BUFFER;
     }
 
     this->runtime->dispatchEventLoop([=, this]() {

@@ -8,7 +8,29 @@ import :json;
 export module ssc.runtime:platform;
 
 export namespace ssc {
-  void Runtime::Platform::event (
+  class Platform : public Module {
+    public:
+      Platform (auto runtime) : Module(runtime) {}
+      void event (
+        const String seq,
+        const String event,
+        const String data,
+        Module::Callback cb
+      );
+      void notify (
+        const String seq,
+        const String title,
+        const String body,
+        Module::Callback cb
+      );
+      void openExternal (
+        const String seq,
+        const String value,
+        Module::Callback cb
+      );
+  };
+
+  void Platform::event (
     const String seq,
     const String event,
     const String data,
@@ -39,7 +61,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::Platform::notify (
+  void Platform::notify (
     const String seq,
     const String title,
     const String body,
@@ -132,7 +154,7 @@ export namespace ssc {
 #endif
   }
 
-  void Runtime::Platform::openExternal (
+  void Platform::openExternal (
     const String seq,
     const String value,
     Module::Callback cb

@@ -148,7 +148,7 @@ export namespace ssc {
       );
   };
 
-  void Runtime::UDP::bind (
+  void UDP::bind (
     const String seq,
     uint64_t peerId,
     UDP::BindOptions options,
@@ -206,7 +206,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::UDP::connect (
+  void UDP::connect (
     const String seq,
     uint64_t peerId,
     UDP::ConnectOptions options,
@@ -262,7 +262,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::UDP::disconnect (
+  void UDP::disconnect (
     const String seq,
     uint64_t peerId,
     Module::Callback cb
@@ -299,7 +299,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::UDP::getPeerName (String seq, uint64_t peerId, Module::Callback cb) {
+  void UDP::getPeerName (String seq, uint64_t peerId, Module::Callback cb) {
     if (!this->runtime->hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_CONNECTED("udp.getPeerName", peerId);
       return cb(seq, json, Post{});
@@ -333,7 +333,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Runtime::UDP::getSockName (String seq, uint64_t peerId, Callback cb) {
+  void UDP::getSockName (String seq, uint64_t peerId, Callback cb) {
     if (!this->runtime->hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.getSockName", peerId);
       return cb(seq, json, Post{});
@@ -367,7 +367,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Runtime::UDP::getState (
+  void UDP::getState (
     const String seq,
     uint64_t peerId,
     Module::Callback cb
@@ -401,7 +401,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Runtime::UDP::send (
+  void UDP::send (
     String seq,
     uint64_t peerId,
     UDP::SendOptions options,
@@ -439,7 +439,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::UDP::readStart (String seq, uint64_t peerId, Module::Callback cb) {
+  void UDP::readStart (String seq, uint64_t peerId, Module::Callback cb) {
     if (!this->runtime->hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.readStart", peerId);
       return cb(seq, json, Post{});
@@ -549,7 +549,7 @@ export namespace ssc {
     cb(seq, json, Post {});
   }
 
-  void Runtime::UDP::readStop (
+  void UDP::readStop (
     const String seq,
     uint64_t peerId,
     Module::Callback cb
@@ -609,7 +609,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::UDP::close (
+  void UDP::close (
     const String seq,
     uint64_t peerId,
     Module::Callback cb

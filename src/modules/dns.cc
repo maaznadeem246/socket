@@ -2,18 +2,37 @@ module;
 
 #include "../platform.hh"
 
+export module ssc.runtime:dns;
+
 import :interfaces;
+import :module;
 import :json;
 
-export module ssc.runtime:dns;
 export namespace ssc {
-  void Runtime::DNS::lookup (
+  class DNS : public Module {
+    public:
+      DNS (auto runtime) : Module(runtime) {}
+      struct LookupOptions {
+        String hostname;
+        int family;
+        // TODO: support these options
+        // - hints
+        // - all
+        // -verbatim
+      };
+      void lookup (
+        const String seq,
+        LookupOptions options,
+        Module::Callback cb
+      );
+  };
+  void DNS::lookup (
     const String seq,
     LookupOptions options,
-    Runtime::Module::Callback cb
+    Module::Callback cb
   ) {
     this->runtime->dispatchEventLoop([=, this]() {
-      auto ctx = new Runtime::Module::RequestContext(seq, cb);
+      auto ctx = new Module::RequestContext(seq, cb);
       auto loop = this->runtime->getEventLoop();
 
       struct addrinfo hints = {0};
@@ -33,7 +52,7 @@ export namespace ssc {
       resolver->data = ctx;
 
       auto err = uv_getaddrinfo(loop, resolver, [](uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
-        auto ctx = (Runtime::DNS::RequestContext*) resolver->data;
+        auto ctx = (DNS::RequestContext*) resolver->data;
 
         if (status < 0) {
           auto result = JSON::Object::Entries {

@@ -6,8 +6,173 @@ import :json;
 export module ssc.runtime:fs;
 
 export namespace ssc {
+  class FS : public Module {
+    public:
+      FS (auto runtime) : Module(runtime) {}
+
+      struct Descriptor {
+        uint64_t id;
+        std::atomic<bool> retained = false;
+        std::atomic<bool> stale = false;
+        Mutex mutex;
+        uv_dir_t *dir = nullptr;
+        uv_file fd = 0;
+        Runtime *runtime;
+
+        Descriptor (Runtime *runtime, uint64_t id);
+        bool isDirectory ();
+        bool isFile ();
+        bool isRetained ();
+        bool isStale ();
+      };
+
+      struct RequestContext : Module::RequestContext {
+        uint64_t id;
+        Descriptor *desc = nullptr;
+        uv_fs_t req;
+        uv_buf_t iov[16];
+        // 256 which corresponds to DirectoryHandle.MAX_BUFFER_SIZE
+        uv_dirent_t dirents[256];
+        int offset = 0;
+        int result = 0;
+
+        RequestContext () = default;
+        RequestContext (Descriptor *desc)
+          : RequestContext(desc, "", nullptr) {}
+        RequestContext (String seq, Callback cb)
+          : RequestContext(nullptr, seq, cb) {}
+        RequestContext (Descriptor *desc, String seq, Callback cb) {
+          this->id = ssc::rand64();
+          this->cb = cb;
+          this->seq = seq;
+          this->desc = desc;
+          this->req.data = (void *) this;
+        }
+
+        ~RequestContext () {
+          uv_fs_req_cleanup(&this->req);
+        }
+
+        void setBuffer (int index, size_t len, char *base);
+        void freeBuffer (int index);
+        char* getBuffer (int index);
+        size_t getBufferSize (int index);
+      };
+
+      std::map<uint64_t, Descriptor*> descriptors;
+       Mutex mutex;
+
+      Descriptor * getDescriptor (uint64_t id);
+      void removeDescriptor (uint64_t id);
+      bool hasDescriptor (uint64_t id);
+
+      void constants (const String seq, Module::Callback cb);
+      void access (
+        const String seq,
+        const String path,
+        int mode,
+        Module::Callback cb
+      );
+      void chmod (
+        const String seq,
+        const String path,
+        int mode,
+        Module::Callback cb
+      );
+      void close (const String seq, uint64_t id, Module::Callback cb);
+      void copyFile (
+        const String seq,
+        const String src,
+        const String dst,
+        int mode,
+        Module::Callback cb
+      );
+      void closedir (const String seq, uint64_t id, Module::Callback cb);
+      void closeOpenDescriptor (
+        const String seq,
+        uint64_t id,
+        Module::Callback cb
+      );
+      void closeOpenDescriptors (const String seq, Module::Callback cb);
+      void closeOpenDescriptors (
+        const String seq,
+        bool preserveRetained,
+        Module::Callback cb
+      );
+      void fstat (const String seq, uint64_t id, Module::Callback cb);
+      void getOpenDescriptors (const String seq, Module::Callback cb);
+      void lstat (const String seq, const String path, Module::Callback cb);
+      void mkdir (
+        const String seq,
+        const String path,
+        int mode,
+        Module::Callback cb
+      );
+      void open (
+        const String seq,
+        uint64_t id,
+        const String path,
+        int flags,
+        int mode,
+        Module::Callback cb
+      );
+      void opendir (
+        const String seq,
+        uint64_t id,
+        const String path,
+        Module::Callback cb
+      );
+      void read (
+        const String seq,
+        uint64_t id,
+        size_t len,
+        size_t offset,
+        Module::Callback cb
+      );
+      void readdir (
+        const String seq,
+        uint64_t id,
+        size_t entries,
+        Module::Callback cb
+      );
+      void retainOpenDescriptor (
+        const String seq,
+        uint64_t id,
+        Module::Callback cb
+      );
+      void rename (
+        const String seq,
+        const String src,
+        const String dst,
+        Module::Callback cb
+      );
+      void rmdir (
+        const String seq,
+        const String path,
+        Module::Callback cb
+      );
+      void stat (
+        const String seq,
+        const String path,
+        Module::Callback cb
+      );
+      void unlink (
+        const String seq,
+        const String path,
+        Module::Callback cb
+      );
+      void write (
+        const String seq,
+        uint64_t id,
+        char *bytes,
+        size_t size,
+        size_t offset,
+        Module::Callback cb
+      );
+  };
+
   #define SET_CONSTANT(c) constants[#c] = (c);
-  static std::map<String, int32_t> getFSConstantsMap () {
+  std::map<String, int32_t> getFSConstantsMap () {
     std::map<String, int32_t> constants;
 
     #if defined(UV_DIRENT_UNKNOWN)
@@ -210,12 +375,12 @@ export namespace ssc {
     };
   }
 
-  void Runtime::FS::RequestContext::setBuffer (int index, size_t len, char *base) {
+  void FS::RequestContext::setBuffer (int index, size_t len, char *base) {
     this->iov[index].base = base;
     this->iov[index].len = len;
   }
 
-  void Runtime::FS::RequestContext::freeBuffer (int index) {
+  void FS::RequestContext::freeBuffer (int index) {
     if (this->iov[index].base != nullptr) {
       delete [] (char *) this->iov[index].base;
       this->iov[index].base = nullptr;
@@ -224,40 +389,40 @@ export namespace ssc {
     this->iov[index].len = 0;
   }
 
-  char* Runtime::FS::RequestContext::getBuffer (int index) {
+  char* FS::RequestContext::getBuffer (int index) {
     return this->iov[index].base;
   }
 
-  size_t Runtime::FS::RequestContext::getBufferSize (int index) {
+  size_t FS::RequestContext::getBufferSize (int index) {
     return this->iov[index].len;
   }
 
-  Runtime::FS::Descriptor::Descriptor (Runtime *runtime, uint64_t id) {
+  FS::Descriptor::Descriptor (Runtime *runtime, uint64_t id) {
     this->runtime = runtime;
     this->id = id;
   }
 
-  bool Runtime::FS::Descriptor::isDirectory () {
+  bool FS::Descriptor::isDirectory () {
     Lock lock(this->mutex);
     return this->dir != nullptr;
   }
 
-  bool Runtime::FS::Descriptor::isFile () {
+  bool FS::Descriptor::isFile () {
     Lock lock(this->mutex);
     return this->fd > 0 && this->dir == nullptr;
   }
 
-  bool Runtime::FS::Descriptor::isRetained () {
+  bool FS::Descriptor::isRetained () {
     Lock lock(this->mutex);
     return this->retained;
   }
 
-  bool Runtime::FS::Descriptor::isStale () {
+  bool FS::Descriptor::isStale () {
     Lock lock(this->mutex);
     return this->stale;
   }
 
-  Runtime::FS::Descriptor * Runtime::FS::getDescriptor (uint64_t id) {
+  FS::Descriptor * FS::getDescriptor (uint64_t id) {
     Lock lock(this->mutex);
     if (descriptors.find(id) != descriptors.end()) {
       return descriptors.at(id);
@@ -265,19 +430,19 @@ export namespace ssc {
     return nullptr;
   }
 
-  void Runtime::FS::removeDescriptor (uint64_t id) {
+  void FS::removeDescriptor (uint64_t id) {
     Lock lock(this->mutex);
     if (descriptors.find(id) != descriptors.end()) {
       descriptors.erase(id);
     }
   }
 
-  bool Runtime::FS::hasDescriptor (uint64_t id) {
+  bool FS::hasDescriptor (uint64_t id) {
     Lock lock(this->mutex);
     return descriptors.find(id) != descriptors.end();
   }
 
-  void Runtime::FS::retainOpenDescriptor (
+  void FS::retainOpenDescriptor (
     const String seq,
     uint64_t id,
     Module::Callback cb
@@ -310,7 +475,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Runtime::FS::access (
+  void FS::access (
     const String seq,
     const String path,
     int mode,
@@ -361,7 +526,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::chmod (
+  void FS::chmod (
     const String seq,
     const String path,
     int mode,
@@ -412,7 +577,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::close (
+  void FS::close (
     const String seq,
     uint64_t id,
     Module::Callback cb
@@ -484,7 +649,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::open (
+  void FS::open (
     const String seq,
     uint64_t id,
     const String path,
@@ -550,7 +715,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::opendir (
+  void FS::opendir (
     const String seq,
     uint64_t id,
     const String path,
@@ -613,7 +778,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::readdir (
+  void FS::readdir (
     const String seq,
     uint64_t id,
     size_t nentries,
@@ -709,7 +874,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::closedir (
+  void FS::closedir (
     const String seq,
     uint64_t id,
     Module::Callback cb
@@ -794,7 +959,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::closeOpenDescriptor (
+  void FS::closeOpenDescriptor (
     const String seq,
     uint64_t id,
     Module::Callback cb
@@ -822,11 +987,11 @@ export namespace ssc {
     }
   }
 
-  void Runtime::FS::closeOpenDescriptors (const String seq, Module::Callback cb) {
+  void FS::closeOpenDescriptors (const String seq, Module::Callback cb) {
     return this->closeOpenDescriptors(seq, false, cb);
   }
 
-  void Runtime::FS::closeOpenDescriptors (
+  void FS::closeOpenDescriptors (
     const String seq,
     bool preserveRetained,
     Module::Callback cb
@@ -877,7 +1042,7 @@ export namespace ssc {
     }
   }
 
-  void Runtime::FS::read (
+  void FS::read (
     const String seq,
     uint64_t id,
     size_t size,
@@ -962,7 +1127,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::write (
+  void FS::write (
     const String seq,
     uint64_t id,
     char *bytes,
@@ -1036,7 +1201,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::stat (
+  void FS::stat (
     const String seq,
     const String path,
     Module::Callback cb
@@ -1081,7 +1246,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::fstat (
+  void FS::fstat (
     const String seq,
     uint64_t id,
     Module::Callback cb
@@ -1144,7 +1309,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::getOpenDescriptors (
+  void FS::getOpenDescriptors (
     const String seq,
     Module::Callback cb
   ) {
@@ -1175,7 +1340,7 @@ export namespace ssc {
     cb(seq, json, Post{});
   }
 
-  void Runtime::FS::lstat (
+  void FS::lstat (
     const String seq,
     const String path,
     Module::Callback cb
@@ -1220,7 +1385,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::unlink (
+  void FS::unlink (
     const String seq,
     const String path,
     Module::Callback cb
@@ -1270,7 +1435,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::rename (
+  void FS::rename (
     const String seq,
     const String pathA,
     const String pathB,
@@ -1322,7 +1487,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::copyFile (
+  void FS::copyFile (
     const String seq,
     const String pathA,
     const String pathB,
@@ -1375,7 +1540,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::rmdir (
+  void FS::rmdir (
     const String seq,
     const String path,
     Module::Callback cb
@@ -1425,7 +1590,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::mkdir (
+  void FS::mkdir (
     const String seq,
     const String path,
     int mode,
@@ -1476,7 +1641,7 @@ export namespace ssc {
     });
   }
 
-  void Runtime::FS::constants (const String seq, Module::Callback cb) {
+  void FS::constants (const String seq, Module::Callback cb) {
     static auto constants = getFSConstantsMap();
 
     this->runtime->dispatchEventLoop([=] {
