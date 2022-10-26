@@ -41,7 +41,6 @@ export namespace ssc {
       "                                                                    \n"
       "const event = new window.CustomEvent(name, { detail, ...options }); \n"
       "target.dispatchEvent(event);                                        \n"
-    "}                                                                     \n"
     );
   }
 
