@@ -162,6 +162,17 @@ namespace ssc {
   using MessageCallback = std::function<void(const String)>;
   using Thread = std::thread;
 
+  struct Post {
+    uint64_t id = 0;
+    uint64_t ttl = 0;
+    char* body = nullptr;
+    size_t length = 0;
+    String headers = "";
+    bool bodyNeedsFree = false;
+  };
+
+  using Posts = std::map<uint64_t, Post>;
+
   inline const auto VERSION_FULL_STRING = ToString(STR_VALUE(SSC_VERSION) " (" STR_VALUE(SSC_VERSION_HASH) ")");
   inline const auto VERSION_HASH_STRING = ToString(STR_VALUE(SSC_VERSION_HASH));
   inline const auto VERSION_STRING = ToString(STR_VALUE(SSC_VERSION));

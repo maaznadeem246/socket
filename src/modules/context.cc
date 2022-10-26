@@ -1,28 +1,25 @@
-module;
-
-#include "../common.hh"
-
+export module ssc.runtime:context;
 import :interfaces;
 import :json;
 
-export module ssc.runtime:module;
+#include "../common.hh"
 
 export namespace ssc {
-  class Module {
+  class Context {
     public:
       using Callback = std::function<void(String, JSON::Any, Post)>;
       struct RequestContext {
         String seq;
-        Module::Callback cb;
+        Context::Callback cb;
         RequestContext () = default;
-        RequestContext (String seq, Module::Callback cb) {
+        RequestContext (String seq, Context::Callback cb) {
           this->seq = seq;
           this->cb = cb;
         }
       };
 
       Runtime *runtime = nullptr;
-      Module (Runtime* runtime) {
+      Context (Runtime* runtime) {
         this->runtime = runtime;
       }
   };
