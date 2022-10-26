@@ -1,5 +1,5 @@
-#ifndef SSC_CORE_COMMON_H
-#define SSC_CORE_COMMON_H
+#ifndef SSC_COMMON_H
+#define SSC_COMMON_H
 
 #include <errno.h>
 #include <math.h>
@@ -766,4 +766,4 @@ namespace ssc {
   }
 }
 
-#endif // SSC_H
+#endif // SSC_COMMON_H

@@ -1,4 +1,8 @@
+module;
+
 #include "../platform.hh"
+
+export module ssc.bluetooth;
 
 using namespace ssc;
 
@@ -439,7 +443,7 @@ using namespace ssc;
 @end
 #endif
 
-namespace SSC {
+export namespace ssc {
   class Bluetooth {
     public:
       using SendFunction = std::function<void(const String, JSON::Any, Post)>;
