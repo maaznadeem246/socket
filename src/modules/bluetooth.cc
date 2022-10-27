@@ -1,8 +1,20 @@
+/**
+ * Global module fragment
+ */
 module;
 
 #include "../platform.hh"
 
+/**
+ * `ssc.bluetooth` module
+ */
 export module ssc.bluetooth;
+import :json;
+
+// formard
+namespace ssc {
+  export class Bluetooth;
+}
 
 using namespace ssc;
 
@@ -449,9 +461,8 @@ export namespace ssc {
       using SendFunction = std::function<void(const String, JSON::Any, Post)>;
       using EmitFunction = std::function<void(const String, JSON::Any)>;
 
-      Runtime *runtime = nullptr;
       #if defined(__APPLE__)
-      SSCBluetoothController* controller= nullptr;
+      SSCBluetoothController* controller = nullptr;
       #endif
 
       SendFunction sendFunction;

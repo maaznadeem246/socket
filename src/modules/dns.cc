@@ -1,8 +1,14 @@
-export module ssc.runtime:dns;
+/**
+ * Global module fragment
+ */
 
+module;
 #include "../platform.hh"
 
-import :interfaces;
+/**
+ * `ssc.runtime:dns` module fragment.
+ */
+export module ssc.runtime:dns;
 import :runtime;
 import :context;
 import :json;

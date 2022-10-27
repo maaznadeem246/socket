@@ -1,8 +1,16 @@
-export module ssc.runtime:context;
-import :interfaces;
-import :json;
+/**
+ * Global module fragment.
+ */
+module;
 
 #include "../common.hh"
+
+/**
+ * `ssc.runtime:context` module fragment.
+ */
+export module ssc.runtime:context;
+import :runtime;
+import :json;
 
 export namespace ssc {
   class Context {
@@ -10,9 +18,9 @@ export namespace ssc {
       using Callback = std::function<void(String, JSON::Any, Post)>;
       struct RequestContext {
         String seq;
-        Context::Callback cb;
+        Callback cb;
         RequestContext () = default;
-        RequestContext (String seq, Context::Callback cb) {
+        RequestContext (String seq, Callback cb) {
           this->seq = seq;
           this->cb = cb;
         }
