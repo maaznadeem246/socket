@@ -8,10 +8,10 @@ module;
 /**
  * `ssc.runtime:dns` module fragment.
  */
-export module ssc.runtime:dns;
-import :runtime;
-import :context;
-import :json;
+export module dns;
+import runtime;
+import context;
+import json;
 
 export namespace ssc {
   class DNS : public Context {

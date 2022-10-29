@@ -1,32 +1,33 @@
 module;
 
 #include "../platform.hh"
+#include <uv.h>
 
-import :interfaces;
-import :module;
-import :json;
+export module os;
+import context;
+import runtime;
+import json;
 
-export module ssc.runtime:os;
 export namespace ssc {
-  class OS : public Module {
+  class OS : public Context {
     public:
       static const int RECV_BUFFER = 1;
       static const int SEND_BUFFER = 0;
 
-      OS (auto runtime) : Module(runtime) {}
+      OS (auto runtime) : Context(runtime) {}
       void bufferSize (
         const String seq,
         uint64_t peerId,
         size_t size,
         int buffer,
-        Module::Callback cb
+        Context::Callback cb
       );
-      void networkInterfaces (const String seq, Module::Callback cb) const;
+      void networkInterfaces (const String seq, Context::Callback cb) const;
   };
 
   void OS::networkInterfaces (
     const String seq,
-    Module::Callback cb
+    Context::Callback cb
   ) const {
     uv_interface_address_t *infos = nullptr;
     StringStream value;
@@ -102,7 +103,7 @@ export namespace ssc {
     uint64_t peerId,
     size_t size,
     int buffer,
-    Module::Callback cb
+    Context::Callback cb
   ) {
     if (buffer < 0) {
       buffer = OS::SEND_BUFFER;

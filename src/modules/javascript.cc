@@ -1,10 +1,11 @@
+/**
+ * Global module fragment.
+ */
 module;
+#include "../common.hh"
 
-#include "../platform.hh"
-
-import :json;
-
-export module ssc.runtime:javascript;
+export module javascript;
+import json;
 
 export namespace ssc {
   String createJavaScript (const String& name, const String& source) {

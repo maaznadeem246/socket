@@ -8,8 +8,8 @@ module;
 /**
  * `ssc.bluetooth` module
  */
-export module ssc.bluetooth;
-import :json;
+export module bluetooth;
+import json;
 
 // formard
 namespace ssc {

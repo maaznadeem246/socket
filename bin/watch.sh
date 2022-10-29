@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+declare entr="$(which entr)"
+
+if [ -z "$entr" ]; then
+  echo >&2 "error: Please install \`entr(1)' to use this script"
+  echo >&2 " info: See https://github.com/eradman/entr for more information"
+  exit 1
+fi
+
+mkdir -p "$root/build/modules"
+cd "$root/build/modules"
+find "$root"/src/modules/*.cc | entr -c "$root/bin/build-module.sh" /_

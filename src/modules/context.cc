@@ -8,11 +8,11 @@ module;
 /**
  * `ssc.runtime:context` module fragment.
  */
-export module ssc.runtime:context;
-import :runtime;
-import :json;
+export module context;
+import json;
 
-export namespace ssc {
+export namespace ssc::context {
+  class Runtime;
   class Context {
     public:
       using Callback = std::function<void(String, JSON::Any, Post)>;

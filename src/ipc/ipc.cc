@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
 #include "../runtime/runtime.hh"
 #include "ipc.hh"
-=======
-module;
->>>>>>> Stashed changes
 
 #include "../core/core.hh"
 

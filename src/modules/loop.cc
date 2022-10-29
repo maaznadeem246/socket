@@ -2,7 +2,6 @@ module;
 
 #include "../platform.hh"
 
-import :interfaces;
 export module ssc.runtime:loop;
 
 export namespace ssc {

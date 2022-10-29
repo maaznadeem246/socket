@@ -1,16 +1,22 @@
-export module ssc.runtime;
-import "../platform.hh"
+/**
+ * Global module fragment.
+ */
+module;
 
-export namespace ssc {
+#include "../platform.hh"
+
+/**
+ * Module exports.
+ */
+export module runtime;
+import javascript;
+
+export namespace ssc::runtime {
   using EventLoopDispatchCallback = std::function<void()>;
 
+  class Peer;
   class Runtime {
     public:
-      DNS dns;
-      FS fs;
-      OS os;
-      Platform platform;
-      UDP udp;
 
       std::shared_ptr<Posts> posts;
       std::map<uint64_t, Peer*> peers;
@@ -45,25 +51,10 @@ export namespace ssc {
       std::thread *eventLoopThread = nullptr;
 #endif
 
-      Runtime () :
-        dns(this),
-        fs(this),
-        os(this),
-        platform(this),
-        udp(this)
-      {
+      Runtime () {
         this->posts = std::shared_ptr<Posts>(new Posts());
         initEventLoop();
       }
-
-      void resumeAllPeers ();
-      void pauseAllPeers ();
-      bool hasPeer (uint64_t id);
-      void removePeer (uint64_t id);
-      void removePeer (uint64_t id, bool autoClose);
-      Peer* getPeer (uint64_t id);
-      Peer* createPeer (peer_type_t type, uint64_t id);
-      Peer* createPeer (peer_type_t type, uint64_t id, bool isEphemeral);
 
       Post getPost (uint64_t id);
       bool hasPost (uint64_t id);
@@ -72,11 +63,6 @@ export namespace ssc {
       void expirePosts ();
       void putPost (uint64_t id, Post p);
       String createPost (String seq, String params, Post post);
-
-      // timers
-      void initTimers ();
-      void startTimers ();
-      void stopTimers ();
 
       // loop
       uv_loop_t* getEventLoop ();

@@ -143,7 +143,6 @@
 #define ToString(string) String(string)
 
 namespace ssc {
-  namespace fs = std::filesystem;
 
   using String = std::string;
   using StringStream = std::stringstream;
@@ -545,7 +544,7 @@ namespace ssc {
   }
 
   #if !TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
-    inline String readFile (fs::path path) {
+    inline String readFile (std::filesystem::path path) {
       std::ifstream stream(path.c_str());
       String content;
       auto buffer = std::istreambuf_iterator<char>(stream);
@@ -555,13 +554,13 @@ namespace ssc {
       return content;
     }
 
-    inline void writeFile (fs::path path, String s) {
+    inline void writeFile (std::filesystem::path path, String s) {
       std::ofstream stream(path.string());
       stream << s;
       stream.close();
     }
 
-    inline void appendFile (fs::path path, String s) {
+    inline void appendFile (std::filesystem::path path, String s) {
       std::ofstream stream;
       stream.open(path.string(), std::ios_base::app);
       stream << s;

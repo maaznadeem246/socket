@@ -1,9 +1,14 @@
+/**
+ * Globals
+ */
 module;
 
 #include "../common.hh"
 
-export module ssc.runtime:json;
-
+/**
+ * Module exports.
+ */
+export module json;
 export namespace ssc::JSON {
   enum class Type {
     Any,
