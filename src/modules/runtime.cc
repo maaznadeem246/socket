@@ -1,15 +1,14 @@
-/**
- * Global module fragment.
- */
-module;
-
+module; // global
 #include "../platform.hh"
 
 /**
- * Module exports.
+ * @module runtime
+ * @description TODO
+ * @example
  */
 export module runtime;
 import javascript;
+import uv;
 
 export namespace ssc::runtime {
   using EventLoopDispatchCallback = std::function<void()>;
@@ -21,10 +20,10 @@ export namespace ssc::runtime {
       std::shared_ptr<Posts> posts;
       std::map<uint64_t, Peer*> peers;
 
-      std::recursive_mutex loopMutex;
-      std::recursive_mutex peersMutex;
-      std::recursive_mutex postsMutex;
-      std::recursive_mutex timersMutex;
+      Mutex loopMutex;
+      Mutex peersMutex;
+      Mutex postsMutex;
+      Mutex timersMutex;
 
       std::atomic<bool> didLoopInit = false;
       std::atomic<bool> didTimersInit = false;
@@ -34,7 +33,7 @@ export namespace ssc::runtime {
 
       uv_loop_t eventLoop;
       uv_async_t eventLoopAsync;
-      std::queue<EventLoopDispatchCallback> eventLoopDispatchQueue;
+      Queue<EventLoopDispatchCallback> eventLoopDispatchQueue;
 
 #if defined(__APPLE__)
       dispatch_queue_attr_t eventLoopQueueAttrs = dispatch_queue_attr_make_with_qos_class(
@@ -142,7 +141,7 @@ export namespace ssc::runtime {
     }
 
     auto sid = std::to_string(post.id);
-    auto js = createJavaScript("post-data.js",
+    auto js = javascript::createJavaScript("post-data.js",
       "const xhr = new XMLHttpRequest();                             \n"
       "xhr.responseType = 'arraybuffer';                             \n"
       "xhr.onload = e => {                                           \n"

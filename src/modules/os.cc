@@ -1,12 +1,21 @@
-module;
-
+module; // global
 #include "../platform.hh"
-#include <uv.h>
 
+/**
+ * @module javascript
+ * @description TODO
+ * @example
+ * import javascript;
+ * using namespace ssc::javascript;
+ * TODO
+ */
 export module os;
 import context;
 import runtime;
 import json;
+import uv;
+
+using namespace ssc::context;
 
 export namespace ssc {
   class OS : public Context {

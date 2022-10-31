@@ -1,12 +1,29 @@
-/**
- * Globals
- */
-module;
-
+module; // global
 #include "../common.hh"
 
 /**
- * Module exports.
+ * @module json
+ * @description JSON building interfaces.
+ * @example
+ * import json;
+ * using namespace ssc::json;
+ *
+ * auto entries = Object::Entries {
+ *   {"data", Object::Entries {
+ *     {"boolean", true},
+ *     {"number", 123.456}
+ *     {"string", "string"},
+ *     {"array", Array::Entries {
+ *       {"string"},
+ *       {true},
+ *       {987.654},
+ *       {nullptr}
+ *     }
+ *   }}
+ * };
+ *
+ * auto object = Object(entries);
+ * auto string = object.str();
  */
 export module json;
 export namespace ssc::JSON {

@@ -11,4 +11,6 @@ fi
 
 mkdir -p "$root/build/modules"
 cd "$root/build/modules"
-find "$root"/src/modules/*.cc | entr -c "$root/bin/build-module.sh" /_
+
+"$root/bin/build-module.sh" "$root"/src/modules/*.cc
+find "$root"/src/modules/*.cc | "$entr" -pc "$root/bin/build-module.sh" --no-build-module-map /_

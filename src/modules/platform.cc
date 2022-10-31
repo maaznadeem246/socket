@@ -2,31 +2,32 @@ module;
 
 #include "../platform.hh"
 
-import :interfaces;
-import :json;
+export module platform;
+import context;
+import json;
 
-export module ssc.runtime:platform;
+using namespace ssc::context;
 
 export namespace ssc {
-  class Platform : public Module {
+  class Platform : public Context {
     public:
-      Platform (auto runtime) : Module(runtime) {}
+      Platform (auto runtime) : Context(runtime) {}
       void event (
         const String seq,
         const String event,
         const String data,
-        Module::Callback cb
+        Context::Callback cb
       );
       void notify (
         const String seq,
         const String title,
         const String body,
-        Module::Callback cb
+        Context::Callback cb
       );
       void openExternal (
         const String seq,
         const String value,
-        Module::Callback cb
+        Context::Callback cb
       );
   };
 
@@ -34,7 +35,7 @@ export namespace ssc {
     const String seq,
     const String event,
     const String data,
-    Module::Callback cb
+    Context::Callback cb
   ) {
     this->runtime->dispatchEventLoop([=, this]() {
       // init page
@@ -65,7 +66,7 @@ export namespace ssc {
     const String seq,
     const String title,
     const String body,
-    Module::Callback cb
+    Context::Callback cb
   ) {
 #if defined(__APPLE__)
     auto center = [UNUserNotificationCenter currentNotificationCenter];
@@ -157,7 +158,7 @@ export namespace ssc {
   void Platform::openExternal (
     const String seq,
     const String value,
-    Module::Callback cb
+    Context::Callback cb
   ) {
 #if defined(__APPLE__)
     auto string = [NSString stringWithUTF8String: value.c_str()];

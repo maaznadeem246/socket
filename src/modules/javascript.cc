@@ -1,13 +1,18 @@
-/**
- * Global module fragment.
- */
-module;
+module; // global
 #include "../common.hh"
 
+/**
+ * @module javascript
+ * @description TODO
+ * @example
+ * import javascript;
+ * using namespace ssc::javascript;
+ * TODO
+ */
 export module javascript;
 import json;
 
-export namespace ssc {
+export namespace ssc::javascript {
   String createJavaScript (const String& name, const String& source) {
     return String(
       ";(() => {\n" + trim(source) + "\n})();\n"

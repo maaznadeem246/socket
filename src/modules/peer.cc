@@ -1,22 +1,23 @@
-module;
-
+module; // global
 #include "../platform.hh"
 
 export module peer;
+import runtime;
 import json;
+import uv;
 
 export namespace ssc {
   typedef enum {
     PEER_TYPE_NONE = 0,
-    PEER_TYPE_TCP = 1 << 1,
+    PeerTypeCP = 1 << 1,
     PEER_TYPE_UDP = 1 << 2,
     PEER_TYPE_MAX = 0xF
-  } peer_type_t;
+  } PeerType;
 
   typedef enum {
     PEER_FLAG_NONE = 0,
     PEER_FLAG_EPHEMERAL = 1 << 1
-  } peer_flag_t;
+  } PeerFlag;
 
   typedef enum {
     PEER_STATE_NONE = 0,
@@ -28,11 +29,11 @@ export namespace ssc {
     PEER_STATE_UDP_RECV_STARTED = 1 << 12,
     PEER_STATE_UDP_PAUSED = 1 << 13,
     // tcp states (20)
-    PEER_STATE_TCP_BOUND = 1 << 20,
-    PEER_STATE_TCP_CONNECTED = 1 << 21,
-    PEER_STATE_TCP_PAUSED = 1 << 13,
+    PeerStateCP_BOUND = 1 << 20,
+    PeerStateCP_CONNECTED = 1 << 21,
+    PeerStateCP_PAUSED = 1 << 13,
     PEER_STATE_MAX = 1 << 0xF
-  } peer_state_t;
+  } PeerState;
 
   struct LocalPeerInfo {
     struct sockaddr_storage addr;
@@ -96,7 +97,6 @@ export namespace ssc {
       // instance state
       uint64_t id = 0;
       std::recursive_mutex mutex;
-      Runtime *runtime;
 
       struct {
         struct {
@@ -108,22 +108,22 @@ export namespace ssc {
       // peer state
       LocalPeerInfo local;
       RemotePeerInfo remote;
-      peer_type_t type = PEER_TYPE_NONE;
-      peer_flag_t flags = PEER_FLAG_NONE;
-      peer_state_t state = PEER_STATE_NONE;
+      PeerType type = PEER_TYPE_NONE;
+      PeerFlag flags = PEER_FLAG_NONE;
+      PeerState state = PEER_STATE_NONE;
 
       /**
       * Private `Peer` class constructor
       */
-      Peer (Runtime *runtime, peer_type_t peerType, uint64_t peerId, bool isEphemeral);
+      Peer (PeerManager *manager, PeerType peerType, uint64_t peerId, bool isEphemeral);
       ~Peer ();
 
       int init ();
       int initRemotePeerInfo ();
       int initLocalPeerInfo ();
-      void addState (peer_state_t value);
-      void removeState (peer_state_t value);
-      bool hasState (peer_state_t value);
+      void addState (PeerState value);
+      void removeState (PeerState value);
+      bool hasState (PeerState value);
       const RemotePeerInfo* getRemotePeerInfo ();
       const LocalPeerInfo* getLocalPeerInfo ();
       bool isUDP ();
@@ -210,12 +210,12 @@ export namespace ssc {
     return this->peers.at(peerId);
   }
 
-  Peer* Runtime::createPeer (peer_type_t peerType, uint64_t peerId) {
+  Peer* Runtime::createPeer (PeerType peerType, uint64_t peerId) {
     return this->createPeer(peerType, peerId, false);
   }
 
   Peer* Runtime::createPeer (
-    peer_type_t peerType,
+    PeerType peerType,
     uint64_t peerId,
     bool isEphemeral
   ) {
@@ -224,7 +224,7 @@ export namespace ssc {
       if (peer != nullptr) {
         if (isEphemeral) {
           Lock lock(peer->mutex);
-          peer->flags = (peer_flag_t) (peer->flags | PEER_FLAG_EPHEMERAL);
+          peer->flags = (PeerFlag) (peer->flags | PEER_FLAG_EPHEMERAL);
         }
       }
 
@@ -331,7 +331,7 @@ export namespace ssc {
 
   Peer::Peer (
     Runtime *runtime,
-    peer_type_t peerType,
+    PeerType peerType,
     uint64_t peerId,
     bool isEphemeral
   ) {
@@ -340,7 +340,7 @@ export namespace ssc {
     this->runtime = runtime;
 
     if (isEphemeral) {
-      this->flags = (peer_flag_t) (this->flags | PEER_FLAG_EPHEMERAL);
+      this->flags = (PeerFlag) (this->flags | PEER_FLAG_EPHEMERAL);
     }
 
     this->init();
@@ -362,7 +362,7 @@ export namespace ssc {
         return err;
       }
       this->handle.udp.data = (void *) this;
-    } else if (this->type == PEER_TYPE_TCP) {
+    } else if (this->type == PeerTypeCP) {
       if ((err = uv_tcp_init(loop, (uv_tcp_t *) &this->handle))) {
         return err;
       }
@@ -376,7 +376,7 @@ export namespace ssc {
     Lock lock(this->mutex);
     if (this->type == PEER_TYPE_UDP) {
       this->remote.init((uv_udp_t *) &this->handle);
-    } else if (this->type == PEER_TYPE_TCP) {
+    } else if (this->type == PeerTypeCP) {
       this->remote.init((uv_tcp_t *) &this->handle);
     }
     return this->remote.err;
@@ -386,23 +386,23 @@ export namespace ssc {
     Lock lock(this->mutex);
     if (this->type == PEER_TYPE_UDP) {
       this->local.init((uv_udp_t *) &this->handle);
-    } else if (this->type == PEER_TYPE_TCP) {
+    } else if (this->type == PeerTypeCP) {
       this->local.init((uv_tcp_t *) &this->handle);
     }
     return this->local.err;
   }
 
-  void Peer::addState (peer_state_t value) {
+  void Peer::addState (PeerState value) {
     Lock lock(this->mutex);
-    this->state = (peer_state_t) (this->state | value);
+    this->state = (PeerState) (this->state | value);
   }
 
-  void Peer::removeState (peer_state_t value) {
+  void Peer::removeState (PeerState value) {
     Lock lock(this->mutex);
-    this->state = (peer_state_t) (this->state & ~value);
+    this->state = (PeerState) (this->state & ~value);
   }
 
-  bool Peer::hasState (peer_state_t value) {
+  bool Peer::hasState (PeerState value) {
     Lock lock(this->mutex);
     return (value & this->state) == value;
   }
@@ -424,7 +424,7 @@ export namespace ssc {
 
   bool Peer::isTCP () {
     Lock lock(this->mutex);
-    return this->type == PEER_TYPE_TCP;
+    return this->type == PeerTypeCP;
   }
 
   bool Peer::isEphemeral () {
@@ -435,7 +435,7 @@ export namespace ssc {
   bool Peer::isBound () {
     return (
       (this->isUDP() && this->hasState(PEER_STATE_UDP_BOUND)) ||
-      (this->isTCP() && this->hasState(PEER_STATE_TCP_BOUND))
+      (this->isTCP() && this->hasState(PeerStateCP_BOUND))
     );
   }
 
@@ -456,14 +456,14 @@ export namespace ssc {
   bool Peer::isConnected () {
     return (
       (this->isUDP() && this->hasState(PEER_STATE_UDP_CONNECTED)) ||
-      (this->isTCP() && this->hasState(PEER_STATE_TCP_CONNECTED))
+      (this->isTCP() && this->hasState(PeerStateCP_CONNECTED))
     );
   }
 
   bool Peer::isPaused () {
     return (
       (this->isUDP() && this->hasState(PEER_STATE_UDP_PAUSED)) ||
-      (this->isTCP() && this->hasState(PEER_STATE_TCP_PAUSED))
+      (this->isTCP() && this->hasState(PeerStateCP_PAUSED))
     );
   }
 
@@ -763,7 +763,7 @@ export namespace ssc {
       uv_close((uv_handle_t*) &this->handle, [](uv_handle_t *handle) {
         auto peer = (Peer *) handle->data;
         if (peer != nullptr) {
-          peer->removeState((peer_state_t) (
+          peer->removeState((PeerState) (
             PEER_STATE_UDP_BOUND |
             PEER_STATE_UDP_CONNECTED |
             PEER_STATE_UDP_RECV_STARTED
