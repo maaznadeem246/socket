@@ -1,26 +1,12 @@
 #ifndef SSC_PLATFORM_H
 #define SSC_PLATFORM_H
+
   #if defined(_WIN32)
     #undef _WINSOCKAPI_
     #define _WINSOCKAPI_
   #endif
 
-  #include <uv.h>
-
-  #if defined(__APPLE__)
-    #import <Webkit/Webkit.h>
-    #import <Network/Network.h>
-    #import <Foundation/Foundation.h>
-    #import <CoreBluetooth/CoreBluetooth.h>
-    #import <UserNotifications/UserNotifications.h>
-    #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
-
-  #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-    #import <UIKit/UIKit.h>
-  #else
-    #import <Cocoa/Cocoa.h>
-  #endif
-  #elif defined(__linux__) && !defined(__ANDROID__)
+  #if defined(__linux__) && !defined(__ANDROID__)
     #include <JavaScriptCore/JavaScript.h>
     #include <webkit2/webkit2.h>
     #include <gtk/gtk.h>
@@ -40,15 +26,17 @@
 
   #include "common.hh"
 
-  inline ssc::String addrToIPv4 (struct sockaddr_in* sin) {
-    char buf[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &sin->sin_addr, buf, INET_ADDRSTRLEN);
-    return ssc::String(buf);
-  }
+  namespace ssc {
+    inline String addrToIPv4 (struct sockaddr_in* sin) {
+      char buf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &sin->sin_addr, buf, INET_ADDRSTRLEN);
+      return String(buf);
+    }
 
-  inline ssc::String addrToIPv6 (struct sockaddr_in6* sin) {
-    char buf[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &sin->sin6_addr, buf, INET6_ADDRSTRLEN);
-    return ssc::String(buf);
+    inline String addrToIPv6 (struct sockaddr_in6* sin) {
+      char buf[INET6_ADDRSTRLEN];
+      inet_ntop(AF_INET6, &sin->sin6_addr, buf, INET6_ADDRSTRLEN);
+      return String(buf);
+    }
   }
 #endif

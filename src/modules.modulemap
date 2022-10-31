@@ -1,0 +1,4 @@
+module "uv" {
+  export *
+  header "./build/input/include/uv.h"
+}

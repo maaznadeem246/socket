@@ -3,12 +3,30 @@
  */
 module;
 
+  #if defined(__APPLE__)
+    #if defined(__OBJC__)
+      #import <Webkit/Webkit.h>
+      #import <Network/Network.h>
+      #import <Foundation/Foundation.h>
+      #import <CoreBluetooth/CoreBluetooth.h>
+      #import <UserNotifications/UserNotifications.h>
+      #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+
+      #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+        #import <UIKit/UIKit.h>
+      #else
+        #import <Cocoa/Cocoa.h>
+      #endif
+    #endif
+    #endif
+
 #include "../platform.hh"
 
 /**
  * `ssc.bluetooth` module
  */
 export module bluetooth;
+import uv;
 import json;
 
 // formard
