@@ -2,11 +2,11 @@ module; // global
 #include "../common.hh"
 
 /**
- * @module json
+ * @module ssc.json
  * @description JSON building interfaces.
  * @example
- * import json;
- * using namespace ssc::json;
+ * import ssc.json;
+ * using namespace ssc::JSON;
  *
  * auto entries = Object::Entries {
  *   {"data", Object::Entries {
@@ -25,7 +25,7 @@ module; // global
  * auto object = Object(entries);
  * auto string = object.str();
  */
-export module json;
+export module ssc.json;
 export namespace ssc::JSON {
   enum class Type {
     Any,

@@ -2,6 +2,10 @@
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare clang="$(which clang++)"
+declare cache_path="$root/build/cache"
+declare module_path="$root/build/modules"
+declare module_map_file="$module_path/modules.modulemap"
+
 declare flags=(
   -std=c++2b
   -xc++-module
@@ -9,9 +13,9 @@ declare flags=(
   -I"$root/build/input/include"
   -fimplicit-modules
   -fmodules-ts
-  -fmodules-cache-path="$root/build/cache"
-  -fprebuilt-module-path="$root/build/modules"
-  -fmodule-map-file="$root"/build/modules/modules.modulemap
+  -fmodules-cache-path="$cache_path"
+  -fprebuilt-module-path="$module_path"
+  -fmodule-map-file="$module_map_file"
   --precompile
 )
 
@@ -32,14 +36,12 @@ while (( $# > 0 )); do
   fi
 
   declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)/.pcm/g')"
-  declare output="$root/build/modules/$filename"
+  declare output="$root/build/modules/ssc.$filename"
 
   mkdir -p "$(dirname "$output")"
   rm -f "$output"
-  {
-    echo " info: build $(basename "$source") -> $(basename "$output")"
-    "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$source" -o "$output"
-  } &
+  echo " info: build $(basename "$source") -> $(basename "$output")"
+  "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$source" -o "$output"
 done
 
 wait

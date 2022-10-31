@@ -144,6 +144,7 @@
 
 namespace ssc {
 
+  using AtomicBool = std::atomic<bool>;
   using String = std::string;
   using StringStream = std::stringstream;
   using WString = std::wstring;

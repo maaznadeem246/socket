@@ -1366,6 +1366,7 @@ namespace SSC::IPC {
   }
 
   Router::Router () {
+    this->posts = std::shared_ptr<Posts>(new Posts());
     initFunctionsTable(this);
     registerSchemeHandler(this);
 #if defined(__APPLE__)

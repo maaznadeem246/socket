@@ -1,15 +1,14 @@
-/**
- * Global module fragment.
- */
-module;
-
+module; // global
 #include "../common.hh"
 
 /**
- * `ssc.runtime:headers` module fragment.
+ * @module ssc.headers
+ * @description New line delimited key-value headers utilities.
+ * @example
+ * TODO
  */
-export module headers;
-export namespace ssc {
+export module ssc.headers;
+export namespace ssc::headers {
 
   /**
    * A container for new line delimited headers.

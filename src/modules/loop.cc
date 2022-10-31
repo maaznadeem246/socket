@@ -1,179 +1,248 @@
-module;
-
+module; // global
 #include "../platform.hh"
 
-export module ssc.runtime:loop;
+/**
+ * @module ssc.loop
+ * @description Generic context for async JSON based operations.
+ * @example
+ * import ssc.context;
+ * import ssc.runtime;
+ * namespace ssc {
+ *   using Context = context::Context;
+ *   using Runtime = runtime::Runtime;
+ *   class MyRuntimeContext : Context {
+ *     public:
+ *       MyRuntimeContext (Runtime* runtime) : Context(rutime) {
+ *         // init
+ *       }
+ *   };
+ * }
+ */
+export module ssc.loop;
+import ssc.uv;
 
-export namespace ssc {
-  constexpr int EVENT_LOOP_POLL_TIMEOUT = 32; // in milliseconds
+export namespace ssc::loop {
+  // forward
+  class Loop;
+  void pollEventLoop (Loop* loop);
 
-  #if defined(__linux__) && !defined(__ANDROID__)
-    struct UVSource {
-      GSource base; // should ALWAYS be first member
-      gpointer tag;
-      Runtime *runtime;
-    };
+  /**
+   * QoS for the dispatch queue used on Apple's platforms.
+   * @see https://developer.apple.com/documentation/dispatch/dispatch_queue_attr_t
+   */
+  #if defined(__APPLE__)
+  dispatch_queue_attr_t DISPATCH_QUEUE_QOS = dispatch_queue_attr_make_with_qos_class(
+    DISPATCH_QUEUE_SERIAL,
+    QOS_CLASS_DEFAULT,
+    -1
+  );
 
-    // @see https://api.gtkd.org/glib.c.types.GSourceFuncs.html
-    static GSourceFuncs loopSourceFunctions = {
-      .prepare = [](GSource *source, gint *timeout) -> gboolean {
-        auto runtime = reinterpret_cast<UVSource *>(source)->runtime;
-        if (!runtime->isLoopAlive() || !runtime->isLoopRunning) {
-          return false;
-        }
-
-        *timeout = runtime->getEventLoopTimeout();
-        return 0 == *timeout;
-      },
-
-      .dispatch = [](
-        GSource *source,
-        GSourceFunc callback,
-        gpointer user_data
-      ) -> gboolean {
-        auto runtime = reinterpret_cast<UVSource *>(source)->runtime;
-        Lock lock(runtime->loopMutex);
-        auto loop = runtime->getEventLoop();
-        uv_run(loop, UV_RUN_NOWAIT);
-        return G_SOURCE_CONTINUE;
-      }
-    };
+  auto constexpr DISPATCH_QUEUE_LABEL = "co.socketsupply.queue.loop";
   #endif
 
-  void Runtime::initEventLoop () {
-    if (didLoopInit) {
-      return;
-    }
+  class Loop {
+    public:
+      static constexpr int POLL_TIMEOUT = 32; // in milliseconds
+      using DispatchCallback = std::function<void()>;
 
-    didLoopInit = true;
-    Lock lock(loopMutex);
-    uv_loop_init(&eventLoop);
-    eventLoopAsync.data = (void *) this;
-    uv_async_init(&eventLoop, &eventLoopAsync, [](uv_async_t *handle) {
-      auto runtime = reinterpret_cast<ssc::Runtime  *>(handle->data);
-      while (true) {
-        Lock lock(runtime->loopMutex);
-        if (runtime->eventLoopDispatchQueue.size() == 0) break;
-        auto dispatch = runtime->eventLoopDispatchQueue.front();
-        if (dispatch != nullptr) dispatch();
-        runtime->eventLoopDispatchQueue.pop();
-      }
-    });
+      /**
+       * An extened `GSource` container with a pointer to a tag created with
+       * `g_source_add_unix_fd()` and the `Loop` instance that created it.
+       * @see https://api.gtkd.org/glib.Source.Source.gSource.html
+       */
+      #if defined(__linux__) && !defined(__ANDROID__)
+      struct LoopSource {
+        GSource base; // should ALWAYS be first member
+        gpointer tag;
+        Loop* loop;
+      };
+      #endif
 
-#if defined(__linux__) && !defined(__ANDROID__)
-    GSource *source = g_source_new(&loopSourceFunctions, sizeof(UVSource));
-    UVSource *uvSource = (UVSource *) source;
-    uvSource->runtime = this;
-    uvSource->tag = g_source_add_unix_fd(
-      source,
-      uv_backend_fd(&eventLoop),
-      (GIOCondition) (G_IO_IN | G_IO_OUT | G_IO_ERR)
-    );
+      // uv state
+      uv_loop_t loop;
+      uv_async_t async;
+      // instance state
+      AtomicBool initialized = false;
+      AtomicBool running = false;
+      // async state
+      Queue<DispatchCallback> queue;
+      Thread* thread = nullptr;
+      Mutex mutex;
 
-    g_source_attach(source, nullptr);
-#endif
-  }
+      #if defined(__APPLE__)
+      dispatch_queue_t dispatchQueue = dispatch_queue_create(
+        DISPATCH_QUEUE_LABEL,
+        DISPATCH_QUEUE_QOS
+      );
+      #endif
 
-  uv_loop_t* Runtime::getEventLoop () {
-    initEventLoop();
-    return &eventLoop;
-  }
-
-  int Runtime::getEventLoopTimeout () {
-    auto loop = getEventLoop();
-    uv_update_time(loop);
-    return uv_backend_timeout(loop);
-  }
-
-  bool Runtime::isLoopAlive () {
-    return uv_loop_alive(getEventLoop());
-  }
-
-  void Runtime::stopEventLoop() {
-    isLoopRunning = false;
-    uv_stop(&eventLoop);
-#if defined(__APPLE__)
-    // noop
-#elif defined(__ANDROID__) || !defined(__linux__)
-    Lock lock(loopMutex);
-    if (eventLoopThread != nullptr) {
-      if (eventLoopThread->joinable()) {
-        eventLoopThread->join();
+      bool isInitialized () const {
+        return this->initialized;
       }
 
-      delete eventLoopThread;
-      eventLoopThread = nullptr;
-    }
-#endif
-  }
+      bool isAlive () {
+        return this->isInitialized() && uv_loop_alive(&this->loop);
+      }
 
-  void Runtime::sleepEventLoop (int64_t ms) {
-    if (ms > 0) {
-      auto timeout = getEventLoopTimeout();
-      ms = timeout > ms ? timeout : ms;
-      std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-    }
-  }
+      bool isRunning () const {
+        return this->isInitialized() && this->running;
+      }
 
-  void Runtime::sleepEventLoop () {
-    sleepEventLoop(getEventLoopTimeout());
-  }
+      int timeout () {
+        uv_update_time(&this->loop);
+        return uv_backend_timeout(&this->loop);
+      }
 
-  void Runtime::signalDispatchEventLoop () {
-    initEventLoop();
-    runEventLoop();
-    uv_async_send(&eventLoopAsync);
-  }
+      int run (uv_run_mode mode) {
+        return uv_run(&this->loop, mode);
+      }
 
-  void Runtime::dispatchEventLoop (EventLoopDispatchCallback callback) {
-    Lock lock(loopMutex);
-    eventLoopDispatchQueue.push(callback);
-    signalDispatchEventLoop();
-  }
+      int run () {
+        return this->run(UV_RUN_DEFAULT);
+      }
 
-  void pollEventLoop (Runtime *runtime) {
-    auto loop = runtime->getEventLoop();
+      void sleep (int64_t ms) {
+        if (ms > 0) {
+          auto timeout = this->timeout();
+          ms = timeout > ms ? timeout : ms;
+          std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        }
+      }
 
-    while (runtime->isLoopRunning) {
-      runtime->sleepEventLoop(EVENT_LOOP_POLL_TIMEOUT);
+      void sleep () {
+        this->sleep(this->timeout());
+      }
+
+      void signal () {
+        uv_async_send(&this->async);
+      }
+
+      void dispatch (DispatchCallback callback) {
+        Lock lock(this->mutex);
+        this->queue.push(callback);
+        this->signal();
+      }
+
+      void init () {
+        if (this->initialized) {
+          return;
+        }
+
+        Lock lock(this->mutex);
+
+        /**
+         * Below we configure a table of `GSourceFuncs` used for
+         * polling and running the uv event loop along side the one
+         * used by GTK/glib) on Linux.
+         * @see https://api.gtkd.org/glib.c.types.GSourceFuncs.html
+         */
+        #if defined(__linux__) && !defined(__ANDROID__)
+        static GSourceFuncs gSourceFuncs = {
+          .prepare = [](auto source, auto timeout) {
+            auto loop = reinterpret_cast<LoopSource *>(source)->loop;
+
+            if (!loop->isAlive() || !loop->isRuning()) {
+              return false;
+            }
+
+            *timeout = loop->timeout();
+            return 0 == *timeout;
+          },
+
+          .dispatch = [](auto source, auto callback, auto user_data) {
+            auto loop = reinterpret_cast<LoopSource *>(source)->loop;
+            loop->run(UV_RUN_NOWAIT);
+            uv_run(loop, UV_RUN_NOWAIT);
+            return G_SOURCE_CONTINUE;
+          }
+        };
+        #endif
+
+        uv_loop_init(&this->loop);
+        uv_async_init(&this->loop, &this->async, [](uv_async_t *handle) {
+          auto loop = reinterpret_cast<Loop*>(handle->data);
+
+          while (true) {
+            Lock lock(loop->mutex);
+            if (loop->queue.size() > 0) {
+              auto dispatch = loop->queue.front();
+              if (dispatch != nullptr) {
+                dispatch();
+              }
+
+              loop->queue.pop();
+            }
+          }
+        });
+
+        #if defined(__linux__) && !defined(__ANDROID__)
+        auto source = g_source_new(&loopSourceFunctions, sizeof(LoopSource));
+        auto loopSource = (LoopSource *) source;
+        loopSource->runtime = this;
+        loopSource->tag = g_source_add_unix_fd(
+          source,
+          uv_backend_fd(&eventLoop),
+          (GIOCondition) (G_IO_IN | G_IO_OUT | G_IO_ERR)
+        );
+
+        g_source_attach(source, nullptr);
+        #endif
+
+        this->initialized = true;
+      }
+
+      void stop () {
+        this->running = false;
+        uv_stop(&this->loop);
+        Lock lock(this->mutex);
+
+        if (this->thread != nullptr) {
+          if (this->thread->joinable()) {
+            this->thread->join();
+          }
+
+          delete this->thread;
+          this->thread = nullptr;
+        }
+      }
+
+      void start () {
+        if (this->isRunning()) {
+          return;
+        }
+
+        Lock lock(this->mutex);
+
+        this->running = true;
+        this->init();
+        this->stop();
+        this->dispatch([=, this]() {
+          // TODO
+          // initTimers();
+          // startTimers();
+        });
+
+        #if defined(__APPLE__)
+        dispatch_async(this->dispatchQueue, ^{
+          pollEventLoop(this);
+        });
+
+        #elif defined(__ANDROID__) || !defined(__linux__)
+        this->thread = new std::thread(&pollEventLoop, this);
+        #endif
+      }
+  };
+
+
+  void pollEventLoop (Loop* loop) {
+    while (loop->isRunning()) {
+      loop->sleep(Loop::POLL_TIMEOUT);
 
       do {
-        uv_run(loop, UV_RUN_DEFAULT);
-      } while (runtime->isLoopRunning && runtime->isLoopAlive());
+        loop->run();
+      } while (loop->isRunning() && loop->isAlive());
     }
 
-    runtime->isLoopRunning = false;
-  }
-
-  void Runtime::runEventLoop () {
-    if (isLoopRunning) {
-      return;
-    }
-
-    isLoopRunning = true;
-
-    initEventLoop();
-    dispatchEventLoop([=, this]() {
-      initTimers();
-      startTimers();
-    });
-
-#if defined(__APPLE__)
-    Lock lock(loopMutex);
-    dispatch_async(eventLoopQueue, ^{ pollEventLoop(this); });
-#elif defined(__ANDROID__) || !defined(__linux__)
-    Lock lock(loopMutex);
-    // clean up old thread if still running
-    if (eventLoopThread != nullptr) {
-      if (eventLoopThread->joinable()) {
-        eventLoopThread->join();
-      }
-
-      delete eventLoopThread;
-      eventLoopThread = nullptr;
-    }
-
-    eventLoopThread = new std::thread(&pollEventLoop, this);
-#endif
+    loop->running = false;
   }
 }

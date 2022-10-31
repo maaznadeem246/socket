@@ -2,15 +2,15 @@ module; // global
 #include "../common.hh"
 
 /**
- * @module javascript
+ * @module ssc.javascript
  * @description TODO
  * @example
- * import javascript;
+ * import ssc.javascript;
  * using namespace ssc::javascript;
  * TODO
  */
-export module javascript;
-import json;
+export module ssc.javascript;
+import ssc.json;
 
 export namespace ssc::javascript {
   String createJavaScript (const String& name, const String& source) {

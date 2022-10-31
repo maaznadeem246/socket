@@ -1,2 +1,2 @@
-export module uv;
+export module ssc.uv;
 export import libuv;
