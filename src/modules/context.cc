@@ -19,11 +19,13 @@ module; // global
  * }
  */
 export module ssc.context;
+import ssc.runtime;
 import ssc.json;
 
+using Runtime = ssc::runtime::Runtime;
+
 export namespace ssc::context {
-  class Runtime;
-  class Context {
+  class Context : Runtime::Interface {
     public:
       using Callback = std::function<void(String, JSON::Any, Post)>;
       struct RequestContext {
@@ -37,8 +39,6 @@ export namespace ssc::context {
       };
 
       Runtime *runtime = nullptr;
-      Context (Runtime* runtime) {
-        this->runtime = runtime;
-      }
+      Context (Runtime* runtime) : Interface(runtime) {}
   };
 }

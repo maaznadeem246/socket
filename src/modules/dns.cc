@@ -9,11 +9,14 @@ module;
  * `ssc.runtime:dns` module fragment.
  */
 export module dns;
-import runtime;
-import context;
-import json;
+import ssc.runtime;
+import ssc.context;
+import ssc.json;
 
-export namespace ssc {
+using Context = ssc::context::Context;
+using Runtime = ssc::runtime::Runtime;
+
+export namespace ssc::dns {
   class DNS : public Context {
     public:
       DNS (Runtime* runtime) : Context(runtime) {}

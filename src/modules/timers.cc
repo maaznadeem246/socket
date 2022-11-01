@@ -1,12 +1,25 @@
-module;
-
+module; // global
 #include "../platform.hh"
 
-import :interfaces;
+/**
+ * @module ssc.loop
+ * @description TODO
+ * @example
+ * TODO
+ */
+export module ssc.timers;
+import ssc.context;
+import ssc.loop;
+import ssc.uv;
 
-export module ssc.core:timers;
+using Context = ssc::context::Context;
+using Loop = ssc::loop::Loop;
 
-export namespace ssc {
+export namespace ssc::timers {
+  // forward
+  class Runtime;
+  class Timers;
+
   struct Timer {
     uv_timer_t handle;
     bool repeated = false;
@@ -14,111 +27,62 @@ export namespace ssc {
     uint64_t timeout = 0;
     uint64_t interval = 0;
     uv_timer_cb invoke;
+    Timers* timers;
   };
 
-  Timer releaseWeakDescriptors = {
-    .timeout = 256, // in milliseconds
-    .invoke = [](uv_timer_t *handle) {
-      auto core = reinterpret_cast<Core *>(handle->data);
-      Vector<uint64_t> ids;
-      String msg = "";
+  class Timers : Context {
+    AtomicBool started;
+    Mutex mutex;
+    Vector<Timer> timers;
+    Loop* loop;
 
-      Lock lock(core->fs.mutex);
-      for (auto const &tuple : core->fs.descriptors) {
-        ids.push_back(tuple.first);
+    public:
+      Timers (Runtime* runtime, Loop* loop) : Context(runtime) {
+        this->loop = loop;
       }
 
-      for (auto const id : ids) {
-        Lock lock(core->fs.mutex);
-        auto desc = core->fs.descriptors.at(id);
-
-        if (desc == nullptr) {
-          core->fs.descriptors.erase(id);
-          continue;
-        }
-
-        if (desc->isRetained() || !desc->isStale()) {
-          continue;
-        }
-
-        if (desc->isDirectory()) {
-          core->fs.closedir("", id, [](auto seq, auto msg, auto post) {});
-        } else if (desc->isFile()) {
-          core->fs.close("", id, [](auto seq, auto msg, auto post) {});
-        } else {
-          // free
-          core->fs.descriptors.erase(id);
-          delete desc;
-        }
+      void add (Timer& timer, void* data) {
+        Lock lock(this->mutex);
+        timer.handle.data = data;
+        uv_timer_init(this->loop, &timer.handle);
+        this->timers.push_back(timer);
       }
-    }
+
+      void start () {
+        Lock lock(this->mutex);
+
+        for (const auto &timer : this->timers) {
+          if (timer->started) {
+            uv_timer_again(&timer->handle);
+          } else {
+            timer->started = 0 == uv_timer_start(
+              &timer->handle,
+              timer->invoke,
+              timer->timeout,
+              !timer->repeated
+                ? 0
+                : timer->interval > 0
+                  ? timer->interval
+                  : timer->timeout
+            );
+          }
+        }
+
+        this->started = true;
+      }
+
+      void stop () {
+        Lock lock(this->mutex);
+
+        if (this->started) {
+          for (const auto& timer : timersToStop) {
+            if (timer->started) {
+              uv_timer_stop(&timer->handle);
+            }
+          }
+        }
+
+        this->started = false;
+      }
   };
-
-  void Core::initTimers () {
-    if (didTimersInit) {
-      return;
-    }
-
-    Lock lock(timersMutex);
-
-    auto loop = getEventLoop();
-
-    std::vector<Timer *> timersToInit = {
-      &releaseWeakDescriptors
-    };
-
-    for (const auto& timer : timersToInit) {
-      uv_timer_init(loop, &timer->handle);
-      timer->handle.data = (void *) this;
-    }
-
-    didTimersInit = true;
-  }
-
-  void Core::startTimers () {
-    Lock lock(timersMutex);
-
-    std::vector<Timer *> timersToStart = {
-      &releaseWeakDescriptors
-    };
-
-    for (const auto &timer : timersToStart) {
-      if (timer->started) {
-        uv_timer_again(&timer->handle);
-      } else {
-        timer->started = 0 == uv_timer_start(
-          &timer->handle,
-          timer->invoke,
-          timer->timeout,
-          !timer->repeated
-            ? 0
-            : timer->interval > 0
-              ? timer->interval
-              : timer->timeout
-        );
-      }
-    }
-
-    didTimersStart = false;
-  }
-
-  void Core::stopTimers () {
-    if (didTimersStart == false) {
-      return;
-    }
-
-    Lock lock(timersMutex);
-
-    std::vector<Timer *> timersToStop = {
-      &releaseWeakDescriptors
-    };
-
-    for (const auto& timer : timersToStop) {
-      if (timer->started) {
-        uv_timer_stop(&timer->handle);
-      }
-    }
-
-    didTimersStart = false;
-  }
 }

@@ -6,6 +6,45 @@ import :json;
 export module ssc.runtime:fs;
 
 export namespace ssc {
+  /*
+  Timer releaseWeakDescriptors = {
+    .timeout = 256, // in milliseconds
+    .invoke = [](uv_timer_t *handle) {
+      auto core = reinterpret_cast<Core *>(handle->data);
+      Vector<uint64_t> ids;
+      String msg = "";
+
+      Lock lock(core->fs.mutex);
+      for (auto const &tuple : core->fs.descriptors) {
+        ids.push_back(tuple.first);
+      }
+
+      for (auto const id : ids) {
+        Lock lock(core->fs.mutex);
+        auto desc = core->fs.descriptors.at(id);
+
+        if (desc == nullptr) {
+          core->fs.descriptors.erase(id);
+          continue;
+        }
+
+        if (desc->isRetained() || !desc->isStale()) {
+          continue;
+        }
+
+        if (desc->isDirectory()) {
+          core->fs.closedir("", id, [](auto seq, auto msg, auto post) {});
+        } else if (desc->isFile()) {
+          core->fs.close("", id, [](auto seq, auto msg, auto post) {});
+        } else {
+          // free
+          core->fs.descriptors.erase(id);
+          delete desc;
+        }
+      }
+    }
+  };
+  */
   class FS : public Module {
     public:
       FS (auto runtime) : Module(runtime) {}

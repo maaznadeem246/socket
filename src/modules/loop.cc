@@ -3,20 +3,9 @@ module; // global
 
 /**
  * @module ssc.loop
- * @description Generic context for async JSON based operations.
+ * @description TODO
  * @example
- * import ssc.context;
- * import ssc.runtime;
- * namespace ssc {
- *   using Context = context::Context;
- *   using Runtime = runtime::Runtime;
- *   class MyRuntimeContext : Context {
- *     public:
- *       MyRuntimeContext (Runtime* runtime) : Context(rutime) {
- *         // init
- *       }
- *   };
- * }
+ * TODO
  */
 export module ssc.loop;
 import ssc.uv;
@@ -75,6 +64,12 @@ export namespace ssc::loop {
         DISPATCH_QUEUE_QOS
       );
       #endif
+
+      Loop () = default;
+      Loop (Loop&) = delete;
+      ~Loop () {
+        this->stop();
+      }
 
       bool isInitialized () const {
         return this->initialized;
@@ -178,7 +173,7 @@ export namespace ssc::loop {
         #if defined(__linux__) && !defined(__ANDROID__)
         auto source = g_source_new(&loopSourceFunctions, sizeof(LoopSource));
         auto loopSource = (LoopSource *) source;
-        loopSource->runtime = this;
+        loopSource->loop = this;
         loopSource->tag = g_source_add_unix_fd(
           source,
           uv_backend_fd(&eventLoop),
@@ -232,7 +227,6 @@ export namespace ssc::loop {
         #endif
       }
   };
-
 
   void pollEventLoop (Loop* loop) {
     while (loop->isRunning()) {

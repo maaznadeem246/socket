@@ -8,38 +8,39 @@ module; // global
  */
 export module ssc.runtime;
 import ssc.javascript;
+import ssc.loop;
 import ssc.uv;
 
-export namespace ssc::runtime {
-  using EventLoopDispatchCallback = std::function<void()>;
+using Loop = ssc::loop::Loop;
 
-  class Peer;
+export namespace ssc::runtime {
   class Runtime {
     public:
+      class Interface {
+        public:
+          Runtime *runtime = nullptr;
+          Interface () = default;
+          Interface (Runtime* runtime) {
+            this->runtime = runtime;
+          }
+      };
 
-      std::map<uint64_t, Peer*> peers;
+      using InterfaceMap = std::map<String, Interface>;
+      InterfaceMap interfaces;
+      Loop loop;
 
-      Mutex peersMutex;
-      Mutex timersMutex;
+      Runtime () = default;
 
-      std::atomic<bool> didLoopInit = false;
-      std::atomic<bool> didTimersInit = false;
-      std::atomic<bool> didTimersStart = false;
-
-      Runtime () {
-        initEventLoop();
+      void addInterface (const String& name, Interface runtimeInterface) {
+        this->interfaces[name] = runtimeInterface;
       }
 
-      // loop
-      uv_loop_t* getEventLoop ();
-      int getEventLoopTimeout ();
-      bool isLoopAlive ();
-      void initEventLoop ();
-      void runEventLoop ();
-      void stopEventLoop ();
-      void dispatchEventLoop (EventLoopDispatchCallback dispatch);
-      void signalDispatchEventLoop ();
-      void sleepEventLoop (int64_t ms);
-      void sleepEventLoop ();
+      template <typename T> T* getInterface (const String& name) {
+        if (this->interfaces.find(name) != this->interfaces.end()) {
+          return reinterpret_cast<T*>(&this->interfaces[name]);
+        }
+
+        return nullptr;
+      }
   };
 }
