@@ -23,20 +23,13 @@ module; // global
  * };
  *
  * auto object = Object(entries);
+ * auto data = object.get("data").as<Object>();
+ * auto array = data.get("array").as<Array>();
  * auto string = object.str();
  */
 export module ssc.json;
 export namespace ssc::JSON {
-  enum class Type {
-    Any,
-    Null,
-    Object,
-    Array,
-    Boolean,
-    Number,
-    String
-  };
-
+  // forward
   class Any;
   class Null;
   class Object;
@@ -47,6 +40,16 @@ export namespace ssc::JSON {
 
   using ObjectEntries = std::map<ssc::String, Any>;
   using ArrayEntries = ssc::Vector<Any>;
+
+  enum class Type {
+    Any,
+    Null,
+    Object,
+    Array,
+    Boolean,
+    Number,
+    String
+  };
 
   template <typename D, Type t> class Value {
     public:
@@ -74,9 +77,9 @@ export namespace ssc::JSON {
       Any (int32_t);
       Any (float);
       Any (double);
-#if defined(__APPLE__)
+      #if defined(__APPLE__)
       Any (ssize_t);
-#endif
+      #endif
       Any (const Number);
       Any (const char *);
       Any (const ssc::String);
@@ -86,55 +89,218 @@ export namespace ssc::JSON {
       Any (const Array);
       Any (const ArrayEntries);
       ssc::String str () const;
+
+      template <typename T> T& as () {
+        return *reinterpret_cast<T *>(this);
+      }
   };
 
   class Null : Value<std::nullptr_t, Type::Null> {
     public:
       Null () = default;
-      std::nullptr_t value () const { return nullptr; }
-      ssc::String str () const { return "null"; }
+      Null (std::nullptr_t) : Null() {}
+      std::nullptr_t value () const {
+        return nullptr;
+      }
+
+      ssc::String str () const {
+        return "null";
+      }
   };
 
   class Object : Value<ObjectEntries, Type::Object> {
     public:
       using Entries = ObjectEntries;
       Object () = default;
-      Object (const Object::Entries entries);
-      Object (const Object& object) { this->data = object.value(); }
-      Object (const ssc::Map map);
-      ssc::String str () const;
-      const Object::Entries value () const { return this->data; }
+      Object (const Object::Entries entries) {
+        for (const auto& tuple : entries) {
+          auto key = tuple.first;
+          auto value = tuple.second;
+          this->data.insert_or_assign(key, value);
+        }
+      }
+
+      Object (const Object& object) {
+        this->data = object.value();
+      }
+
+      Object (const ssc::Map map) {
+        for (const auto& tuple : map) {
+          auto key = tuple.first;
+          auto value = Any(tuple.second);
+          this->data.insert_or_assign(key, value);
+        }
+      }
+
+      ssc::String str () const {
+        StringStream stream;
+        auto count = this->data.size();
+        stream << "{";
+
+        for (const auto& tuple : this->data) {
+          auto key = tuple.first;
+          auto value = tuple.second.str();
+
+          stream << "\"" << key << "\":";
+          stream << value;
+
+          if (--count > 0) {
+            stream << ",";
+          }
+        }
+
+        stream << "}";
+        return stream.str();
+      }
+
+      const Object::Entries value () const {
+        return this->data;
+      }
+
+      Any get (const ssc::String key) const {
+        if (this->data.find(key) != this->data.end()) {
+          return this->data.at(key);
+        }
+
+        return nullptr;
+      }
+
+      void set (const ssc::String key, Any value) {
+        this->data[key] = value;
+      }
+
+      Any operator [] (const ssc::String key) const {
+        return this->data.at(key);
+      }
+
+      Any &operator [] (const ssc::String key) {
+        return this->data.at(key);
+      }
   };
 
   class Array : Value<ArrayEntries, Type::Array> {
     public:
       using Entries = ArrayEntries;
       Array () = default;
-      Array (const Array& array) { this->data = array.value(); }
-      Array (const Array::Entries entries);
-      ssc::String str () const;
-      Array::Entries value () const { return this->data; }
+      Array (const Array& array) {
+        this->data = array.value();
+      }
+
+      Array (const Array::Entries entries) {
+        for (const auto& value : entries) {
+          this->data.push_back(value);
+        }
+      }
+
+      ssc::String str () const {
+        ssc::StringStream stream;
+        auto count = this->data.size();
+        stream << "[";
+
+        for (const auto& value : this->data) {
+          stream << value.str();
+
+          if (--count > 0) {
+            stream << ",";
+          }
+        }
+
+        stream << "]";
+        return stream.str();
+      }
+
+      Array::Entries value () const {
+        return this->data;
+      }
+
+      Any get (const unsigned int index) const {
+        if (index < this->data.size()) {
+          return this->data.at(index);
+        }
+
+        return nullptr;
+      }
+
+      void set (const unsigned int index, Any value) {
+        if (index >= this->data.size()) {
+          this->data.resize(index + 1);
+        }
+
+        this->data[index] = value;
+      }
+
+      Any operator [] (const unsigned int index) const {
+        if (index >= this->data.size()) {
+          return nullptr;
+        }
+
+        return this->data.at(index);
+      }
+
+      Any &operator [] (const unsigned int index) {
+        if (index >= this->data.size()) {
+          this->data.resize(index + 1);
+        }
+
+        return this->data.at(index);
+      }
   };
 
   class Boolean : Value<bool, Type::Boolean> {
     public:
       Boolean () = default;
-      Boolean (const Boolean& boolean) { this->data = boolean.value(); }
-      Boolean (bool boolean) { this->data = boolean; }
-      Boolean (int64_t data) { this->data = data != 0; }
-      Boolean (double data) { this->data = data != 0; }
-      Boolean (void *data) { this->data = data != nullptr; }
-      bool value () const { return this->data; }
-      ssc::String str () const { return this->data ? "true" : "false"; }
+      Boolean (const Boolean& boolean) {
+        this->data = boolean.value();
+      }
+
+      Boolean (bool boolean) {
+        this->data = boolean;
+      }
+
+      Boolean (int64_t data) {
+        this->data = data != 0;
+      }
+
+      Boolean (double data) {
+        this->data = data != 0;
+      }
+
+      Boolean (void *data) {
+        this->data = data != nullptr;
+      }
+
+      Boolean (ssc::String string) {
+        this->data = string.size() > 0;
+      }
+
+      bool value () const {
+        return this->data;
+      }
+
+      ssc::String str () const {
+        return this->data ? "true" : "false";
+      }
   };
 
   class Number : Value<float, Type::Number> {
     public:
       Number () = default;
-      Number (const Number& number) { this->data = number.value(); }
-      Number (float number) { this->data = number; }
-      Number (int64_t number) { this->data = (float) number; }
-      float value () const { return this->data; }
+      Number (const Number& number) {
+        this->data = number.value();
+      }
+
+      Number (float number) {
+        this->data = number;
+      }
+
+      Number (int64_t number) {
+        this->data = (float) number;
+      }
+
+      float value () const {
+        return this->data;
+      }
+
       ssc::String str () const {
         auto remainer = this->data - (int32_t) this->data;
         if (remainer > 0) {
@@ -148,11 +314,25 @@ export namespace ssc::JSON {
   class String : Value<ssc::String, Type::Number> {
     public:
       String () = default;
-      String (const String& data) { this->data = ssc::String(data.str()); }
-      String (const ssc::String data) { this->data = data; }
-      String (const char *data) { this->data = ssc::String(data); }
-      ssc::String str ()  const { return ssc::format("\"$S\"", this->data); }
-      ssc::String value () const { return this->data; }
+      String (const String& data) {
+        this->data = ssc::String(data.str());
+      }
+
+      String (const ssc::String data) {
+        this->data = data;
+      }
+
+      String (const char *data) {
+        this->data = ssc::String(data);
+      }
+
+      ssc::String str () const {
+        return ssc::format("\"$S\"", this->data);
+      }
+
+      ssc::String value () const {
+        return this->data;
+      }
   };
 
   Any::Any () {
@@ -230,12 +410,12 @@ export namespace ssc::JSON {
     this->type = Type::Number;
   }
 
-#if defined(__APPLE__)
+  #if defined(__APPLE__)
   Any::Any (ssize_t  number) {
     this->pointer = std::shared_ptr<void>(new Number((float) number));
     this->type = Type::Number;
   }
-#endif
+  #endif
 
   Any::Any (float number) {
     this->pointer = std::shared_ptr<void>(new Number(number));
@@ -281,65 +461,5 @@ export namespace ssc::JSON {
     }
 
     return "";
-  }
-
-  Object::Object (const Object::Entries entries) {
-    for (const auto& tuple : entries) {
-      auto key = tuple.first;
-      auto value = tuple.second;
-      this->data.insert_or_assign(key, value);
-    }
-  }
-
-  Object::Object (const ssc::Map map) {
-    for (const auto& tuple : map) {
-      auto key = tuple.first;
-      auto value = Any(tuple.second);
-      this->data.insert_or_assign(key, value);
-    }
-  }
-
-  ssc::String Object::str () const {
-    StringStream stream;
-    auto count = this->data.size();
-    stream << "{";
-
-    for (const auto& tuple : this->data) {
-      auto key = tuple.first;
-      auto value = tuple.second.str();
-
-      stream << "\"" << key << "\":";
-      stream << value;
-
-      if (--count > 0) {
-        stream << ",";
-      }
-    }
-
-    stream << "}";
-    return stream.str();
-  }
-
-  Array::Array (const Array::Entries entries) {
-    for (const auto& value : entries) {
-      this->data.push_back(value);
-    }
-  }
-
-  ssc::String Array::str () const {
-    ssc::StringStream stream;
-    auto count = this->data.size();
-    stream << "[";
-
-    for (const auto& value : this->data) {
-      stream << value.str();
-
-      if (--count > 0) {
-        stream << ",";
-      }
-    }
-
-    stream << "]";
-    return stream.str();
   }
 }

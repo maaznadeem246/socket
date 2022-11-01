@@ -1,17 +1,25 @@
-/**
- * Global module fragment
- */
-
-module;
+module; // global
 #include "../platform.hh"
 
 /**
- * `ssc.runtime:dns` module fragment.
+ * @module ssc.dns
+ * @description DNS runtime API
+ * @example
+ * import ssc.dns
+ * namespace ssc {
+ *   using DNS = ssc::dns::DNS:
+ *   DNS dns(runtime);
+ *   dns.lookup(LookupOptions { "sockets.sh", 4 }, [](auto seq, auto json, auto data) {
+ *     printf("address=%s\n", json.get("data").as<JSON::Object>().get("address").str().c_str());
+ *   });
+ * }
+ * TODO
  */
 export module dns;
 import ssc.runtime;
 import ssc.context;
 import ssc.json;
+import ssc.uv;
 
 using Context = ssc::context::Context;
 using Runtime = ssc::runtime::Runtime;
@@ -20,19 +28,26 @@ export namespace ssc::dns {
   class DNS : public Context {
     public:
       DNS (Runtime* runtime) : Context(runtime) {}
+
       struct LookupOptions {
         String hostname;
         int family;
+        bool all;
         // TODO: support these options
         // - hints
-        // - all
         // -verbatim
       };
 
+      struct RequestContext : Context::RequestContext {
+        LookupOptions options;
+        RequestContext (const String& seq, Callback cb)
+          : Context::RequestContext(seq, cb) {}
+      };
+
       void lookup (const String seq, LookupOptions options, Callback cb) {
-        this->runtime->dispatchEventLoop([=, this]() {
-          auto ctx = new Context::RequestContext(seq, cb);
-          auto loop = this->runtime->getEventLoop();
+        this->runtime->loop.dispatch([=, this]() {
+          auto ctx = new RequestContext(seq, cb);
+          auto loop = this->runtime->loop.get();
 
           struct addrinfo hints = {0};
 
@@ -49,8 +64,9 @@ export namespace ssc::dns {
 
           uv_getaddrinfo_t* resolver = new uv_getaddrinfo_t;
           resolver->data = ctx;
+          ctx->options = options;
 
-          auto err = uv_getaddrinfo(loop, resolver, [](uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
+          auto err = uv_getaddrinfo(&this->runtime->loop.loop, resolver, [](uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
             auto ctx = (DNS::RequestContext*) resolver->data;
 
             if (status < 0) {
@@ -68,6 +84,9 @@ export namespace ssc::dns {
             }
 
             String address = "";
+
+            // @TODO(jwerle): support `options.all`
+            // loop through linked list of results
 
             if (res->ai_family == AF_INET) {
               char addr[17] = {'\0'};
@@ -114,6 +133,10 @@ export namespace ssc::dns {
             delete ctx;
           }
         });
+      }
+
+      void lookup (LookupOptions options, Callback cb) {
+        return this->lookup("-1", options, cb);
       }
   };
 }

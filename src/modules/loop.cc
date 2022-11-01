@@ -71,6 +71,10 @@ export namespace ssc::loop {
         this->stop();
       }
 
+      uv_loop_t* get () {
+        return &this->loop;
+      }
+
       bool isInitialized () const {
         return this->initialized;
       }
