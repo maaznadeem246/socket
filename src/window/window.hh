@@ -10,6 +10,11 @@
 #endif
 
 namespace ssc {
+  struct ScreenSize {
+    int height = 0;
+    int width = 0;
+  };
+
   struct WindowOptions {
     bool resizable = true;
     bool frameless = false;

@@ -1,5 +1,7 @@
 module;
 
+#include <any>
+#include <algorithm>
 #include <map>
 #include <mutex>
 #include <queue>
@@ -13,12 +15,14 @@ module;
  * @description Exports various types commonly used in ssc modules.
  */
 export module ssc.types;
-export namespace ssc {
+export namespace ssc::types {
+  using Any = std::any;
   using AtomicBool = std::atomic<bool>;
   using BinarySemaphore = std::binary_semaphore; // aka `Semaphore<1>`
   using Map = std::map<std::string, std::string>;
   using Lock = std::lock_guard<std::recursive_mutex>;
   using Mutex = std::recursive_mutex;
+
   template <int K> using Semaphore = std::counting_semaphore<K>;
   template <typename T> using SharedPointer = std::shared_ptr<T>;
   using String = std::string;
@@ -29,20 +33,4 @@ export namespace ssc {
 
   using WString = std::wstring;
   using WStringStream = std::wstringstream;
-
-  inline WString ToWString (String& string) {
-    return WString(string.begin(), string.end());
-  }
-
-  inline WString ToWString (WString& string) {
-    return string;
-  }
-
-  inline String ToString (WString& string) {
-    return String(string.begin(), string.end());
-  }
-
-  inline String ToString (String& string) {
-    return string;
-  }
 }

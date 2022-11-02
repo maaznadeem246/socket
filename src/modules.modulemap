@@ -3,3 +3,8 @@ module libuv [system] [extern_c] {
   link "uv"
   export *
 }
+
+module algorithm [system] {
+  header "algorithm"
+  export *
+}

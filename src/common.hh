@@ -79,7 +79,6 @@
 #endif
 #endif
 
-#include <any>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -87,7 +86,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <regex>
 #include <span>
 #include <thread>
 
@@ -131,17 +129,6 @@ namespace ssc {
   using ExitCallback = std::function<void(int code)>;
   using MessageCallback = std::function<void(const String)>;
 
-  struct Post {
-    uint64_t id = 0;
-    uint64_t ttl = 0;
-    char* body = nullptr;
-    size_t length = 0;
-    String headers = "";
-    bool bodyNeedsFree = false;
-  };
-
-  using Posts = std::map<uint64_t, Post>;
-
   inline const auto VERSION_FULL_STRING = ToString(STR_VALUE(SSC_VERSION) " (" STR_VALUE(SSC_VERSION_HASH) ")");
   inline const auto VERSION_HASH_STRING = ToString(STR_VALUE(SSC_VERSION_HASH));
   inline const auto VERSION_STRING = ToString(STR_VALUE(SSC_VERSION));
@@ -150,25 +137,6 @@ namespace ssc {
   inline String decodeURIComponent (const String& sSrc);
   inline String trim (String str);
 
-  inline WString StringToWString (const String& s) {
-    WString temp(s.length(), L' ');
-    std::copy(s.begin(), s.end(), temp.begin());
-    return temp;
-  }
-
-  inline WString StringToWString (const WString& s) {
-    return s;
-  }
-
-  inline String WStringToString (const WString& s) {
-    String temp(s.length(), ' ');
-    std::copy(s.begin(), s.end(), temp.begin());
-    return temp;
-  }
-
-  inline String WStringToString (const String& s) {
-    return s;
-  }
 
   //
   // Reporting on the platform.
@@ -257,25 +225,6 @@ namespace ssc {
 
     #endif
   };
-
-  inline const Vector<String>
-  splitc (const String& s, const char& c) {
-    String buff;
-    Vector<String> vec;
-
-    for (auto n : s) {
-      if (n != c) {
-        buff += n;
-      } else if (n == c) {
-        vec.push_back(buff);
-        buff = "";
-      }
-    }
-
-    vec.push_back(buff);
-
-    return vec;
-  }
 
   inline size_t decodeUTF8 (char *output, const char *input, size_t length) {
     unsigned char cp = 0; // code point
@@ -370,94 +319,6 @@ namespace ssc {
     return size;
   }
 
-  template <typename ...Args> String format (const String& s, Args ...args) {
-    auto copy = s;
-    StringStream res;
-    Vector<std::any> vec;
-    using unpack = int[];
-
-    (void) unpack { 0, (vec.push_back(args), 0)... };
-
-    std::regex re("\\$[^$\\s]");
-    std::smatch match;
-    auto first = std::regex_constants::format_first_only;
-    int index = 0;
-
-    while (std::regex_search(copy, match, re) != 0) {
-      if (match.str() == "$S") {
-        auto value = std::any_cast<String>(vec[index++]);
-        copy = std::regex_replace(copy, re, value, first);
-      } else if (match.str() == "$i") {
-        auto value = std::any_cast<int>(vec[index++]);
-        copy = std::regex_replace(copy, re, std::to_string(value), first);
-      } else if (match.str() == "$C") {
-        auto value = std::any_cast<char*>(vec[index++]);
-        copy = std::regex_replace(copy, re, String(value), first);
-      } else if (match.str() == "$c") {
-        auto value = std::any_cast<char>(vec[index++]);
-        copy = std::regex_replace(copy, re, String(1, value), first);
-      } else {
-        copy = std::regex_replace(copy, re, match.str(), first);
-      }
-    }
-
-    return copy;
-  }
-
-  inline String replace (const String& src, const String& re, const String& val) {
-    return std::regex_replace(src, std::regex(re), val);
-  }
-
-  inline String& replaceAll (String& src, String const& from, String const& to) {
-    size_t start = 0;
-    size_t index;
-
-    while ((index = src.find(from, start)) != String::npos) {
-      src.replace(index, from.size(), to);
-      start = index + to.size();
-    }
-    return src;
-  }
-
-  //
-  // Helper functions...
-  //
-  inline const Vector<String> split (const String& s, const char& c) {
-    String buff;
-    Vector<String> vec;
-
-    for (auto n : s) {
-      if(n != c) {
-        buff += n;
-      } else if (n == c && buff != "") {
-        vec.push_back(buff);
-        buff = "";
-      }
-    }
-
-    if (!buff.empty()) vec.push_back(buff);
-
-    return vec;
-  }
-
-  inline String trim (String str) {
-    str.erase(0, str.find_first_not_of(" \r\n\t"));
-    str.erase(str.find_last_not_of(" \r\n\t") + 1);
-    return str;
-  }
-
-  inline String tmpl (const String s, Map pairs) {
-    String output = s;
-
-    for (auto item : pairs) {
-      auto key = String("[{]+(" + item.first + ")[}]+");
-      auto value = item.second;
-      output = std::regex_replace(output, std::regex(key), value);
-    }
-
-    return output;
-  }
-
   inline uint64_t rand64 (void) {
     uint64_t r = 0;
     for (int i = 0; i < 64; i += RAND_MAX_WIDTH) {
@@ -538,98 +399,6 @@ namespace ssc {
     }
   #endif
 
-  inline Map parseConfig (String source) {
-    auto entries = split(source, '\n');
-    Map settings;
-
-    for (auto entry : entries) {
-      auto index = entry.find_first_of(':');
-
-      if (index >= 0 && index <= entry.size()) {
-        auto key = entry.substr(0, index);
-        auto value = entry.substr(index + 1);
-
-        settings[trim(key)] = trim(value);
-      }
-    }
-
-    return settings;
-  }
-
-  //
-  // IPC Message parser for the middle end
-  // TODO possibly harden data validation.
-  //
-  class Parse {
-    Map args;
-    public:
-      Parse(const String&);
-      int index = -1;
-      String value = "";
-      String name = "";
-      String uri = "";
-      String get(const String&) const;
-      String get(const String&, const String) const;
-      const char * c_str () const {
-        return this->uri.c_str();
-      }
-  };
-
-  struct ScreenSize {
-    int height = 0;
-    int width = 0;
-  };
-
-  //
-  // cmd: `ipc://id?p1=v1&p2=v2&...\0`
-  //
-  inline Parse::Parse (const String& s) {
-    String str = s;
-    uri = str;
-
-    // bail if missing protocol prefix
-    if (str.find("ipc://") == -1) return;
-
-    // bail if malformed
-    if (str.compare("ipc://") == 0) return;
-    if (str.compare("ipc://?") == 0) return;
-
-    String query;
-    String path;
-
-    auto raw = split(str, '?');
-    path = raw[0];
-    if (raw.size() > 1) query = raw[1];
-
-    auto parts = split(path, '/');
-    if (parts.size() >= 1) name = parts[1];
-
-    if (raw.size() != 2) return;
-    auto pairs = split(raw[1], '&');
-
-    for (auto& rawPair : pairs) {
-      auto pair = split(rawPair, '=');
-      if (pair.size() <= 1) continue;
-
-      if (pair[0].compare("index") == 0) {
-        try {
-          index = std::stoi(pair[1].size() > 0 ? pair[1] : "0");
-        } catch (...) {
-          std::cout << "Warning: received non-integer index" << std::endl;
-        }
-      }
-
-      args[pair[0]] = pair[1];
-    }
-  }
-
-  inline String Parse::get(const String& s) const {
-    return args.count(s) ? args.at(s): "";
-  }
-
-  inline String Parse::get(const String& s, const String fallback) const {
-    return args.count(s) ? args.at(s) : fallback;
-  }
 
   //
   // All ipc uses a URI schema, so all ipc data needs to be

@@ -1,5 +1,6 @@
 module; // global
-#include "../common.hh"
+#include <map>
+#include <string>
 
 /**
  * @module ssc.json
@@ -28,6 +29,11 @@ module; // global
  * auto string = object.str();
  */
 export module ssc.json;
+import ssc.types;
+import ssc.string;
+
+using namespace ssc::types;
+
 export namespace ssc::JSON {
   // forward
   class Any;
@@ -38,8 +44,8 @@ export namespace ssc::JSON {
   class Number;
   class String;
 
-  using ObjectEntries = std::map<ssc::String, Any>;
-  using ArrayEntries = ssc::Vector<Any>;
+  using ObjectEntries = std::map<ssc::string::String, Any>;
+  using ArrayEntries = Vector<Any>;
 
   enum class Type {
     Any,
@@ -54,7 +60,7 @@ export namespace ssc::JSON {
   template <typename D, Type t> class Value {
     public:
       Type type = t;
-      virtual ssc::String str () const = 0;
+      virtual ssc::string::String str () const = 0;
 
     protected:
       D data;
@@ -82,13 +88,13 @@ export namespace ssc::JSON {
       #endif
       Any (const Number);
       Any (const char *);
-      Any (const ssc::String);
+      Any (const ssc::string::String);
       Any (const String);
       Any (const Object);
       Any (const ObjectEntries);
       Any (const Array);
       Any (const ArrayEntries);
-      ssc::String str () const;
+      ssc::string::String str () const;
 
       template <typename T> T& as () {
         return *reinterpret_cast<T *>(this);
@@ -103,7 +109,7 @@ export namespace ssc::JSON {
         return nullptr;
       }
 
-      ssc::String str () const {
+      ssc::string::String str () const {
         return "null";
       }
   };
@@ -124,7 +130,7 @@ export namespace ssc::JSON {
         this->data = object.value();
       }
 
-      Object (const ssc::Map map) {
+      Object (const Map map) {
         for (const auto& tuple : map) {
           auto key = tuple.first;
           auto value = Any(tuple.second);
@@ -132,7 +138,7 @@ export namespace ssc::JSON {
         }
       }
 
-      ssc::String str () const {
+      ssc::string::String str () const {
         StringStream stream;
         auto count = this->data.size();
         stream << "{";
@@ -157,7 +163,7 @@ export namespace ssc::JSON {
         return this->data;
       }
 
-      Any get (const ssc::String key) const {
+      Any get (const ssc::string::String key) const {
         if (this->data.find(key) != this->data.end()) {
           return this->data.at(key);
         }
@@ -165,16 +171,16 @@ export namespace ssc::JSON {
         return nullptr;
       }
 
-      void set (const ssc::String key, Any value) {
+      void set (const ssc::string::String key, Any value) {
         this->data[key] = value;
       }
 
-      Any operator [] (const ssc::String key) const {
+      Any operator [] (const ssc::string::String& key) const {
         return this->data.at(key);
       }
 
-      Any &operator [] (const ssc::String key) {
-        return this->data.at(key);
+      Any &operator [] (const ssc::string::String& key) {
+        return this->data[key];
       }
   };
 
@@ -192,8 +198,8 @@ export namespace ssc::JSON {
         }
       }
 
-      ssc::String str () const {
-        ssc::StringStream stream;
+      ssc::string::String str () const {
+        ssc::string::StringStream stream;
         auto count = this->data.size();
         stream << "[";
 
@@ -269,7 +275,7 @@ export namespace ssc::JSON {
         this->data = data != nullptr;
       }
 
-      Boolean (ssc::String string) {
+      Boolean (ssc::string::String string) {
         this->data = string.size() > 0;
       }
 
@@ -277,7 +283,7 @@ export namespace ssc::JSON {
         return this->data;
       }
 
-      ssc::String str () const {
+      ssc::string::String str () const {
         return this->data ? "true" : "false";
       }
   };
@@ -301,36 +307,36 @@ export namespace ssc::JSON {
         return this->data;
       }
 
-      ssc::String str () const {
+      ssc::string::String str () const {
         auto remainer = this->data - (int32_t) this->data;
         if (remainer > 0) {
-          return ssc::format("$S", std::to_string(this->data));
+          return ssc::string::format("$S", std::to_string(this->data));
         } else {
-          return ssc::format("$S", std::to_string((int32_t) this->data));
+          return ssc::string::format("$S", std::to_string((int32_t) this->data));
         }
       }
   };
 
-  class String : Value<ssc::String, Type::Number> {
+  class String : Value<ssc::string::String, Type::Number> {
     public:
       String () = default;
       String (const String& data) {
-        this->data = ssc::String(data.str());
+        this->data = ssc::string::String(data.str());
       }
 
-      String (const ssc::String data) {
+      String (const ssc::string::String data) {
         this->data = data;
       }
 
       String (const char *data) {
-        this->data = ssc::String(data);
+        this->data = ssc::string::String(data);
       }
 
-      ssc::String str () const {
-        return ssc::format("\"$S\"", this->data);
+      ssc::string::String str () const {
+        return ssc::string::format("\"$S\"", this->data);
       }
 
-      ssc::String value () const {
+      ssc::string::String value () const {
         return this->data;
       }
   };
@@ -365,7 +371,7 @@ export namespace ssc::JSON {
     this->type = Type::String;
   }
 
-  Any::Any (const ssc::String string) {
+  Any::Any (const ssc::string::String string) {
     this->pointer = std::shared_ptr<void>(new String(string));
     this->type = Type::String;
   }
@@ -447,7 +453,7 @@ export namespace ssc::JSON {
     this->type = Type::Array;
   }
 
-  ssc::String Any::str () const {
+  ssc::string::String Any::str () const {
     auto ptr = this->pointer.get();
 
     switch (this->type) {
