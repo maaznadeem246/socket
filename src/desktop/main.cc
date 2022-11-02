@@ -1,10 +1,7 @@
-import socket.process;
-
 #include "../app/app.hh"
+#include "../process/process.hh"
 #include "../window/window.hh"
 #include "../ipc/ipc.hh"
-
-Platform platform;
 
 //
 // A cross platform MAIN macro that

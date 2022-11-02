@@ -1,10 +1,12 @@
 module; // global
 #include "../platform.hh"
 
-export module peer;
-import runtime;
-import json;
-import uv;
+export module ssc.peer;
+import ssc.runtime;
+import ssc.json;
+import ssc.uv;
+
+using Runtime = ssc::runtime::Runtime;
 
 export namespace ssc {
   typedef enum {
@@ -115,7 +117,7 @@ export namespace ssc {
       /**
       * Private `Peer` class constructor
       */
-      Peer (PeerManager *manager, PeerType peerType, uint64_t peerId, bool isEphemeral);
+      Peer (Runtime* runtime, PeerType peerType, uint64_t peerId, bool isEphemeral);
       ~Peer ();
 
       int init ();
@@ -157,8 +159,8 @@ export namespace ssc {
       void close (std::function<void()> onclose);
   };
 
-  void Runtime::resumeAllPeers () {
-    dispatchEventLoop([=, this]() {
+  void resumeAllPeers (Runtime* runtime) {
+    runtime->loop.dispatch([=, this]() {
       Lock lock(this->peersMutex);
       for (auto const &tuple : this->peers) {
         auto peer = tuple.second;

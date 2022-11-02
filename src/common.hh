@@ -41,12 +41,6 @@
 
 // Android (Linux)
 #if defined(__linux__) && defined(__ANDROID__)
-// Java Native Interface
-// @see https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/jniTOC.html
-#include <jni.h>
-#include <android/asset_manager.h>
-#include <android/asset_manager_jni.h>
-#include <android/log.h>
 
 #ifndef debug
 #define debug(format, ...) \
@@ -93,16 +87,9 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <map>
-#include <mutex>
-#include <queue>
 #include <regex>
-#include <semaphore>
 #include <span>
-#include <sstream>
-#include <string>
 #include <thread>
-#include <vector>
 
 #ifndef DEBUG
 #define DEBUG 0
@@ -139,28 +126,10 @@
 #define IMAX_BITS(m) ((m)/((m) % 255+1) / 255 % 255 * 8 + 7-86 / ((m) % 255+12))
 #define RAND_MAX_WIDTH IMAX_BITS(RAND_MAX)
 
-#define ToWString(string) WString(L##string)
-#define ToString(string) String(string)
-
 namespace ssc {
 
-  using AtomicBool = std::atomic<bool>;
-  using String = std::string;
-  using StringStream = std::stringstream;
-  using WString = std::wstring;
-  using WStringStream = std::wstringstream;
-
-  template <typename T> using Queue = std::queue<T>;
-  template <int K> using Semaphore = std::counting_semaphore<K>;
-  template <typename T> using Vector = std::vector<T>;
-
-  using BinarySemaphore = std::binary_semaphore; // aka `Semaphore<1>`
   using ExitCallback = std::function<void(int code)>;
-  using Map = std::map<String, String>;
-  using Mutex = std::recursive_mutex;
-  using Lock = std::lock_guard<Mutex>;
   using MessageCallback = std::function<void(const String)>;
-  using Thread = std::thread;
 
   struct Post {
     uint64_t id = 0;

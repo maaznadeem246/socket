@@ -2,27 +2,29 @@ module; // global
 #include "../platform.hh"
 
 /**
- * @module javascript
+ * @module ssc.os
  * @description TODO
  * @example
- * import javascript;
- * using namespace ssc::javascript;
- * TODO
+ * import ssc.os
+ * using OS = ssc::os::OS:
+ * namespace ssc {
+ *   TODO
+ * }
  */
-export module os;
-import context;
-import runtime;
-import json;
-import uv;
+export module ssc.os;
+import ssc.context;
+import ssc.runtime;
+import ssc.json;
+import ssc.uv;
 
-using namespace ssc::context;
+using Context = ssc::context::Context;
 
-export namespace ssc {
+export namespace ssc::os {
+  const int RECV_BUFFER = 1;
+  const int SEND_BUFFER = 0;
+
   class OS : public Context {
     public:
-      static const int RECV_BUFFER = 1;
-      static const int SEND_BUFFER = 0;
-
       OS (auto runtime) : Context(runtime) {}
       void bufferSize (
         const String seq,
@@ -115,12 +117,12 @@ export namespace ssc {
     Context::Callback cb
   ) {
     if (buffer < 0) {
-      buffer = OS::SEND_BUFFER;
+      buffer = SEND_BUFFER;
     } else if (buffer > 1) {
-      buffer = OS::RECV_BUFFER;
+      buffer = RECV_BUFFER;
     }
 
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->runtime->loop.dispatch([=, this]() {
       auto peer = this->runtime->getPeer(peerId);
 
       if (peer == nullptr) {

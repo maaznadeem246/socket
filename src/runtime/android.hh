@@ -6,6 +6,13 @@
 #include "runtime-preload.hh"
 #include "core.hh"
 
+// Java Native Interface
+// @see https://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/jniTOC.html
+#include <jni.h>
+#include <android/asset_manager.h>
+#include <android/asset_manager_jni.h>
+#include <android/log.h>
+
 using namespace SSC;
 
 typedef SSC::String NativeCoreSequence;
