@@ -1,7 +1,12 @@
 module;
+#include <stdio.h>
 #include <stddef.h>
 #include <math.h>
 #include <string>
+
+#if defined(_WIN32)
+#include <Winbase.h>
+#endif
 
 /**
  * @module ssc.env
@@ -60,8 +65,11 @@ export namespace ssc::env {
   }
 
   inline auto set (const char* key, const char* value) {
-    auto string = String(key) + String("=") + String(value);
-    return set(string.c_str());
+    #if defined(_WIN32)
+      SetEnvironmentVariable(key, value);
+    #else
+      setenv(key, value, 1);
+    #endif
   }
 
   inline auto set (const String& key, const String& value) {
