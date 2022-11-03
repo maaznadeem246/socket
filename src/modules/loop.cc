@@ -1,14 +1,28 @@
 module; // global
+#include <functional>
+#include <thread>
 #include "../platform.hh"
 
 /**
  * @module ssc.loop
  * @description TODO
  * @example
- * TODO
+ * import ssc.loop;
+ * using Loop = ssc::loop::Loop;
+ * namespace ssc {
+ *   Loop loop;
+ *   loop.dispatch([&]() {
+ *     // dispatch work to the event loop
+ *   });
+ *
+ *   loop.wait(); // wait until no longer running
+ * }
  */
 export module ssc.loop;
+import ssc.types;
 import ssc.uv;
+
+using namespace ssc::types;
 
 export namespace ssc::loop {
   // forward
@@ -57,6 +71,10 @@ export namespace ssc::loop {
       Queue<DispatchCallback> queue;
       Thread* thread = nullptr;
       Mutex mutex;
+      struct {
+        BinarySemaphore poll{0};
+        BinarySemaphore signal{0};
+      } semaphores;
 
       #if defined(__APPLE__)
       dispatch_queue_t dispatchQueue = dispatch_queue_create(
@@ -65,13 +83,18 @@ export namespace ssc::loop {
       );
       #endif
 
-      Loop () = default;
       Loop (Loop&) = delete;
+      Loop () {
+        this->semaphores.poll.release();
+        this->semaphores.signal.release();
+      }
+
       ~Loop () {
         this->stop();
       }
 
       uv_loop_t* get () {
+        Lock lock(this->mutex);
         return &this->loop;
       }
 
@@ -80,14 +103,16 @@ export namespace ssc::loop {
       }
 
       bool isAlive () {
+        Lock lock(this->mutex);
         return this->isInitialized() && uv_loop_alive(&this->loop);
       }
 
-      bool isRunning () const {
+      bool isRunning () {
         return this->isInitialized() && this->running;
       }
 
       int timeout () {
+        Lock lock(this->mutex);
         uv_update_time(&this->loop);
         return uv_backend_timeout(&this->loop);
       }
@@ -100,34 +125,34 @@ export namespace ssc::loop {
         return this->run(UV_RUN_DEFAULT);
       }
 
-      void sleep (int64_t ms) {
+      Loop& sleep (int64_t ms) {
         if (ms > 0) {
           auto timeout = this->timeout();
           ms = timeout > ms ? timeout : ms;
           std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         }
+
+        return *this;
       }
 
-      void sleep () {
-        this->sleep(this->timeout());
+      Loop& sleep () {
+        return this->sleep(this->timeout());
       }
 
-      void signal () {
-        uv_async_send(&this->async);
+      Loop& wait () {
+        this->semaphores.poll.acquire();
+        this->semaphores.poll.release();
+        return *this;
       }
 
-      void dispatch (DispatchCallback callback) {
-        Lock lock(this->mutex);
-        this->queue.push(callback);
-        this->signal();
-      }
-
-      void init () {
+      Loop& init () {
         if (this->initialized) {
-          return;
+          return *this;
         }
 
         Lock lock(this->mutex);
+        this->semaphores.signal.acquire();
+        this->semaphores.poll.acquire();
 
         /**
          * Below we configure a table of `GSourceFuncs` used for
@@ -158,11 +183,16 @@ export namespace ssc::loop {
         #endif
 
         uv_loop_init(&this->loop);
+        this->async.data = this;
         uv_async_init(&this->loop, &this->async, [](uv_async_t *handle) {
           auto loop = reinterpret_cast<Loop*>(handle->data);
 
           while (true) {
             Lock lock(loop->mutex);
+            if (!loop->isRunning()) {
+              break;
+            }
+
             if (loop->queue.size() > 0) {
               auto dispatch = loop->queue.front();
               if (dispatch != nullptr) {
@@ -188,9 +218,10 @@ export namespace ssc::loop {
         #endif
 
         this->initialized = true;
+        return *this;
       }
 
-      void stop () {
+      Loop& stop () {
         this->running = false;
         uv_stop(&this->loop);
         Lock lock(this->mutex);
@@ -203,23 +234,20 @@ export namespace ssc::loop {
           delete this->thread;
           this->thread = nullptr;
         }
+
+        return *this;
       }
 
-      void start () {
+      Loop& start () {
         if (this->isRunning()) {
-          return;
+          return *this;
         }
 
         Lock lock(this->mutex);
 
+        this->stop();
         this->running = true;
         this->init();
-        this->stop();
-        this->dispatch([=, this]() {
-          // TODO
-          // initTimers();
-          // startTimers();
-        });
 
         #if defined(__APPLE__)
         dispatch_async(this->dispatchQueue, ^{
@@ -229,10 +257,29 @@ export namespace ssc::loop {
         #elif defined(__ANDROID__) || !defined(__linux__)
         this->thread = new std::thread(&pollEventLoop, this);
         #endif
+
+        return *this;
+      }
+
+      Loop& signal () {
+        this->semaphores.signal.acquire();
+        uv_async_send(&this->async);
+        this->semaphores.signal.release();
+        return *this;
+      }
+
+      Loop& dispatch (DispatchCallback callback) {
+        Lock lock(this->mutex);
+        this->queue.push(callback);
+        this->start();
+        this->signal();
+        return *this;
       }
   };
 
   void pollEventLoop (Loop* loop) {
+    loop->semaphores.signal.release();
+
     while (loop->isRunning()) {
       loop->sleep(Loop::POLL_TIMEOUT);
 
@@ -241,6 +288,7 @@ export namespace ssc::loop {
       } while (loop->isRunning() && loop->isAlive());
     }
 
+    loop->semaphores.poll.release();
     loop->running = false;
   }
 }

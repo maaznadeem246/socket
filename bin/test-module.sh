@@ -27,7 +27,7 @@ function build () {
 }
 
 function main () {
-  build "$root/src/modules/"{types,string,json,config,env,log}.cc
+  build "$root/src/modules/"{types,string,json,config,env,log,uv,loop}.cc
 
   mkdir -p "$module_tests_path"
 
