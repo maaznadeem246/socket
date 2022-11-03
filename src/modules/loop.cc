@@ -71,6 +71,8 @@ export namespace ssc::loop {
       Queue<DispatchCallback> queue;
       Thread* thread = nullptr;
       Mutex mutex;
+
+      // async semaphores
       struct {
         BinarySemaphore poll{0};
         BinarySemaphore signal{0};
