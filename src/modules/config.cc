@@ -17,6 +17,7 @@ module;
 export module ssc.config;
 import ssc.string;
 import ssc.types;
+import ssc.json;
 
 using namespace ssc::types;
 using namespace ssc::string;
@@ -66,6 +67,10 @@ export namespace ssc::config {
 
       auto size () const {
         return this->data.size();
+      }
+
+      auto json () const {
+        return JSON::Object(this->data);
       }
   };
 }

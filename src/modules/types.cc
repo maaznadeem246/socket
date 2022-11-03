@@ -2,6 +2,8 @@ module;
 
 #include <any>
 #include <algorithm>
+#include <iostream>
+#include <fstream>
 #include <map>
 #include <mutex>
 #include <queue>
@@ -19,8 +21,10 @@ export namespace ssc::types {
   using Any = std::any;
   using AtomicBool = std::atomic<bool>;
   using BinarySemaphore = std::binary_semaphore; // aka `Semaphore<1>`
+  using ExitCallback = std::function<void(int code)>;
   using Map = std::map<std::string, std::string>;
   using Lock = std::lock_guard<std::recursive_mutex>;
+  using MessageCallback = std::function<void(const std::string)>;
   using Mutex = std::recursive_mutex;
 
   template <int K> using Semaphore = std::counting_semaphore<K>;
