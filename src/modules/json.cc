@@ -1,6 +1,5 @@
 module; // global
 #include <map>
-#include <stdio.h>
 #include <string>
 
 /**
@@ -65,14 +64,21 @@ export namespace ssc::JSON {
       auto typeof () const {
         switch (this->type) {
           case Type::Any: return ssc::string::String("any");
-          case Type::Null: return ssc::string::String("null");
-          case Type::Object: return ssc::string::String("object");
           case Type::Array: return ssc::string::String("array");
           case Type::Boolean: return ssc::string::String("boolean");
           case Type::Number: return ssc::string::String("number");
+          case Type::Null: return ssc::string::String("null");
+          case Type::Object: return ssc::string::String("object");
           case Type::String: return ssc::string::String("string");
         }
       }
+
+      auto isArray () const { return this->type == Type::Array; }
+      auto isBoolean () const { return this->type == Type::Boolean; }
+      auto isNumber () const { return this->type == Type::Number; }
+      auto isNuLl () const { return this->type == Type::Null; }
+      auto isObject () const { return this->type == Type::Object; }
+      auto isString () const { return this->type == Type::String; }
 
     protected:
       D data;
@@ -93,7 +99,6 @@ export namespace ssc::JSON {
       Any (uint64_t);
       Any (uint32_t);
       Any (int32_t);
-      Any (float);
       Any (double);
       #if defined(__APPLE__)
       Any (ssize_t);
@@ -109,7 +114,7 @@ export namespace ssc::JSON {
       Any (const ArrayEntries);
       ssc::string::String str () const;
 
-      template <typename T> T& as () {
+      template <typename T> T& as () const {
         return *reinterpret_cast<T *>(this->pointer.get());
       }
   };
@@ -322,28 +327,24 @@ export namespace ssc::JSON {
         this->data = number.value();
       }
 
-      Number (float number) {
-        this->data = number;
-      }
-
       Number (double number) {
         this->data = number;
       }
 
       Number (char number) {
-        this->data = (double) (int) number;
+        this->data = (double) number;
       }
 
       Number (int number) {
-        this->data = (float) number;
+        this->data = (double) number;
       }
 
       Number (int64_t number) {
-        this->data = (float) number;
+        this->data = (double) number;
       }
 
       Number (bool number) {
-        this->data = (int) number;
+        this->data = (double) number;
       }
 
       float value () const {
@@ -351,27 +352,22 @@ export namespace ssc::JSON {
       }
 
       ssc::string::String str () const {
-        ssc::string::String output = "0";
+        return this->str(7);
+      }
 
-        auto value = this->value();
-        auto decimal = value - (int32_t) value;
-        auto epsilon = 0.000001;
-
-        if (decimal == 0) {
-          return ssc::string::format("$S", std::to_string((int32_t) value));
+      ssc::string::String str (int precision) const {
+        if (this->data == 0) {
+          return "0";
         }
 
-        if (decimal > 0) {
-          output = ssc::string::format("$S", std::to_string((float) value - epsilon));
-        } else if (decimal < 0) {
-          output = ssc::string::format("$S", std::to_string((float) value + epsilon));
-        }
+        auto value = this->data;
+        auto output = std::to_string(value);
 
         // trim trailing zeros
-        int i = output.size() - 1;
+        auto  i = output.size() - 1;
         for (; i >= 0; --i) {
           auto ch = output[i];
-          if (ch != '0') {
+          if (ch != '0' && ch != '.') {
             break;
           }
         }
@@ -400,7 +396,10 @@ export namespace ssc::JSON {
       }
 
       ssc::string::String str () const {
-        return ssc::string::format("\"$S\"", this->data);
+        return ssc::string::format(
+          "\"$S\"",
+          ssc::string::replace(this->data, "\"", "\\\"")
+        );
       }
 
       ssc::string::String value () const {
@@ -464,41 +463,36 @@ export namespace ssc::JSON {
   }
 
   Any::Any (int32_t number) {
-    this->pointer = SharedPointer<void>(new Number((float) number));
+    this->pointer = SharedPointer<void>(new Number((double) number));
     this->type = Type::Number;
   }
 
   Any::Any (uint32_t number) {
-    this->pointer = SharedPointer<void>(new Number((float) number));
+    this->pointer = SharedPointer<void>(new Number((double) number));
     this->type = Type::Number;
   }
 
   Any::Any (int64_t number) {
-    this->pointer = SharedPointer<void>(new Number((float) number));
+    this->pointer = SharedPointer<void>(new Number((double) number));
     this->type = Type::Number;
   }
 
   Any::Any (uint64_t number) {
-    this->pointer = SharedPointer<void>(new Number((float) number));
+    this->pointer = SharedPointer<void>(new Number((double) number));
     this->type = Type::Number;
   }
 
   Any::Any (double number) {
-    this->pointer = SharedPointer<void>(new Number((float) number));
+    this->pointer = SharedPointer<void>(new Number((double) number));
     this->type = Type::Number;
   }
 
   #if defined(__APPLE__)
   Any::Any (ssize_t  number) {
-    this->pointer = SharedPointer<void>(new Number((float) number));
+    this->pointer = SharedPointer<void>(new Number((double) number));
     this->type = Type::Number;
   }
   #endif
-
-  Any::Any (float number) {
-    this->pointer = SharedPointer<void>(new Number(number));
-    this->type = Type::Number;
-  }
 
   Any::Any (const Number number) {
     this->pointer = SharedPointer<void>(new Number(number));

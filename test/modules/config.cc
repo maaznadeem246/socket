@@ -2,9 +2,12 @@
 
 import ssc.config;
 import ssc.string;
+import ssc.log;
 
 using String = ssc::string::String;
 using Config = ssc::config::Config;
+
+using namespace ssc;
 
 auto constexpr source = R"CONFIG(
 # a comment
@@ -20,9 +23,16 @@ int main () {
   assert(config["key"] == String("value"));
   assert(config.get("overwritten") == String("reachable"));
   assert(config.size() == 2);
+
   config.set("key", "new value");
   assert(config["key"] == String("new value"));
+
   config["new key"] = "value";
   assert(config.size() == 3);
+
+  assert(
+    config.json().str() ==
+    String(R"JSON({"key":"new value","new key":"value","overwritten":"reachable"})JSON")
+  );
   return 0;
 }
