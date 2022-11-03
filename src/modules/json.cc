@@ -398,7 +398,11 @@ export namespace ssc::JSON {
       ssc::string::String str () const {
         return ssc::string::format(
           "\"$S\"",
-          ssc::string::replace(this->data, "\"", "\\\"")
+          ssc::string::replace(
+            ssc::string::replace(this->data, "\"", "\\\""),
+              "\n",
+              "\\n"
+            )
         );
       }
 

@@ -1,5 +1,6 @@
 module; // global
 #include "../common.hh"
+#include <string>
 
 /**
  * @module ssc.javascript
@@ -7,12 +8,39 @@ module; // global
  * @example
  * import ssc.javascript;
  * using namespace ssc::javascript;
- * TODO
+ * namespace ssc {
+ * }
  */
 export module ssc.javascript;
 import ssc.json;
+import ssc.string;
+
+using String = ssc::string::String;
+using ssc::string::trim;
 
 export namespace ssc::javascript {
+  class Script {
+    public:
+      String name;
+      String source;
+      Script () = default;
+      Script (const String& name, const String& source) {
+        this->name = name;
+        this->source = source;
+      }
+
+      String str () const {
+        return String(
+          ";(() => {\n" + trim(this->source) + "\n})();\n"
+          "//# sourceURL=" + this->name + "\n"
+        );
+      }
+
+      JSON::String json () const {
+        return JSON::String(this->str());
+      }
+  };
+
   String createJavaScript (const String& name, const String& source) {
     return String(
       ";(() => {\n" + trim(source) + "\n})();\n"

@@ -20,12 +20,14 @@ module; // global
  * }
  */
 export module ssc.log;
+import ssc.javascript;
 import ssc.string;
 import ssc.config;
 import ssc.json;
 
-using String = ssc::string::String;
 using Config = ssc::config::Config;
+using String = ssc::string::String;
+using Script = ssc::javascript::Script;
 
 export namespace ssc::log {
   inline auto write (const String& str, bool isError) {
@@ -81,6 +83,10 @@ export namespace ssc::log {
     info(config.str());
   }
 
+  inline auto info (const Script& script) {
+    info(script.str());
+  }
+
   inline auto error (const String& string) {
     write(string, true);
   }
@@ -119,5 +125,9 @@ export namespace ssc::log {
 
   inline auto error (const Config& config) {
     error(config.str());
+  }
+
+  inline auto error (const Script& script) {
+    error(script.str());
   }
 }
