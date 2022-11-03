@@ -17,7 +17,7 @@ module;
  * }
  * TODO
  */
-export module ssc.codec;
+export module ssc.env;
 import ssc.string;
 
 using String = ssc::string::String;
