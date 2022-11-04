@@ -5,17 +5,6 @@ module;
 using namespace ssc;
 using namespace ssc::ipc;
 
-  struct Post {
-    uint64_t id = 0;
-    uint64_t ttl = 0;
-    char* body = nullptr;
-    size_t length = 0;
-    String headers = "";
-    bool bodyNeedsFree = false;
-  };
-
-  using Posts = std::map<uint64_t, Post>;
-
 Platform platform;
 
 #if defined(__APPLE__)

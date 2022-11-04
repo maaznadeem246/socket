@@ -6,6 +6,7 @@ module;
 #include <fstream>
 #include <map>
 #include <mutex>
+#include <new> // @TODO(jwerle): move this to `platform.hh` or similar
 #include <queue>
 #include <semaphore>
 #include <sstream>
@@ -37,4 +38,15 @@ export namespace ssc::types {
 
   using WString = std::wstring;
   using WStringStream = std::wstringstream;
+
+  struct Post {
+    uint64_t id = 0;
+    uint64_t ttl = 0;
+    char* body = nullptr;
+    size_t length = 0;
+    String headers = "";
+    bool bodyNeedsFree = false;
+  };
+
+  using Posts = std::map<uint64_t, Post>;
 }

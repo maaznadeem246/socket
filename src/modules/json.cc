@@ -207,6 +207,10 @@ export namespace ssc::JSON {
       Any &operator [] (const ssc::string::String& key) {
         return this->data[key];
       }
+
+      auto size () const {
+        return this->data.size();
+      }
   };
 
   class Array : Value<ArrayEntries, Type::Array> {
@@ -381,7 +385,7 @@ export namespace ssc::JSON {
     public:
       String () = default;
       String (const String& data) {
-        this->data = ssc::string::String(data.str());
+        this->data = ssc::string::String(data.value());
       }
 
       String (const ssc::string::String data) {
@@ -409,6 +413,10 @@ export namespace ssc::JSON {
 
       ssc::string::String value () const {
         return this->data;
+      }
+
+      auto size () const {
+        return this->data.size();
       }
   };
 

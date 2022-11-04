@@ -2,6 +2,7 @@ module; // global
 #include "../platform.hh"
 #include <map>
 #include <memory>
+#include <new> // @TODO(jwerle): move this to `platform.hh` or similar
 #include <string>
 
 /**
@@ -44,9 +45,18 @@ export namespace ssc::runtime {
           }
 
           void dispose () {}
+
+          template <class T> T* as () {
+            return reinterpret_cast<T*>(this);
+          }
+      };
+
+      struct Interfaces {
+        SharedPointer<Interface> dns = nullptr;
       };
 
       Loop loop;
+      Interfaces interfaces;
 
       Runtime () = default;
       ~Runtime () = default;
@@ -58,6 +68,13 @@ export namespace ssc::runtime {
 
       void stop () {
         this->loop.stop();
+      }
+
+      void dispatch (Loop::DispatchCallback cb) {
+        this->loop.dispatch(cb);
+      }
+
+      void wait () {
         this->loop.wait();
       }
   };

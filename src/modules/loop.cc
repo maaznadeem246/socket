@@ -1,6 +1,7 @@
 module; // global
 #include <functional>
 #include <thread>
+#include <stdio.h>
 #include "../platform.hh"
 
 /**
@@ -96,7 +97,6 @@ export namespace ssc::loop {
       }
 
       uv_loop_t* get () {
-        Lock lock(this->mutex);
         return &this->loop;
       }
 
@@ -105,7 +105,6 @@ export namespace ssc::loop {
       }
 
       bool isAlive () {
-        Lock lock(this->mutex);
         return this->isInitialized() && uv_loop_alive(&this->loop);
       }
 
@@ -114,7 +113,6 @@ export namespace ssc::loop {
       }
 
       int timeout () {
-        Lock lock(this->mutex);
         uv_update_time(&this->loop);
         return uv_backend_timeout(&this->loop);
       }
@@ -152,7 +150,6 @@ export namespace ssc::loop {
           return *this;
         }
 
-        Lock lock(this->mutex);
         this->semaphores.signal.acquire();
         this->semaphores.poll.acquire();
 
@@ -178,35 +175,10 @@ export namespace ssc::loop {
           .dispatch = [](auto source, auto callback, auto user_data) {
             auto loop = reinterpret_cast<LoopSource *>(source)->loop;
             loop->run(UV_RUN_NOWAIT);
-            uv_run(loop, UV_RUN_NOWAIT);
             return G_SOURCE_CONTINUE;
           }
         };
-        #endif
 
-        uv_loop_init(&this->loop);
-        this->async.data = this;
-        uv_async_init(&this->loop, &this->async, [](uv_async_t *handle) {
-          auto loop = reinterpret_cast<Loop*>(handle->data);
-
-          while (true) {
-            Lock lock(loop->mutex);
-            if (!loop->isRunning()) {
-              break;
-            }
-
-            if (loop->queue.size() > 0) {
-              auto dispatch = loop->queue.front();
-              if (dispatch != nullptr) {
-                dispatch();
-              }
-
-              loop->queue.pop();
-            }
-          }
-        });
-
-        #if defined(__linux__) && !defined(__ANDROID__)
         auto source = g_source_new(&loopSourceFunctions, sizeof(LoopSource));
         auto loopSource = (LoopSource *) source;
         loopSource->loop = this;
@@ -220,14 +192,40 @@ export namespace ssc::loop {
         #endif
 
         this->initialized = true;
+
+        Lock lock(this->mutex);
+        uv_loop_init(&this->loop);
+        this->async.data = this;
+        uv_async_init(&this->loop, &this->async, [](uv_async_t *handle) {
+          auto loop = reinterpret_cast<Loop*>(handle->data);
+
+          while (true) {
+            if (!loop->isRunning()) {
+              break;
+            }
+
+            Lock lock(loop->mutex);
+            if (loop->queue.size() == 0) {
+              break;
+            }
+
+            auto dispatch = loop->queue.front();
+            loop->queue.pop();
+            if (dispatch != nullptr) {
+              dispatch();
+            }
+
+          }
+        });
+
         return *this;
       }
 
       Loop& stop () {
         this->running = false;
         uv_stop(&this->loop);
-        Lock lock(this->mutex);
 
+        Lock lock(this->mutex);
         if (this->thread != nullptr) {
           if (this->thread->joinable()) {
             this->thread->join();
@@ -245,19 +243,16 @@ export namespace ssc::loop {
           return *this;
         }
 
-        Lock lock(this->mutex);
-
-        this->stop();
         this->running = true;
         this->init();
 
         #if defined(__APPLE__)
-        dispatch_async(this->dispatchQueue, ^{
-          pollEventLoop(this);
-        });
-
+          dispatch_async(this->dispatchQueue, ^{
+            pollEventLoop(this);
+          });
         #elif defined(__ANDROID__) || !defined(__linux__)
-        this->thread = new std::thread(&pollEventLoop, this);
+          Lock lock(this->mutex);
+          this->thread = new std::thread(&pollEventLoop, this);
         #endif
 
         return *this;
@@ -271,8 +266,11 @@ export namespace ssc::loop {
       }
 
       Loop& dispatch (DispatchCallback callback) {
-        Lock lock(this->mutex);
-        this->queue.push(callback);
+        if (callback != nullptr) {
+          Lock lock(this->mutex);
+          this->queue.push(callback);
+        }
+
         this->start();
         this->signal();
         return *this;

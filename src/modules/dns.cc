@@ -1,5 +1,7 @@
 module; // global
 #include "../platform.hh"
+#include <string>
+#include <stdio.h>
 
 /**
  * @module ssc.dns
@@ -15,14 +17,18 @@ module; // global
  * }
  * TODO
  */
-export module dns;
+export module ssc.dns;
 import ssc.runtime;
 import ssc.context;
+import ssc.string;
+import ssc.types;
 import ssc.json;
 import ssc.uv;
 
-using Context = ssc::context::Context;
-using Runtime = ssc::runtime::Runtime;
+using ssc::context::Context;
+using ssc::runtime::Runtime;
+using ssc::string::String;
+using ssc::types::Post;
 
 export namespace ssc::dns {
   class DNS : public Context {
@@ -31,8 +37,8 @@ export namespace ssc::dns {
 
       struct LookupOptions {
         String hostname;
-        int family;
-        bool all;
+        int family = 4;
+        bool all = false;
         // TODO: support these options
         // - hints
         // -verbatim
@@ -45,7 +51,7 @@ export namespace ssc::dns {
       };
 
       void lookup (const String seq, LookupOptions options, Callback cb) {
-        this->runtime->loop.dispatch([=, this]() {
+        this->runtime->dispatch([=, this]() {
           auto ctx = new RequestContext(seq, cb);
           auto loop = this->runtime->loop.get();
 
@@ -62,13 +68,12 @@ export namespace ssc::dns {
           hints.ai_socktype = 0; // `0` for any
           hints.ai_protocol = 0; // `0` for any
 
-          uv_getaddrinfo_t* resolver = new uv_getaddrinfo_t;
+          auto resolver = new uv_getaddrinfo_t;
           resolver->data = ctx;
           ctx->options = options;
 
-          auto err = uv_getaddrinfo(&this->runtime->loop.loop, resolver, [](uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
+          auto err = uv_getaddrinfo(loop, resolver, [](uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
             auto ctx = (DNS::RequestContext*) resolver->data;
-
             if (status < 0) {
               auto result = JSON::Object::Entries {
                 {"source", "dns.lookup"},

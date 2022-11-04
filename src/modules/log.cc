@@ -25,11 +25,12 @@ import ssc.string;
 import ssc.config;
 import ssc.json;
 
-using Config = ssc::config::Config;
-using String = ssc::string::String;
-using Script = ssc::javascript::Script;
+using ssc::config::Config;
+using ssc::string::String;
+using ssc::javascript::Script;
 
 export namespace ssc::log {
+  using ssc::string::format;
   inline auto write (const String& str, bool isError) {
     #if defined(_WIN32)
       StringStream ss;
@@ -49,6 +50,10 @@ export namespace ssc::log {
 
   inline auto info (std::nullptr_t _) {
     write(String("null"), false);
+  }
+
+  inline auto info (const uint64_t u64) {
+    write(std::to_string(u64), false);
   }
 
   inline auto info (const int64_t i64) {
