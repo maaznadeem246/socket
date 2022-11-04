@@ -14,11 +14,11 @@ using ssc::dns::DNS;
 using ssc::string::String;
 using ssc::runtime::Runtime;
 
-auto test_ipv4_passed = false;
-auto test_ipv6_passed = false;
+auto test_family4_lookup_passed = false;
+auto test_family6_lookup_passed = false;
 int pending = 0;
 
-void test_ipv4 (Runtime& runtime, const DNS::LookupOptions& options) {
+void test_family4_lookup (Runtime& runtime, const DNS::LookupOptions& options) {
   pending++;
 
   auto dns = runtime.interfaces.dns.get()->as<DNS>();
@@ -30,7 +30,7 @@ void test_ipv4 (Runtime& runtime, const DNS::LookupOptions& options) {
     assert(family.value() == 4);
     assert(address.size() > 0);
 
-    test_ipv4_passed = true;
+    test_family4_lookup_passed = true;
 
     if (--pending == 0) {
       runtime.stop();
@@ -38,7 +38,7 @@ void test_ipv4 (Runtime& runtime, const DNS::LookupOptions& options) {
   });
 }
 
-void test_ipv6 (Runtime& runtime, const DNS::LookupOptions& options) {
+void test_family6_lookup (Runtime& runtime, const DNS::LookupOptions& options) {
   pending++;
 
   auto dns = runtime.interfaces.dns.get()->as<DNS>();
@@ -50,7 +50,7 @@ void test_ipv6 (Runtime& runtime, const DNS::LookupOptions& options) {
     assert(family.value() == 6);
     assert(address.size() > 0);
 
-    test_ipv6_passed = true;
+    test_family6_lookup_passed = true;
 
     if (--pending == 0) {
       runtime.stop();
@@ -63,13 +63,13 @@ int main () {
 
   ssc::init(&runtime);
 
-  test_ipv4(runtime, DNS::LookupOptions { "sockets.sh", 4 });
-  test_ipv6(runtime, DNS::LookupOptions { "cloudflare.com", 6 });
+  test_family4_lookup(runtime, DNS::LookupOptions { "sockets.sh", 4 });
+  test_family6_lookup(runtime, DNS::LookupOptions { "cloudflare.com", 6 });
 
   runtime.wait();
 
-  assert(test_ipv4_passed);
-  assert(test_ipv6_passed);
+  assert(test_family4_lookup_passed);
+  assert(test_family6_lookup_passed);
 
   return 0;
 }
