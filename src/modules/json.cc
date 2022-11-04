@@ -1,5 +1,6 @@
 module; // global
 #include <map>
+#include <new>
 #include <string>
 
 /**

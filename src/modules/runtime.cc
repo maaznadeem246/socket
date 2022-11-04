@@ -1,5 +1,8 @@
 module; // global
 #include "../platform.hh"
+#include <map>
+#include <memory>
+#include <string>
 
 /**
  * @module runtime
@@ -17,9 +20,13 @@ module; // global
 export module ssc.runtime;
 import ssc.javascript;
 import ssc.loop;
+import ssc.types;
+import ssc.string;
 import ssc.uv;
 
-using Loop = ssc::loop::Loop;
+using namespace ssc::types;
+using ssc::loop::Loop;
+using ssc::string::String;
 
 export namespace ssc::runtime {
   class Runtime {
@@ -39,27 +46,19 @@ export namespace ssc::runtime {
           void dispose () {}
       };
 
-      using InterfaceMap = std::map<String, SharedPointer<Interface>>;
-      InterfaceMap interfaces;
       Loop loop;
 
       Runtime () = default;
       ~Runtime () = default;
 
-      template <typename T, typename ...Args> void registerInterface (
-        const String& name,
-        Args ...args
-      ) {
-        static_assert(std::is_base_of<Interface, T>::value);
-        this->interfaces[name] = SharedPointer<T>(new T(this, args...));
+      void start () {
+        this->loop.init();
+        this->loop.start();
       }
 
-      template <typename T> T* getInterface (const String& name) {
-        if (this->interfaces.find(name) != this->interfaces.end()) {
-          return reinterpret_cast<T*>(this->interfaces[name].get());
-        }
-
-        return nullptr;
+      void stop () {
+        this->loop.stop();
+        this->loop.wait();
       }
   };
 }
