@@ -35,6 +35,8 @@ export namespace ssc::runtime {
       class Interface {
         public:
           Runtime *runtime = nullptr;
+          Mutex mutex;
+
           Interface () = default;
           ~Interface () {
             this->dispose();
@@ -53,6 +55,7 @@ export namespace ssc::runtime {
 
       struct Interfaces {
         SharedPointer<Interface> dns = nullptr;
+        SharedPointer<Interface> fs = nullptr;
       };
 
       Loop loop;

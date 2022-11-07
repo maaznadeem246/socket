@@ -3,6 +3,7 @@ module;
 #include <any>
 #include <regex>
 #include <string>
+#include <sstream>
 
 /**
  * @module ssc.string

@@ -1,9 +1,13 @@
 #include "../common.hh"
 
-import ssc.templates;
-import ssc.process;
-
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <ostream>
+#include <regex>
+#include <span>
+#include <sstream>
+#include <thread>
 
 #ifdef __linux__
 #include <cstring>
@@ -35,18 +39,49 @@ import ssc.process;
 #define SSC_BUILD_TIME 0
 #endif
 
-using namespace ssc;
+import ssc.templates;
+import ssc.platform;
+import ssc.process;
+import ssc.version;
+import ssc.codec;
+import ssc.config;
+import ssc.string;
+import ssc.types;
+import ssc.env;
+
+namespace env = ssc::env;
+namespace fs = std::filesystem;
+
 using namespace std::chrono;
 
-Platform platform;
+using ssc::version::VERSION_FULL_STRING;
+using ssc::version::VERSION_HASH_STRING;
+using ssc::version::VERSION_STRING;
+
+using ssc::platform::PlatformInfo;
+using ssc::process::exec;
+using ssc::config::Config;
+using ssc::codec::encodeURIComponent;
+using ssc::types::Map;
+
+using ssc::string::StringToWString;
+using ssc::string::WStringToString;
+using ssc::string::StringStream;
+using ssc::string::String;
+using ssc::string::replace;
+using ssc::string::split;
+using ssc::string::trim;
+using ssc::string::tmpl;
+
+PlatformInfo platform;
 String _settings;
-Map settings = {{}};
+Config settings;
 
 auto start = system_clock::now();
 
 bool flagDebugMode = true;
 bool flagQuietMode = false;
-Map defaultTemplateAttrs = {{ "ssc_version", ssc::VERSION_FULL_STRING }};
+Map defaultTemplateAttrs = {{ "ssc_version", VERSION_FULL_STRING }};
 
 void log (const String s) {
   if (flagQuietMode) return;
@@ -65,22 +100,45 @@ void log (const String s) {
 
 inline String prefixFile (String s) {
   if (platform.mac || platform.linux) {
-    String local = getEnv("HOME");
+    String local = env::get("HOME");
     return String(local + "/.config/socket/" + s + " ");
   }
 
-  String local = getEnv ("LOCALAPPDATA");
+  String local = env::get ("LOCALAPPDATA");
   return String(local + "\\Programs\\socketsupply\\" + s + " ");
 }
 
 inline String prefixFile () {
   if (platform.mac || platform.linux) {
-    String local = getEnv("HOME");
+    String local = env::get("HOME");
     return String(local + "/.config/socket/");
   }
 
-  String local = getEnv ("LOCALAPPDATA");
+  String local = env::get ("LOCALAPPDATA");
   return String(local + "\\Programs\\socketsupply");
+}
+
+inline String readFile (std::filesystem::path path) {
+  std::ifstream stream(path.c_str());
+  String content;
+  auto buffer = std::istreambuf_iterator<char>(stream);
+  auto end = std::istreambuf_iterator<char>();
+  content.assign(buffer, end);
+  stream.close();
+  return content;
+}
+
+inline void writeFile (std::filesystem::path path, String s) {
+  std::ofstream stream(path.string());
+  stream << s;
+  stream.close();
+}
+
+inline void appendFile (std::filesystem::path path, String s) {
+  std::ofstream stream;
+  stream.open(path.string(), std::ios_base::app);
+  stream << s;
+  stream.close();
 }
 
 int runApp (const fs::path& path, const String& args, bool headless) {
@@ -345,7 +403,7 @@ void runIOSSimulator (const fs::path& path, Map& settings) {
 };
 
 static String getCxxFlags() {
-  auto flags = getEnv("CXX_FLAGS");
+  auto flags = env::get("CXX_FLAGS");
   return flags.size() > 0 ? " " + flags : "";
 }
 
@@ -407,7 +465,7 @@ int main (const int argc, const char* argv[]) {
   auto const subcommand = argv[1];
 
   if (is(subcommand, "-v") || is(subcommand, "--version")) {
-    std::cout << ssc::VERSION_FULL_STRING << std::endl;
+    std::cout << VERSION_FULL_STRING << std::endl;
     exit(0);
   }
 
@@ -542,7 +600,7 @@ int main (const int argc, const char* argv[]) {
           exit(1);
         }
         _settings = WStringToString(readFile(configPath));
-        settings = parseConfig(_settings);
+        settings = _settings;
 
         // default values
         settings["output"] = settings["output"].size() > 0 ? settings["output"] : "dist";
@@ -574,9 +632,9 @@ int main (const int argc, const char* argv[]) {
 
   createSubcommand("init", {}, false, [&](const std::span<const char *>& options) -> void {
     fs::create_directories(targetPath / "src");
-    ssc::writeFile(targetPath / "src" / "index.html", gHelloWorld);
-    ssc::writeFile(targetPath / "ssc.config", tmpl(gDefaultConfig, defaultTemplateAttrs));
-    ssc::writeFile(targetPath / ".gitignore", gDefaultGitignore);
+    writeFile(targetPath / "src" / "index.html", gHelloWorld);
+    writeFile(targetPath / "ssc.config", tmpl(gDefaultConfig, defaultTemplateAttrs));
+    writeFile(targetPath / ".gitignore", gDefaultGitignore);
     exit(0);
   });
 
@@ -846,22 +904,22 @@ int main (const int argc, const char* argv[]) {
     };
 
     for (const auto &str : required) {
-      if (settings.count(str) == 0) {
+      if (!settings.has(str)) {
         log("'" + str + "' value is required in ssc.config");
         exit(1);
       }
     }
 
-    if (settings.count("file_limit") == 0) {
+    if (!settings.has("file_limit")) {
       settings["file_limit"] = "4096";
     }
 
-    if (settings.count("revision") == 0) {
+    if (!settings.has("revision")) {
       settings["revision"] = "1";
     }
 
-    if (getEnv("CXX").size() == 0) {
-      setEnv("CXX=clang++");
+    if (env::get("CXX").size() == 0) {
+      env::set("CXX", "clang++");
     }
 
     targetPlatform = targetPlatform.size() > 0 ? targetPlatform : platform.os;
@@ -961,7 +1019,7 @@ int main (const int argc, const char* argv[]) {
       fs::create_directories(paths.pathBin);
       fs::create_directories(pathResources);
 
-      auto plistInfo = tmpl(gPListInfo, settings);
+      auto plistInfo = tmpl(gPListInfo, settings.data);
 
       writeFile(paths.pathPackage / pathBase / "Info.plist", plistInfo);
 
@@ -1159,18 +1217,18 @@ int main (const int argc, const char* argv[]) {
       // Android Project
       writeFile(
         src / "main" / "AndroidManifest.xml",
-        trim(tmpl(tmpl(gAndroidManifest, settings), manifestContext))
+        trim(tmpl(tmpl(gAndroidManifest, settings.data), manifestContext))
       );
 
-      writeFile(app / "proguard-rules.pro", trim(tmpl(gProGuardRules, settings)));
-      writeFile(app / "build.gradle", trim(tmpl(gGradleBuildForSource, settings)));
+      writeFile(app / "proguard-rules.pro", trim(tmpl(gProGuardRules, settings.data)));
+      writeFile(app / "build.gradle", trim(tmpl(gGradleBuildForSource, settings.data)));
 
-      writeFile(output / "settings.gradle", trim(tmpl(gGradleSettings, settings)));
-      writeFile(output / "build.gradle", trim(tmpl(gGradleBuild, settings)));
-      writeFile(output / "gradle.properties", trim(tmpl(gGradleProperties, settings)));
+      writeFile(output / "settings.gradle", trim(tmpl(gGradleSettings, settings.data)));
+      writeFile(output / "build.gradle", trim(tmpl(gGradleBuild, settings.data)));
+      writeFile(output / "gradle.properties", trim(tmpl(gGradleProperties, settings.data)));
 
-      writeFile(res / "layout" / "web_view_activity.xml", trim(tmpl(gAndroidLayoutWebviewActivity, settings)));
-      writeFile(res / "values" / "strings.xml", trim(tmpl(gAndroidValuesStrings, settings)));
+      writeFile(res / "layout" / "web_view_activity.xml", trim(tmpl(gAndroidLayoutWebviewActivity, settings.data)));
+      writeFile(res / "values" / "strings.xml", trim(tmpl(gAndroidValuesStrings, settings.data)));
       writeFile(src / "main" / "assets" / "__ssc_vital_check_ok_file__.txt", "OK");
 
       writeFile(
@@ -1183,16 +1241,16 @@ int main (const int argc, const char* argv[]) {
       );
 
       auto cflags = flagDebugMode
-        ? settings.count("debug_flags") ? settings["debug_flags"] : ""
-        : settings.count("flags") ? settings["flags"] : "";
+        ? settings.has("debug_flags") ? settings["debug_flags"] : ""
+        : settings.has("flags") ? settings["flags"] : "";
 
       StringStream pp;
       pp
         << "-DDEBUG=" << (flagDebugMode ? 1 : 0) << " "
         << "-DANDROID=1" << " "
         << "-DSSC_SETTINGS=\"" << encodeURIComponent(_settings) << "\" "
-        << "-DSSC_VERSION=" << ssc::VERSION_STRING << " "
-        << "-DSSC_VERSION_HASH=" << ssc::VERSION_HASH_STRING << " ";
+        << "-DSSC_VERSION=" << VERSION_STRING << " "
+        << "-DSSC_VERSION_HASH=" << VERSION_HASH_STRING << " ";
 
       Map makefileContext;
 
@@ -1215,25 +1273,25 @@ int main (const int argc, const char* argv[]) {
             WStringToString(readFile(targetPath / file )),
             std::regex("__BUNDLE_IDENTIFIER__"),
             bundle_identifier
-          ), settings)
+          ), settings.data)
         );
       }
 
       if (settings["android_native_makefile"].size() > 0) {
         makefileContext["android_native_make_context"] =
-          trim(tmpl(tmpl(WStringToString(readFile(targetPath / settings["android_native_makefile"])), settings), makefileContext));
+          trim(tmpl(tmpl(WStringToString(readFile(targetPath / settings["android_native_makefile"])), settings.data), makefileContext));
       } else {
         makefileContext["android_native_make_context"] = "";
       }
 
       writeFile(
         jni / "Application.mk",
-        trim(tmpl(tmpl(gAndroidApplicationMakefile, makefileContext), settings))
+        trim(tmpl(tmpl(gAndroidApplicationMakefile, makefileContext), settings.data))
       );
 
       writeFile(
         jni / "Android.mk",
-        trim(tmpl(tmpl(gAndroidMakefile, makefileContext), settings))
+        trim(tmpl(tmpl(gAndroidMakefile, makefileContext), settings.data))
       );
 
       // Android Source
@@ -1255,7 +1313,7 @@ int main (const int argc, const char* argv[]) {
             WStringToString(readFile(targetPath / file )),
             std::regex("__BUNDLE_IDENTIFIER__"),
             bundle_identifier
-          ), settings)
+          ), settings.data)
         );
       }
     }
@@ -1319,7 +1377,7 @@ int main (const int argc, const char* argv[]) {
 
         String team = matchTeamId.str(1);
 
-        auto pathToInstalledProfile = fs::path(getEnv("HOME")) /
+        auto pathToInstalledProfile = fs::path(env::get("HOME")) /
           "Library" /
           "MobileDevice" /
           "Provisioning Profiles" /
@@ -1352,10 +1410,10 @@ int main (const int argc, const char* argv[]) {
         fs::copy_options::overwrite_existing | fs::copy_options::recursive
       );
 
-      writeFile(paths.platformSpecificOutputPath / "exportOptions.plist", tmpl(gXCodeExportOptions, settings));
-      writeFile(paths.platformSpecificOutputPath / "Info.plist", tmpl(gXCodePlist, settings));
-      writeFile(pathToProject / "project.pbxproj", tmpl(gXCodeProject, settings));
-      writeFile(pathToScheme / schemeName, tmpl(gXCodeScheme, settings));
+      writeFile(paths.platformSpecificOutputPath / "exportOptions.plist", tmpl(gXCodeExportOptions, settings.data));
+      writeFile(paths.platformSpecificOutputPath / "Info.plist", tmpl(gXCodePlist, settings.data));
+      writeFile(pathToProject / "project.pbxproj", tmpl(gXCodeProject, settings.data));
+      writeFile(pathToScheme / schemeName, tmpl(gXCodeScheme, settings.data));
 
       pathResources = paths.platformSpecificOutputPath / "ui";
       fs::create_directories(pathResources);
@@ -1433,13 +1491,13 @@ int main (const int argc, const char* argv[]) {
         (settings["executable"] + ".png")
       ).string();
 
-      writeFile(pathManifestFile / (settings["name"] + ".desktop"), tmpl(gDestkopManifest, settings));
+      writeFile(pathManifestFile / (settings["name"] + ".desktop"), tmpl(gDestkopManifest, settings.data));
 
-      if (settings.count("deb_name") == 0) {
+      if (!settings.has("deb_name")) {
         settings["deb_name"] = settings["name"];
       }
 
-      writeFile(pathControlFile / "control", tmpl(gDebianManifest, settings));
+      writeFile(pathControlFile / "control", tmpl(gDebianManifest, settings.data));
 
       auto pathToIconSrc = (targetPath / settings["linux_icon"]).string();
       auto pathToIconDest = (pathIcons / (settings["executable"] + ".png")).string();
@@ -1496,7 +1554,7 @@ int main (const int argc, const char* argv[]) {
 
       settings["exe"] = executable.string();
 
-      writeFile(p, tmpl(gWindowsAppManifest, settings));
+      writeFile(p, tmpl(gWindowsAppManifest, settings.data));
 
       // TODO Copy the files into place
     }
@@ -1504,7 +1562,7 @@ int main (const int argc, const char* argv[]) {
     log("package prepared");
 
     auto pathResourcesRelativeToUserBuild = paths.pathResourcesRelativeToUserBuild;
-    if (settings.count("build") != 0) {
+    if (settings.has("build")) {
       //
       // cd into the targetPath and run the user's build command,
       // pass it the platform specific directory where they
@@ -1522,12 +1580,7 @@ int main (const int argc, const char* argv[]) {
           pathResourcesRelativeToUserBuild.string().size()
         );
 
-        // @TODO(jwerle): use `setEnv()` if #148 is closed
-        #if _WIN32
-          setEnv("PREFIX=prefix");
-        #else
-          setenv("PREFIX", prefix, 1);
-        #endif
+        env::set("PREFIX", "prefix");
       }
 
       buildCommand
@@ -1611,7 +1664,7 @@ int main (const int argc, const char* argv[]) {
 
       writeFile(pathBase / "LaunchScreen.storyboard", gStoryboardLaunchScreen);
       // TODO allow the user to copy their own if they have one
-      writeFile(pathToDist / "socket.entitlements", tmpl(gXcodeEntitlements, settings));
+      writeFile(pathToDist / "socket.entitlements", tmpl(gXcodeEntitlements, settings.data));
 
       //
       // For iOS we're going to bail early and let XCode infrastructure handle
@@ -1668,7 +1721,7 @@ int main (const int argc, const char* argv[]) {
       if (flagBuildForSimulator && flagShouldRun) {
         String app = (settings["name"] + ".app");
         auto pathToApp = paths.platformSpecificOutputPath / app;
-        runIOSSimulator(pathToApp, settings);
+        runIOSSimulator(pathToApp, settings.data);
       }
 
       if (flagShouldPackage) {
@@ -1700,7 +1753,7 @@ int main (const int argc, const char* argv[]) {
 
     if (flagBuildForAndroid) {
       // just build for CI
-      if (getEnv("SSC_CI").size() > 0) {
+      if (env::get("SSC_CI").size() > 0) {
         StringStream gradlew;
         gradlew << "./gradlew build";
 
@@ -1713,7 +1766,7 @@ int main (const int argc, const char* argv[]) {
       }
 
       auto app = paths.platformSpecificOutputPath / "app";
-      auto androidHome = getEnv("ANDROID_HOME");
+      auto androidHome = env::get("ANDROID_HOME");
 
       if (androidHome.size() == 0) {
         androidHome = settings["android_" + platform.os + "_home"];
@@ -1739,20 +1792,16 @@ int main (const int argc, const char* argv[]) {
 
       if (androidHome.size() == 0) {
         if (platform.mac) {
-          androidHome = getEnv("HOME") + "/Library/Android/sdk";
+          androidHome = env::get("HOME") + "/Library/Android/sdk";
         } else if (platform.unix) {
-          androidHome = getEnv("HOME") + "/android";
+          androidHome = env::get("HOME") + "/android";
         } else if (platform.win) {
           // TODO
         }
       }
 
       if (androidHome.size() > 0) {
-        #ifdef _WIN32
-        setEnv((String("ANDROID_HOME=") + androidHome).c_str());
-        #else
-        setenv("ANDROID_HOME", androidHome.c_str(), 1);
-        #endif
+        env::set("ANDROID_HOME", androidHome);
 
         log("warning: 'ANDROID_HOME' is set to '" + androidHome + "'");
       }
@@ -1880,11 +1929,11 @@ int main (const int argc, const char* argv[]) {
       StringStream compileCommand;
 
       auto extraFlags = flagDebugMode
-        ? settings.count("debug_flags") ? settings["debug_flags"] : ""
-        : settings.count("flags") ? settings["flags"] : "";
+        ? settings.has("debug_flags") ? settings["debug_flags"] : ""
+        : settings.has("flags") ? settings["flags"] : "";
 
       compileCommand
-        << getEnv("CXX")
+        << env::get("CXX")
         << " " << files
         << " " << flags
         << " " << extraFlags
@@ -1894,8 +1943,8 @@ int main (const int argc, const char* argv[]) {
         << " -DDEBUG=" << (flagDebugMode ? 1 : 0)
         << " -DPORT=" << devPort
         << " -DSSC_SETTINGS=\"" << encodeURIComponent(_settings) << "\""
-        << " -DSSC_VERSION=" << ssc::VERSION_STRING
-        << " -DSSC_VERSION_HASH=" << ssc::VERSION_HASH_STRING
+        << " -DSSC_VERSION=" << VERSION_STRING
+        << " -DSSC_VERSION_HASH=" << VERSION_HASH_STRING
       ;
 
       // log(compileCommand.str());
@@ -1982,11 +2031,11 @@ int main (const int argc, const char* argv[]) {
       StringStream signCommand;
       String entitlements = "";
 
-      if (settings.count("entitlements") == 1) {
+      if (settings.has("entitlements") ) {
         // entitlements = " --entitlements " + (targetPath / settings["entitlements"]).string();
       }
 
-      if (settings.count("mac_sign") == 0) {
+      if (!settings.has("mac_sign") ) {
         log("'mac_sign' key/value is required");
         exit(1);
       }
@@ -2081,8 +2130,8 @@ int main (const int argc, const char* argv[]) {
     //
     if (flagShouldNotarize && platform.mac) {
       StringStream notarizeCommand;
-      String username = getEnv("APPLE_ID");
-      String password = getEnv("APPLE_ID_PASSWORD");
+      String username = env::get("APPLE_ID");
+      String password = env::get("APPLE_ID_PASSWORD");
 
       notarizeCommand
         << "xcrun"
@@ -2262,7 +2311,7 @@ int main (const int argc, const char* argv[]) {
         return hr;
       };
 
-      WString appx(ssc::StringToWString(paths.pathPackage.string()) + L".appx");
+      WString appx(StringToWString(paths.pathPackage.string()) + L".appx");
 
       HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
@@ -2390,7 +2439,7 @@ int main (const int argc, const char* argv[]) {
       // https://www.digicert.com/kb/code-signing/signcode-signtool-command-line.htm
       //
       auto sdkRoot = fs::path("C:\\Program Files (x86)\\Windows Kits\\10\\bin");
-      auto pathToSignTool = getEnv("SIGNTOOL");
+      auto pathToSignTool = env::get("SIGNTOOL");
 
       if (pathToSignTool.size() == 0) {
         // TODO assumes last dir that contains dot. posix doesnt guarantee
@@ -2413,7 +2462,7 @@ int main (const int argc, const char* argv[]) {
       }
 
       StringStream signCommand;
-      String password = getEnv("CSC_KEY_PASSWORD");
+      String password = env::get("CSC_KEY_PASSWORD");
 
       if (password.size() == 0) {
         log("ERROR! Environment variable 'CSC_KEY_PASSWORD' is empty!");
@@ -2491,7 +2540,7 @@ int main (const int argc, const char* argv[]) {
     if (isIosSimulator) {
       String app = (settings["name"] + ".app");
       auto pathToApp = paths.platformSpecificOutputPath / app;
-      runIOSSimulator(pathToApp, settings);
+      runIOSSimulator(pathToApp, settings.data);
     } else {
       auto executable = fs::path(settings["executable"] + (platform.win ? ".exe" : ""));
       auto exitCode = runApp(paths.pathBin / executable, argvForward, flagHeadless);

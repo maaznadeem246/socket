@@ -7,28 +7,6 @@ export module ssc.runtime:fs;
 
 export namespace ssc {
   #if !TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
-    inline String readFile (std::filesystem::path path) {
-      std::ifstream stream(path.c_str());
-      String content;
-      auto buffer = std::istreambuf_iterator<char>(stream);
-      auto end = std::istreambuf_iterator<char>();
-      content.assign(buffer, end);
-      stream.close();
-      return content;
-    }
-
-    inline void writeFile (std::filesystem::path path, String s) {
-      std::ofstream stream(path.string());
-      stream << s;
-      stream.close();
-    }
-
-    inline void appendFile (std::filesystem::path path, String s) {
-      std::ofstream stream;
-      stream.open(path.string(), std::ios_base::app);
-      stream << s;
-      stream.close();
-    }
   #endif
   /*
   Timer releaseWeakDescriptors = {

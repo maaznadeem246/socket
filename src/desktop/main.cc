@@ -1,7 +1,4 @@
-#include "../app/app.hh"
-#include "../process/process.hh"
-#include "../window/window.hh"
-#include "../ipc/ipc.hh"
+#include <functional>
 
 //
 // A cross platform MAIN macro that
@@ -28,8 +25,6 @@
 #ifndef PORT
 #define PORT 0
 #endif
-
-using namespace SSC;
 
 std::function<void(int)> shutdownHandler;
 void signalHandler (int signal) {

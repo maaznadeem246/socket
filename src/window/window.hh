@@ -10,6 +10,13 @@
 #endif
 
 namespace ssc {
+  inline String getResolveToMainProcessMessage (
+    const String& seq,
+    const String& state,
+    const String& value
+  ) {
+    return String("ipc://resolve?seq=" + seq + "&state=" + state + "&value=" + value);
+  }
   struct ScreenSize {
     int height = 0;
     int width = 0;

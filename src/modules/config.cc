@@ -24,9 +24,9 @@ using namespace ssc::string;
 
 export namespace ssc::config {
   class Config {
-    String source;
-    Map data;
     public:
+      String source;
+      Map data;
       Config () = default;
       Config (const String& source) {
         this->source = source;
@@ -43,6 +43,10 @@ export namespace ssc::config {
             this->data[trim(key)] = trim(value);
           }
         }
+      }
+
+      bool has (const String& key) const {
+        return this->data.count(key) != 0;
       }
 
       const auto operator [] (const String& key) const {

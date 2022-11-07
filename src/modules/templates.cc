@@ -1,5 +1,4 @@
-module;
-export module ssc.runtime:templates;
+export module ssc.templates;
 
 //
 // Cli Help

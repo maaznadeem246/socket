@@ -2,38 +2,39 @@ module;
 
 #include "../common.hh"
 
-#include <cstring>
-#include <iostream>
-#include <stdexcept>
+#include <bitset>
+#include <functional>
+#include <thread>
 
 #if defined(_WIN32)
   #include <tlhelp32.h>
 #else
-  #include <algorithm>
-  #include <bitset>
-  #include <cstdlib>
   #include <fcntl.h>
   #include <poll.h>
-  #include <set>
   #include <unistd.h>
-  #include <sstream>
   #include <signal.h>
 #endif
 
-import :interfaces;
-import :json;
+export module ssc.process;
+import ssc.string;
+import ssc.types;
+import ssc.json;
+import ssc.log;
 
-export module ssc.runtime:process;
+using ssc::types::MessageCallback;
+using ssc::string::StringStream;
+using ssc::string::String;
+using ssc::string::splitc;
 
-export namespace ssc {
-  ssc::MessageCallback exitCallback;
+export namespace ssc::process {
+  MessageCallback exitCallback;
 
   struct ExecOutput {
-    ssc::String output;
+    String output;
     int exitCode = 0;
   };
 
-  inline ExecOutput exec (ssc::String command) {
+  inline ExecOutput exec (String command) {
     command = command + " 2>&1";
 
     ExecOutput eo;
@@ -54,7 +55,7 @@ export namespace ssc {
     #endif
 
     if (pipe == NULL) {
-      std::cout << "error: unable to open the command" << std::endl;
+      log::write("error: unable to open the command", 0);
       exit(1);
     }
 
@@ -118,16 +119,16 @@ export namespace ssc {
   // the stdout, stderr and stdin are sent to the parent process instead.
   class Process {
   public:
-    ssc::String command;
-    ssc::String argv;
-    ssc::String path;
+    String command;
+    String argv;
+    String path;
 #ifdef _WIN32
     typedef unsigned long id_type; // Process id type
     typedef void *fd_type;         // File descriptor type
 #else
     typedef pid_t id_type;
     typedef int fd_type;
-    typedef ssc::String string_type;
+    typedef String string_type;
 #endif
 
   private:
@@ -143,12 +144,12 @@ export namespace ssc {
 
   public:
     Process(
-      const ssc::String &command,
-      const ssc::String &argv,
-      const ssc::String &path = ssc::String(""),
-      ssc::MessageCallback read_stdout = nullptr,
-      ssc::MessageCallback read_stderr = nullptr,
-      ssc::MessageCallback on_exit = nullptr,
+      const String &command,
+      const String &argv,
+      const String &path = String(""),
+      MessageCallback read_stdout = nullptr,
+      MessageCallback read_stderr = nullptr,
+      MessageCallback on_exit = nullptr,
       bool open_stdin = true,
       const Config &config = {}) noexcept;
 
@@ -157,9 +158,9 @@ export namespace ssc {
     // Supported on Unix-like systems only.
     Process(
       const std::function<int()> &function,
-      ssc::MessageCallback read_stdout = nullptr,
-      ssc::MessageCallback read_stderr = nullptr,
-      ssc::MessageCallback on_exit = nullptr,
+      MessageCallback read_stdout = nullptr,
+      MessageCallback read_stderr = nullptr,
+      MessageCallback on_exit = nullptr,
       bool open_stdin = true,
       const Config &config = {}) noexcept;
 #endif
@@ -176,7 +177,7 @@ export namespace ssc {
     // Write to stdin.
     bool write(const char *bytes, size_t n);
     // Write to stdin. Convenience function using write(const char *, size_t).
-    bool write(const ssc::String &str);
+    bool write(const String &str);
     // Close stdin. If the process takes parameters from stdin, use this to
     // notify that all parameters have been sent.
     void close_stdin() noexcept;
@@ -190,9 +191,9 @@ export namespace ssc {
     Data data;
     bool closed;
     std::mutex close_mutex;
-    ssc::MessageCallback read_stdout;
-    ssc::MessageCallback read_stderr;
-    ssc::MessageCallback on_exit;
+    MessageCallback read_stdout;
+    MessageCallback read_stderr;
+    MessageCallback on_exit;
 #if !defined(_WIN32)
     std::thread stdout_stderr_thread;
 #else
@@ -205,14 +206,14 @@ export namespace ssc {
 
     std::unique_ptr<fd_type> stdout_fd, stderr_fd, stdin_fd;
 
-    id_type open(const ssc::String &command, const ssc::String &path) noexcept;
+    id_type open(const String &command, const String &path) noexcept;
     id_type open(const std::function<int()> &function) noexcept;
 
     void read() noexcept;
     void close_fds() noexcept;
   };
 
-  inline bool Process::write (const ssc::String &s) {
+  inline bool Process::write (const String &s) {
     return Process::write(s.c_str(), s.size());
   }
 
@@ -223,12 +224,12 @@ export namespace ssc {
   }
 
   inline Process::Process(
-    const ssc::String &command,
-    const ssc::String &argv,
-    const ssc::String &path,
-    ssc::MessageCallback read_stdout,
-    ssc::MessageCallback read_stderr,
-    ssc::MessageCallback on_exit,
+    const String &command,
+    const String &argv,
+    const String &path,
+    MessageCallback read_stdout,
+    MessageCallback read_stderr,
+    MessageCallback on_exit,
     bool open_stdin,
     const Config &config) noexcept
       : closed(true),
@@ -241,7 +242,7 @@ export namespace ssc {
     this->path = path;
   }
 
-  ssc::StringStream initial;
+  StringStream initial;
 }
 
 #if defined(_WIN32)
@@ -282,7 +283,7 @@ export namespace ssc {
 
   std::mutex create_process_mutex;
 
-  Process::id_type Process::open(const ssc::String &command, const ssc::String &path) noexcept {
+  Process::id_type Process::open(const String &command, const String &path) noexcept {
     if (open_stdin) {
       stdin_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
     }
@@ -379,7 +380,7 @@ export namespace ssc {
     );
 
     if (!bSuccess) {
-      auto msg = ssc::String("Unable to execute: " + process_command);
+      auto msg = String("Unable to execute: " + process_command);
       MessageBoxA(nullptr, &msg[0], "Alert", MB_OK | MB_ICONSTOP);
       return 0;
     } else {
@@ -424,7 +425,7 @@ export namespace ssc {
         DWORD n;
 
         std::unique_ptr<char[]> buffer(new char[config.buffer_size]);
-        ssc::StringStream ss;
+        StringStream ss;
 
         for (;;) {
           memset(buffer.get(), 0, config.buffer_size);
@@ -434,15 +435,15 @@ export namespace ssc {
             break;
           }
 
-          auto b = ssc::String(buffer.get());
+          auto b = String(buffer.get());
           auto parts = splitc(b, '\n');
 
           if (parts.size() > 1) {
             for (int i = 0; i < parts.size() - 1; i++) {
               ss << parts[i];
-              ssc::String s(ss.str());
+              String s(ss.str());
               read_stdout(s);
-              ss.str(ssc::String());
+              ss.str(String());
               ss.clear();
               ss.copyfmt(initial);
             }
@@ -462,7 +463,7 @@ export namespace ssc {
         for (;;) {
           BOOL bSuccess = ReadFile(*stderr_fd, static_cast<CHAR *>(buffer.get()), static_cast<DWORD>(config.buffer_size), &n, nullptr);
           if (!bSuccess || n == 0) break;
-          read_stderr(ssc::String(buffer.get()));
+          read_stderr(String(buffer.get()));
         }
       });
     }
@@ -505,7 +506,7 @@ export namespace ssc {
 
     std::lock_guard<std::mutex> lock(stdin_mutex);
     if (stdin_fd) {
-      ssc::String b(bytes);
+      String b(bytes);
 
       while (true && (b.size() > 0)) {
         DWORD bytesWritten;
@@ -585,7 +586,7 @@ export namespace ssc {
 // UNIX-Like processes
 //
 #if !defined(_WIN32)
-export namespace ssc {
+export namespace ssc::process {
   Process::Data::Data() noexcept : id(-1) {}
 
   Process::Process(
@@ -735,16 +736,16 @@ export namespace ssc {
     return pid;
   }
 
-  Process::id_type Process::open(const ssc::String &command, const ssc::String &path) noexcept {
+  Process::id_type Process::open(const String &command, const String &path) noexcept {
     return open([&command, &path] {
       auto command_c_str = command.c_str();
-      ssc::String cd_path_and_command;
+      String cd_path_and_command;
 
       if (!path.empty()) {
         auto path_escaped = path;
         size_t pos = 0;
 
-        while((pos = path_escaped.find('\'', pos)) != ssc::String::npos) {
+        while((pos = path_escaped.find('\'', pos)) != String::npos) {
           path_escaped.replace(pos, 1, "'\\''");
           pos += 4;
         }
@@ -781,7 +782,7 @@ export namespace ssc {
 
       auto buffer = std::unique_ptr<char[]>(new char[config.buffer_size]);
       bool any_open = !pollfds.empty();
-      ssc::StringStream ss;
+      StringStream ss;
 
       while (any_open && (poll(pollfds.data(), static_cast<nfds_t>(pollfds.size()), -1) > 0 || errno == EINTR)) {
         any_open = false;
@@ -795,17 +796,17 @@ export namespace ssc {
 
             if (n > 0) {
               if (fd_is_stdout[i]) {
-                auto b = ssc::String(buffer.get());
+                auto b = String(buffer.get());
                 auto parts = splitc(b, '\n');
 
                 if (parts.size() > 1) {
                   for (int i = 0; i < parts.size() - 1; i++) {
                     ss << parts[i];
 
-                    ssc::String s(ss.str());
+                    String s(ss.str());
                     read_stdout(s);
 
-                    ss.str(ssc::String());
+                    ss.str(String());
                     ss.clear();
                     ss.copyfmt(initial);
                   }
@@ -814,7 +815,7 @@ export namespace ssc {
                   ss << b;
                 }
               } else {
-                read_stderr(ssc::String(buffer.get()));
+                read_stderr(String(buffer.get()));
               }
             } else if (n < 0 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
               pollfds[i].fd = -1;
@@ -863,7 +864,7 @@ export namespace ssc {
     std::lock_guard<std::mutex> lock(stdin_mutex);
 
     if (stdin_fd) {
-      ssc::String b(bytes);
+      String b(bytes);
 
       while (true && (b.size() > 0)) {
         int bytesWritten = ::write(*stdin_fd, b.c_str(), b.size());

@@ -16,7 +16,6 @@ declare flags=(
   -L"$root/lib"
   -luv
   -fimplicit-modules
-  -fmodules-ts
   -fmodules-cache-path="$cache_path"
   -fprebuilt-module-path="$module_path"
   -fmodule-map-file="$module_map_file"
@@ -36,7 +35,7 @@ function main () {
     declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
     declare output="$module_tests_path/$filename"
 
-    "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$root/build/modules/"*.o "$source" -o "$output"
+    "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$root/build/modules/"*.o -c "$source" -o "$output.o"
     echo " info: build (test) $(basename "$source") -> $(basename "$output")"
     "$output"
   done

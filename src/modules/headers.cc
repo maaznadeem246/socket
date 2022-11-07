@@ -1,5 +1,7 @@
-module; // global
-#include "../common.hh"
+module;
+
+#include <map>
+#include <string>
 
 /**
  * @module ssc.headers
@@ -8,85 +10,93 @@ module; // global
  * TODO
  */
 export module ssc.headers;
+import ssc.string;
+import ssc.types;
+
+using ssc::string::StringStream;
+using ssc::string::String;
+using ssc::types::Vector;
+
 export namespace ssc::headers {
+  /**
+    * A container for a header value supporting varying types in the
+    * constructor. All values are converted to a string.
+    */
+  class Value {
+    public:
+      String string;
+      Value () = default;
+      Value (String value) {
+        this->string = value;
+      }
+
+      Value (const char* value) {
+        this->string = value;
+      }
+
+      Value (const Value& value) {
+        this->string = value.string;
+      }
+
+      Value (bool value) {
+        this->string = value ? "true" : "false";
+      }
+
+      Value (int value) {
+        this->string = std::to_string(value);
+      }
+
+      Value (float value) {
+        this->string = std::to_string(value);
+      }
+
+      Value (int64_t value) {
+        this->string = std::to_string(value);
+      }
+
+      Value (uint64_t value) {
+        this->string = std::to_string(value);
+      }
+
+      Value (double_t value) {
+        this->string = std::to_string(value);
+      }
+
+      #if defined(__APPLE__)
+      Value (ssize_t value) {
+        this->string = std::to_string(value);
+      }
+      #endif
+
+      String str () const {
+        return this->string;
+      }
+  };
+
+  /**
+    * A key-value mapping for a single header entry.
+    */
+  class Header {
+    public:
+      String key;
+      Value value;
+      Header () = default;
+      Header (const Header& header) {
+        this->key = header.key;
+        this->value = header.value;
+      }
+
+      Header (const String& key, const Value& value) {
+        this->key = key;
+        this->value = value;
+      }
+  };
 
   /**
    * A container for new line delimited headers.
    */
   class Headers {
     public:
-
-      /**
-       * A container for a header value supporting varying types in the
-       * constructor. All values are converted to a string.
-       */
-      class Value {
-        public:
-          String string;
-          Value () = default;
-          Value (String value) {
-            this->string = value;
-          }
-
-          Value (const char* value) {
-            this->string = value;
-          }
-
-          Value (const Value& value) {
-            this->string = value.string;
-          }
-
-          Value (bool value) {
-            this->string = value ? "true" : "false";
-          }
-
-          Value (int value) {
-            this->string = std::to_string(value);
-          }
-
-          Value (float value) {
-            this->string = std::to_string(value);
-          }
-
-          Value (int64_t value) {
-            this->string = std::to_string(value);
-          }
-
-          Value (uint64_t value) {
-            this->string = std::to_string(value);
-          }
-
-          Value (double_t value) {
-            this->string = std::to_string(value);
-          }
-
-#if defined(__APPLE__)
-          Value (ssize_t value) { this->string = std::to_string(value); }
-#endif
-          String str () const {
-            return this->string;
-          }
-      };
-
-      /**
-       * A key-value mapping for a single header entry.
-       */
-      class Header {
-        public:
-          String key;
-          Value value;
-          Header () = default;
-          Header (const Header& header) {
-            this->key = header.key;
-            this->value = header.value;
-          }
-
-          Header (const String& key, const Value& value) {
-            this->key = key;
-            this->value = value;
-          }
-      };
-
       using Entries = Vector<Header>;
       Entries entries;
       Headers () = default;

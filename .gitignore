@@ -33,3 +33,4 @@ include/WebView2/WebView2Experimental.h
 lib/WebView2LoaderStatic.lib
 lib/libuv-ios.a
 lib/libuv.a
+bin/cli

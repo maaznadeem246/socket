@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 LIPO=""
 WORK_DIR=`pwd`
@@ -16,10 +16,10 @@ if [ ! "$CXX" ]; then
   fi
 
   if [ ! "$CXX" ]; then
-    if command -v g++ >/dev/null 2>&1; then
-      CXX="$(command -v g++)"
-    elif command -v clang++ >/dev/null 2>&1; then
+    if command -v clang++ >/dev/null 2>&1; then
       CXX="$(command -v clang++)"
+    elif command -v g++ >/dev/null 2>&1; then
+      CXX="$(command -v g++)"
     fi
   fi
 
@@ -78,40 +78,64 @@ fi
 
 function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
-  "$CXX" ${CXX_FLAGS} ${CXXFLAGS}                   \
-    -o bin/cli                                      \
-    -std=c++2a                                      \
-    -L$ASSETS_DIR/lib                               \
-    -lsocket                                        \
-    -fprebuilt-module-path=$ASSETS_DIR/modules      \
-    -DSSC_BUILD_TIME="$(date '+%s')"                \
-    -DSSC_VERSION_HASH=`git rev-parse --short HEAD` \
-    -DSSC_VERSION=`cat VERSION.txt`                 \
-    src/cli/cli.cc
+  local flags=(
+    -std=c++20
+    -Os
+    -fimplicit-modules
+    -fmodules-ts
+    -fprebuilt-module-path=$BUILD_DIR/modules
+    -fprebuilt-module-path=$BUILD_DIR/modules
+    -fmodules-cache-path="$BUILD_DIR/cache"
+    -fmodule-map-file="$BUILD_DIR/modules/modules.modulemap"
+    -DSSC_BUILD_TIME="$(date '+%s')"
+    -DSSC_VERSION_HASH=`git rev-parse --short HEAD`
+    -DSSC_VERSION=`cat VERSION.txt`
+  )
+
+  local ldflags=(
+    -L$WORK_DIR/lib
+    -L$BUILD_DIR/lib
+    -luv
+    -lsocket-internal
+    -lsocket-modules
+  )
+
+  if [[ "$(uname -s)" = "Darwin" ]]; then
+    ldflags+=("-ObjC++")
+    ldflags+=("-framework" "Cocoa")
+    ldflags+=("-framework" "CoreBluetooth")
+    ldflags+=("-framework" "Foundation")
+    ldflags+=("-framework" "Network")
+    ldflags+=("-framework" "UniformTypeIdentifiers")
+    ldflags+=("-framework" "UserNotifications")
+    ldflags+=("-framework" "WebKit")
+  fi
+
+  "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} \
+    -c src/cli/cli.cc                     \
+    -o build/cli.o
+
+  "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} ${ldflags[@]} \
+    build/cli.o                                         \
+    -o bin/cli
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - built the cli for desktop"
 }
 
-function _precompile {
-  echo "# precompiling modules"
-  local modules=($(find src/modules))
+function _build_internal {
+  echo "# building internal library"
+  "$root/bin/build-internal-library.sh"
+}
 
-  for module in "${modules[@]}"; do
-    local outfile=$(basename "$module")
+function _build_modules {
+  echo "# building modules library"
+  "$root/bin/build-module-library.sh"
+}
 
-    "$CXX" -std=c++2a                                  \
-      -x c++-module                                    \
-      --precompile "$module"                           \
-      -o "$ASSETS_DIR/modules/ssc.${outfile/.cc/.pcm}"
-
-    "$CXX" -std=c++2a                                  \
-      -c "$ASSETS_DIR/modules/ssc.${outfile/.cc/.pcm}" \
-      -o "$ASSETS_DIR/build/ssc.${outfile/.cc/.o}"
-  done
-
-  echo "# building a static library"
-  ar crus $ASSETS_DIR/lib/libsocket.a $ASSETS_DIR/build/*.o
+function _build_library {
+  echo "# building libsocket library"
+  ar crus "$root/build/lib/libsocket.a" "$root/build/lib/"*.a
 }
 
 function _prepare {
@@ -143,8 +167,10 @@ function _install {
 
   if [ -d `pwd`/lib ]; then
     echo "# copying libraries to $ASSETS_DIR/lib"
+    rm -rf "$ASSETS_DIR/lib"
     mkdir -p "$ASSETS_DIR/lib"
-    cp -r `pwd`/lib/* "$ASSETS_DIR/lib"
+    cp -r "$WORK_DIR"/lib/* "$ASSETS_DIR/lib"
+    cp -r "$BUILD_DIR"/lib/* "$ASSETS_DIR/lib"
   fi
 
   if [ -z "$TEST" ]; then
@@ -243,7 +269,7 @@ function _compile_libuv {
 
 function _check_compiler_features {
   echo "# checking compiler features"
-  $CXX -std=c++2a -x c++-module --precompile -fmodule-name=X -o /dev/null - << EOF_CC >/dev/null 2>&1
+  $CXX -std=c++20 -fmodules-ts -x c++-module --precompile -o /dev/null - << EOF_CC >/dev/null 2>&1
     module;
     #include <semaphore>
     export module X;
@@ -307,6 +333,7 @@ die $? "not ok - could not copy headers"
 echo "ok - copied headers"
 cd $WORK_DIR
 
-_precompile
+_build_internal
+_build_modules
 _build_cli
 _install
