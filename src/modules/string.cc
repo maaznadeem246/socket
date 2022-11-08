@@ -1,6 +1,6 @@
 module;
 
-#include "../core/types-headers.hh"
+#include "../core/platform-headers.hh"
 
 /**
  * @module ssc.string

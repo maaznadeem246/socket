@@ -1,9 +1,17 @@
 #ifndef SSC_CORE_WEBVIEW_HH
 #define SSC_CORE_WEBVIEW_HH
 
+#if !defined(SSC_INLINE_INCLUDE)
 #include "types.hh"
+#include "ipc/message.hh"
+#endif
 
-namespace ssc::core::webview {
+#if !defined(SSC_INLINE_INCLUDE)
+namespace ssc::webview {
+  using namespace ssc::types;
+  using ssc::ipc::message::Message;
+#endif
+
   struct SchemeRequest;
   struct SchemeResponse {
     SchemeRequest* request = nullptr;
@@ -13,6 +21,7 @@ namespace ssc::core::webview {
   };
 
   struct SchemeRequest {
+    Message message;
     const String method;
     const String url;
     struct { char *bytes; size_t size; } body;
@@ -41,5 +50,7 @@ namespace ssc::core::webview {
     public:
       IPCSchemeHandler ();
   };
+#if !defined(SSC_INLINE_INCLUDE)
 }
+#endif
 #endif

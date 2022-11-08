@@ -6,7 +6,7 @@
 #import <UserNotifications/UserNotifications.h>
 #endif
 
-using namespace ssc::core::network;
+using namespace ssc::network;
 
 #if defined(__APPLE__)
 @interface NetworkStatusMonitor : NSObject
@@ -18,7 +18,7 @@ using namespace ssc::core::network;
 @end
 #endif
 
-namespace ssc::core::network {
+namespace ssc::network {
   NetworkStatusObserver::NetworkStatusObserver (
     NetworkStatusChangeCallback onNetworkStatusChangeCallback
   ) {

@@ -1,10 +1,12 @@
 #ifndef SSC_CORE_JSON_HH
 #define SSC_CORE_JSON_HH
 
-#include "types-headers.hh"
+#if !defined(SSC_INLINE_INCLUDE)
+#include "platform-headers.hh"
+#endif
 
 #if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::core::JSON {
+namespace ssc::JSON {
 #endif
 
   // forward

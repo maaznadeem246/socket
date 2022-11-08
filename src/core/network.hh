@@ -1,11 +1,20 @@
 #ifndef SSC_CORE_NETWORK_HH
 #define SSC_CORE_NETWORK_HH
 
-#include "types-headers.hh"
+#if !defined(SSC_INLINE_INCLUDE)
+#include "platform-headers.hh"
+#include "types.hh"
+#endif
 
-namespace ssc::core::network {
-  using String = std::string;
-  using NetworkStatusChangeCallback = std::function<void(const String&, const String&)>;
+#if !defined(SSC_INLINE_INCLUDE)
+namespace ssc::network {
+  using namespace ssc::types;
+#endif
+
+  using NetworkStatusChangeCallback = std::function<void(
+    const String& statusName,
+    const String& statusMessage
+  )>;
 
   class NetworkStatusObserver {
     NetworkStatusChangeCallback onNetworkStatusChangeCallback;
@@ -16,8 +25,10 @@ namespace ssc::core::network {
       ~NetworkStatusObserver ();
       void onNetworkStatusChange (
         const String& statusName,
-        const String& message
+        const String& statusMessage
       ) const;
   };
+#if !defined(SSC_INLINE_INCLUDE)
 }
+#endif
 #endif

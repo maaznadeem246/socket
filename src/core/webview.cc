@@ -1,23 +1,26 @@
 #include "string.hh"
 #include "types.hh"
 #include "webview.hh"
+#include "ipc/message.hh"
 
 #if defined(__APPLE__)
 #import <WebKit/WebKit.h>
 #endif
 
-using namespace ssc::core::string;
+using namespace ssc::types;
+using ssc::string::split;
+using ssc::string::trim;
 
 #if defined(__APPLE__)
 using Task = id<WKURLSchemeTask>;
 @interface SchemeHandler : NSObject<WKURLSchemeHandler>
-@property (nonatomic) ssc::core::webview::SchemeHandler* schemeHandler;
+@property (nonatomic) ssc::webview::SchemeHandler* schemeHandler;
 - (void) webView: (WKWebView*) webview startURLSchemeTask: (Task) task;
 - (void) webView: (WKWebView*) webview stopURLSchemeTask: (Task) task;
 @end
 #endif
 
-namespace ssc::core::webview {
+namespace ssc::webview {
   SchemeHandler::SchemeHandler (const String& scheme) {
     this->scheme = scheme;
   }
@@ -115,7 +118,7 @@ namespace ssc::core::webview {
 @implementation SchemeHandler
 - (void) webView: (WKWebView*) webview stopURLSchemeTask: (Task) task {}
 - (void) webView: (WKWebView*) webview startURLSchemeTask: (Task) task {
-  auto request = ssc::core::webview::SchemeRequest {
+  auto request = ssc::webview::SchemeRequest {
     String(task.request.HTTPMethod.UTF8String),
     String(task.request.URL.absoluteString.UTF8String)
   };
@@ -143,7 +146,7 @@ namespace ssc::core::webview {
     headers[@"content-length"] = [@(post.length) stringValue];
 
     if (post.headers.size() > 0) {
-      auto lines = ssc::split(ssc::trim(post.headers), '\n');
+      auto lines = split(trim(post.headers), '\n');
 
       for (auto& line : lines) {
         auto pair = split(trim(line), ':');

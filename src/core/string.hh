@@ -4,7 +4,8 @@
 #include "types.hh"
 
 #if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::core::string {
+namespace ssc::string {
+  using namespace ssc::types;
 #endif
 
   inline WString ToWString (const String& string) {
