@@ -100,7 +100,6 @@ function _build_cli {
   )
 
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    flags+=("-ObjC++")
     ldflags+=("-framework" "Cocoa")
     ldflags+=("-framework" "CoreBluetooth")
     ldflags+=("-framework" "Foundation")
@@ -110,13 +109,16 @@ function _build_cli {
     ldflags+=("-framework" "WebKit")
   fi
 
+  mkdir -p "$BUILD_DIR/cli"
+  mkdir -p "$BUILD_DIR/bin"
+
   "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} \
     -c src/cli/cli.cc                     \
-    -o build/cli.o
+    -o "$BUILD_DIR/cli/cli.o"
 
   "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} ${ldflags[@]} \
     build/cli.o                                         \
-    -o bin/cli
+    -o "$BUILD_DIR/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - built the cli for desktop"
@@ -176,7 +178,7 @@ function _install {
     local binDest="/usr/local/bin/ssc"
     echo "# moving binary to $binDest (prompting to copy file into directory)"
     sudo mkdir -p /usr/local/bin
-    sudo mv `pwd`/bin/cli $binDest
+    sudo mv `pwd`/build/bin/ssc $binDest
   fi
 
   die $? "not ok - unable to move binary into place"
