@@ -1,7 +1,8 @@
+#include "ipc/message.hh"
+#include "json.hh"
 #include "string.hh"
 #include "types.hh"
 #include "webview.hh"
-#include "ipc/message.hh"
 
 #if defined(__APPLE__)
 #import <WebKit/WebKit.h>
@@ -137,6 +138,7 @@ namespace ssc::webview {
 
   self.schemeHandler->onSchemeRequest(request);
 
+  /*
   if (message.name == "post") {
     auto headers = [NSMutableDictionary dictionary];
     auto id = std::stoull(message.get("id"));
@@ -243,6 +245,7 @@ namespace ssc::webview {
     [response release];
     #endif
   }
+  */
 }
 @end
 #endif
