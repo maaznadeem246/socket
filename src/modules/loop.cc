@@ -1,8 +1,5 @@
 module; // global
-#include <functional>
-#include <thread>
-#include <stdio.h>
-#include "../platform.hh"
+#include "../core/platform.hh"
 
 /**
  * @module ssc.loop

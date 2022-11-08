@@ -1,5 +1,5 @@
 module libuv [system] [extern_c] {
-  umbrella header "/users/werle/repos/socketsupply/socket/build/input/include/uv.h"
+  umbrella header "../uv/include/uv.h"
   link "uv"
   export *
 }

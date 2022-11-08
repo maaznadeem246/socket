@@ -1,6 +1,6 @@
 module;
 
-#include "../common.hh"
+#include "../core/common.hh"
 
 #include <bitset>
 #include <functional>

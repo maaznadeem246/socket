@@ -1,7 +1,7 @@
 module; // global
 #include <new>
 
-#include "../core/platform-headers.hh"
+#include "../core/platform.hh"
 
 /**
  * @module ssc.json

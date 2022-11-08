@@ -1,5 +1,4 @@
 module; // global
-#include "../platform.hh"
 #include <string>
 #include <stdio.h>
 

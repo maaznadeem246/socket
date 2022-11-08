@@ -11,27 +11,17 @@ declare flags=(
   -I"$root/build/input/include"
 )
 
-declare ldflags=(
-  -fmodule-map-file="$module_map_file"
-  -fmodules-cache-path="$cache_path"
-  -fprebuilt-module-path="$module_path"
-)
-
-if [[ "$(uname -s)" = "Darwin" ]]; then
-  flags+=("-ObjC++")
-  ldflags+=("-framework" "Cocoa")
-  ldflags+=("-framework" "Network")
-  ldflags+=("-framework" "Foundation")
-  ldflags+=("-framework" "UniformTypeIdentifiers")
-  ldflags+=("-framework" "CoreBluetooth")
-fi
-
+declare ldflags=($("$root/bin/ldflags.sh"))
 declare sources=($(find "$root"/src/core/*.cc))
 declare objects=()
 
 declare src_directory="$root/src/core"
 declare output_directory="$root/build/core"
 mkdir -p "$output_directory"
+
+if [[ "$(uname -s)" = "Darwin" ]]; then
+  flags+=("-ObjC++")
+fi
 
 for source in "${sources[@]}"; do
   object="${source/.cc/.o}"

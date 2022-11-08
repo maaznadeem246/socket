@@ -5,8 +5,8 @@ declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 LIPO=""
 WORK_DIR=`pwd`
 PREFIX="${PREFIX:-$HOME}"
-LIB_DIR=$WORK_DIR/lib
 BUILD_DIR=$WORK_DIR/build
+LIB_DIR=$BUILD_DIR/lib
 
 if [ ! "$CXX" ]; then
   if [ ! -z "$LOCALAPPDATA" ]; then
@@ -30,8 +30,13 @@ if [ ! "$CXX" ]; then
 fi
 
 function quiet () {
-  #"$@"
-  "$@" > /dev/null 2>&1
+  if [ -n "$VERBOSE" ]; then
+    "$@" || return $?
+  else
+    "$@" > /dev/null 2>&1 || return $?
+  fi
+
+  return 0
 }
 
 if ! quiet command -v sudo; then
@@ -78,46 +83,18 @@ fi
 
 function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
-  local flags=(
-    -std=c++20
-    -Os
-    -fmodules-ts
-    -fimplicit-modules
-    -fmodule-map-file="$BUILD_DIR/modules/modules.modulemap"
-    -fmodules-cache-path="$BUILD_DIR/cache"
-    -fprebuilt-module-path=$BUILD_DIR/modules
-    -DSSC_BUILD_TIME="$(date '+%s')"
-    -DSSC_VERSION_HASH=`git rev-parse --short HEAD`
-    -DSSC_VERSION=`cat VERSION.txt`
-  )
-
-  local ldflags=(
-    -L$WORK_DIR/lib
-    -L$BUILD_DIR/lib
-    -luv
-    -lsocket-core
-    -lsocket-modules
-  )
-
-  if [[ "$(uname -s)" = "Darwin" ]]; then
-    ldflags+=("-framework" "Cocoa")
-    ldflags+=("-framework" "CoreBluetooth")
-    ldflags+=("-framework" "Foundation")
-    ldflags+=("-framework" "Network")
-    ldflags+=("-framework" "UniformTypeIdentifiers")
-    ldflags+=("-framework" "UserNotifications")
-    ldflags+=("-framework" "WebKit")
-  fi
+  local flags=($("$root/bin/cflags.sh" -Os))
+  local ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-{core,modules}}))
 
   mkdir -p "$BUILD_DIR/cli"
   mkdir -p "$BUILD_DIR/bin"
 
-  "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} \
+  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} \
     -c src/cli/cli.cc                     \
     -o "$BUILD_DIR/cli/cli.o"
 
-  "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} ${ldflags[@]} \
-    build/cli.o                                         \
+  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} ${ldflags[@]} \
+    build/cli/cli.o                                     \
     -o "$BUILD_DIR/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
@@ -126,17 +103,17 @@ function _build_cli {
 
 function _build_core {
   echo "# building core library"
-  "$root/bin/build-core-library.sh"
+  quiet "$root/bin/build-core-library.sh"
 }
 
 function _build_modules {
   echo "# building modules library"
-  "$root/bin/build-modules-library.sh"
+  quiet "$root/bin/build-modules-library.sh"
 }
 
 function _build_library {
   echo "# building libsocket library"
-  ar crus "$root/build/lib/libsocket.a" "$root/build/lib/"*.a
+  quiet ar crus "$root/build/lib/libsocket.a" "$root/build/lib/"*.a
 }
 
 function _prepare {
@@ -151,9 +128,9 @@ function _prepare {
   mkdir -p $ASSETS_DIR/{lib,src,include,build,modules}
   mkdir -p $LIB_DIR
 
-  if [ ! -d "$BUILD_DIR/input" ]; then
-  	git clone --depth=1 https://github.com/libuv/libuv.git $BUILD_DIR/input > /dev/null 2>&1
-    rm -rf $BUILD_DIR/input/.git
+  if [ ! -d "$BUILD_DIR/uv" ]; then
+  	git clone --depth=1 https://github.com/libuv/libuv.git $BUILD_DIR/uv > /dev/null 2>&1
+    rm -rf $BUILD_DIR/uv/.git
 
     die $? "not ok - unable to clone. See trouble shooting guide in the README.md file"
   fi
@@ -170,7 +147,6 @@ function _install {
     echo "# copying libraries to $ASSETS_DIR/lib"
     rm -rf "$ASSETS_DIR/lib"
     mkdir -p "$ASSETS_DIR/lib"
-    cp -r "$WORK_DIR"/lib/* "$ASSETS_DIR/lib"
     cp -r "$BUILD_DIR"/lib/* "$ASSETS_DIR/lib"
   fi
 
@@ -218,10 +194,11 @@ function _compile_libuv {
   fi
 
   echo "# building libuv for $platform ($target)..."
-  STAGING_DIR=$BUILD_DIR/$target-$platform
+  STAGING_DIR=$BUILD_DIR/$target-$platform/uv
 
   if [ ! -d "$STAGING_DIR" ]; then
-    cp -r $BUILD_DIR/input $STAGING_DIR
+    mkdir -p "$STAGING_DIR"
+    cp -r $BUILD_DIR/uv/* $STAGING_DIR
     cd $STAGING_DIR
  	  quiet sh autogen.sh
   else
@@ -304,8 +281,8 @@ if [[ "`uname -s`" == "Darwin" ]]; then
   for pid in $pids; do wait $pid; done
 
   quiet $LIPO -create \
-    $BUILD_DIR/arm64-iPhoneOS/build/lib/libuv.a \
-    $BUILD_DIR/x86_64-iPhoneSimulator/build/lib/libuv.a \
+    $BUILD_DIR/arm64-iPhoneOS/uv/build/lib/libuv.a \
+    $BUILD_DIR/x86_64-iPhoneSimulator/uv/build/lib/libuv.a \
     -output $LIB_DIR/libuv-ios.a
 
   die $? "not ok - unable to combine build artifacts"
@@ -326,10 +303,10 @@ die $? "not ok - unable to build libuv"
 echo "ok - built libuv for $platform ($target)"
 
 mkdir -p  $ASSETS_DIR/uv/{src/unix,include}
-cp -fr $BUILD_DIR/input/src/*.{c,h} $ASSETS_DIR/uv/src
-cp -fr $BUILD_DIR/input/src/unix/*.{c,h} $ASSETS_DIR/uv/src/unix
-cp -r $BUILD_DIR/input/include/* $ASSETS_DIR/uv/include
-cp -r $BUILD_DIR/input/include/* $ASSETS_DIR/include
+cp -fr $BUILD_DIR/uv/src/*.{c,h} $ASSETS_DIR/uv/src
+cp -fr $BUILD_DIR/uv/src/unix/*.{c,h} $ASSETS_DIR/uv/src/unix
+cp -r $BUILD_DIR/uv/include/* $ASSETS_DIR/uv/include
+cp -r $BUILD_DIR/uv/include/* $ASSETS_DIR/include
 die $? "not ok - could not copy headers"
 echo "ok - copied headers"
 cd $WORK_DIR

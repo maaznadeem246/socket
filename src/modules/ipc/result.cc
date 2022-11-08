@@ -1,5 +1,5 @@
 module;
-#include "../../core/platform-headers.hh"
+#include "../../core/platform.hh"
 export module ssc.ipc.result;
 import ssc.ipc.message;
 import ssc.string;

@@ -2,7 +2,7 @@
 #define SSC_CORE_JSON_HH
 
 #if !defined(SSC_INLINE_INCLUDE)
-#include "platform-headers.hh"
+#include "platform.hh"
 #endif
 
 #if !defined(SSC_INLINE_INCLUDE)

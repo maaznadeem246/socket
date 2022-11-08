@@ -1,5 +1,5 @@
 module; // global
-#include "../core/platform-headers.hh"
+#include "../core/platform.hh"
 
 /**
  * @module ssc.javascript

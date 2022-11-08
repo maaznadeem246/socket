@@ -16,9 +16,9 @@ declare modules=(
   loop
   ip
   codec
+  context
   dns
   runtime
-  context
   headers
   process
   platform

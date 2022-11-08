@@ -1,6 +1,6 @@
 module;
 
-#include "../core/platform-headers.hh"
+#include "../core/platform.hh"
 
 /**
  * @module ssc.string
@@ -8,6 +8,8 @@ module;
  */
 export module ssc.string;
 import ssc.types;
+
+using namespace ssc::types;
 
 export namespace ssc::string {
   using String = ssc::types::String;

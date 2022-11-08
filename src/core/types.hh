@@ -1,7 +1,7 @@
 #ifndef SSC_CORE_TYPES_HH
 #define SSC_CORE_TYPES_HH
 
-#include "platform-headers.hh"
+#include "platform.hh"
 
 #if !defined(SSC_INLINE_INCLUDE)
 namespace ssc::types {

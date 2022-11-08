@@ -1,7 +1,7 @@
 module;
 
-#include "../platform.hh"
 #include "../core/internal.hh"
+#include "../core/platform.hh"
 #include <string>
 
 export module ssc.platform;

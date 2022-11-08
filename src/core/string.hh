@@ -1,7 +1,9 @@
 #ifndef SSC_CORE_STRING_HH
 #define SSC_CORE_STRING_HH
 
+#if !defined(SSC_INLINE_INCLUDE)
 #include "types.hh"
+#endif
 
 #if !defined(SSC_INLINE_INCLUDE)
 namespace ssc::string {

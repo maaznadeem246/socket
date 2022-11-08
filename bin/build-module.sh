@@ -2,23 +2,8 @@
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare clang="$(which clang++)"
-declare cache_path="$root/build/cache"
-declare module_path="$root/build/modules"
-declare module_map_file="$module_path/modules.modulemap"
 
-declare flags=(
-  -std=c++20
-  -xc++-module
-  -I"$root/build/input"
-  -I"$root/build/input/include"
-  -DSSC_VERSION_HASH=`git rev-parse --short HEAD`
-  -DSSC_VERSION=`cat VERSION.txt`
-  -fimplicit-modules
-  -fmodules-cache-path="$cache_path"
-  -fprebuilt-module-path="$module_path"
-  -fmodule-map-file="$module_map_file"
-  --precompile
-)
+declare flags=($("$root/bin/cflags.sh" -xc++-module --precompile))
 
 declare should_build_module_map=1
 declare did_build_module_map=0

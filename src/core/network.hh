@@ -2,7 +2,7 @@
 #define SSC_CORE_NETWORK_HH
 
 #if !defined(SSC_INLINE_INCLUDE)
-#include "platform-headers.hh"
+#include "platform.hh"
 #include "types.hh"
 #endif
 
