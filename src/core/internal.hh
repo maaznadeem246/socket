@@ -2,14 +2,39 @@
 #define SSC_INTERNAL_HH
 
 #include <functional>
+#include <map>
+#include <mutex>
 #include <string>
+#include <vector>
 
 namespace ssc::internal {
-  // opaque
+  using Lock = std::lock_guard<std::recursive_mutex>;
+  using Mutex = std::recursive_mutex;
+  using String = std::string;
+  using Seq = std::string;
+
+  template <typename T> using Vector = std::vector<T>;
+
+  // forward opaque
   struct Bluetooth;
   struct Bridge;
   struct Platform;
   struct Router;
+
+  namespace bluetooth {}
+  namespace bridge {}
+
+  namespace platform {
+    using NotifyCallback = std::function<void(String)>;
+    using OpenExternalCallback = std::function<void(String)>;
+  }
+
+  namespace router {
+    struct Options;
+    using NetworkStatusChangeCallback = std::function<void(String, String)>;
+    using InvokeResultCallback = std::function<void(Seq, String, char *, size_t)>;
+    using InvokeCallback = std::function<bool(String, InvokeResultCallback)>;
+  }
 
   template <class T, typename ...Args> T* make (Args... args) {
     T* pointer = nullptr;
@@ -30,16 +55,11 @@ namespace ssc::internal {
   void init (Platform*);
   void deinit (Platform*);
 
-  struct RouterOptions {
-    std::function<void(std::string, std::string)> onNetworkStatusChange;
-  };
-
   void alloc (Router**);
-  void init (Router*, const RouterOptions& options);
+  void init (Router*, const router::Options& options);
   void deinit (Router*);
 
   namespace platform {
-    using NotifyCallback = std::function<void(std::string)>;
     void notify (
       Platform*,
       const std::string& title,
@@ -47,7 +67,6 @@ namespace ssc::internal {
       NotifyCallback
     );
 
-    using OpenExternalCallback = std::function<void(std::string)>;
     void openExternal (
       Platform*,
       const std::string& value,
@@ -56,12 +75,23 @@ namespace ssc::internal {
   }
 
   namespace router {
+    struct Options {
+      NetworkStatusChangeCallback onNetworkStatusChange;
+      InvokeCallback onInvoke;
+    };
+
     bool send (
       Router* router,
       const std::string& seq,
       const std::string& data,
       const char* bytes,
       size_t size
+    );
+
+    bool invoke (
+      Router* router,
+      String uri,
+      InvokeResultCallback cb
     );
   }
 }

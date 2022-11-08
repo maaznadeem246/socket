@@ -10,7 +10,7 @@ module; // global
  * import ssc.dns
  * namespace ssc {
  *   using DNS = ssc::dns::DNS:
- *   DNS dns(runtime);
+ *   DNS dns(loop);
  *   dns.lookup(LookupOptions { "sockets.sh", 4 }, [](auto seq, auto json, auto data) {
  *     printf("address=%s\n", json.get("data").as<JSON::Object>().get("address").str().c_str());
  *   });
@@ -18,22 +18,22 @@ module; // global
  * TODO
  */
 export module ssc.dns;
-import ssc.runtime;
 import ssc.context;
 import ssc.string;
 import ssc.types;
 import ssc.json;
+import ssc.loop;
 import ssc.uv;
 
 using ssc::context::Context;
-using ssc::runtime::Runtime;
 using ssc::string::String;
 using ssc::types::Post;
+using ssc::loop::Loop;
 
 export namespace ssc::dns {
   class DNS : public Context {
     public:
-      DNS (Runtime* runtime) : Context(runtime) {}
+      DNS (Loop& loop) : Context(loop) {}
 
       struct LookupOptions {
         String hostname;
@@ -51,9 +51,9 @@ export namespace ssc::dns {
       };
 
       void lookup (const String seq, LookupOptions options, Callback cb) {
-        this->runtime->dispatch([=, this]() {
+        this->loop.dispatch([=, this]() {
           auto ctx = new RequestContext(seq, cb);
-          auto loop = this->runtime->loop.get();
+          auto loop = this->loop.get();
 
           struct addrinfo hints = {0};
 

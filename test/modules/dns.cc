@@ -3,13 +3,11 @@
 
 import ssc.runtime;
 import ssc.string;
-import ssc.init;
 import ssc.json;
 import ssc.dns;
 import ssc.log;
 
 using namespace ssc;
-using ssc::init;
 using ssc::dns::DNS;
 using ssc::string::String;
 using ssc::runtime::Runtime;
@@ -21,8 +19,8 @@ int pending = 0;
 void test_family4_lookup (Runtime& runtime, const DNS::LookupOptions& options) {
   pending++;
 
-  auto dns = runtime.interfaces.dns.get()->as<DNS>();
-  dns->lookup(options, [&](auto seq, JSON::Any json, auto post) {
+  auto& dns = runtime.dns;
+  dns.lookup(options, [&](auto seq, JSON::Any json, auto post) {
     auto data = json.as<JSON::Object>().get("data").as<JSON::Object>();
     auto family = data["family"].as<JSON::Number>();
     auto address = data["address"].as<JSON::String>();
@@ -41,8 +39,8 @@ void test_family4_lookup (Runtime& runtime, const DNS::LookupOptions& options) {
 void test_family6_lookup (Runtime& runtime, const DNS::LookupOptions& options) {
   pending++;
 
-  auto dns = runtime.interfaces.dns.get()->as<DNS>();
-  dns->lookup(options, [&](auto seq, JSON::Any json, auto post) {
+  auto& dns = runtime.dns;
+  dns.lookup(options, [&](auto seq, JSON::Any json, auto post) {
     auto data = json.as<JSON::Object>().get("data").as<JSON::Object>();
     auto family = data["family"].as<JSON::Number>();
     auto address = data["address"].as<JSON::String>();
@@ -60,8 +58,6 @@ void test_family6_lookup (Runtime& runtime, const DNS::LookupOptions& options) {
 
 int main () {
   Runtime runtime;
-
-  ssc::init(&runtime);
 
   test_family4_lookup(runtime, DNS::LookupOptions { "sockets.sh", 4 });
   test_family6_lookup(runtime, DNS::LookupOptions { "cloudflare.com", 6 });

@@ -81,12 +81,11 @@ function _build_cli {
   local flags=(
     -std=c++20
     -Os
-    -fimplicit-modules
     -fmodules-ts
-    -fprebuilt-module-path=$BUILD_DIR/modules
-    -fprebuilt-module-path=$BUILD_DIR/modules
-    -fmodules-cache-path="$BUILD_DIR/cache"
+    -fimplicit-modules
     -fmodule-map-file="$BUILD_DIR/modules/modules.modulemap"
+    -fmodules-cache-path="$BUILD_DIR/cache"
+    -fprebuilt-module-path=$BUILD_DIR/modules
     -DSSC_BUILD_TIME="$(date '+%s')"
     -DSSC_VERSION_HASH=`git rev-parse --short HEAD`
     -DSSC_VERSION=`cat VERSION.txt`
@@ -96,12 +95,12 @@ function _build_cli {
     -L$WORK_DIR/lib
     -L$BUILD_DIR/lib
     -luv
-    -lsocket-internal
+    -lsocket-core
     -lsocket-modules
   )
 
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    ldflags+=("-ObjC++")
+    flags+=("-ObjC++")
     ldflags+=("-framework" "Cocoa")
     ldflags+=("-framework" "CoreBluetooth")
     ldflags+=("-framework" "Foundation")
@@ -123,14 +122,14 @@ function _build_cli {
   echo "ok - built the cli for desktop"
 }
 
-function _build_internal {
-  echo "# building internal library"
-  "$root/bin/build-internal-library.sh"
+function _build_core {
+  echo "# building core library"
+  "$root/bin/build-core-library.sh"
 }
 
 function _build_modules {
   echo "# building modules library"
-  "$root/bin/build-module-library.sh"
+  "$root/bin/build-modules-library.sh"
 }
 
 function _build_library {
@@ -333,7 +332,7 @@ die $? "not ok - could not copy headers"
 echo "ok - copied headers"
 cd $WORK_DIR
 
-_build_internal
+_build_core
 _build_modules
 _build_cli
 _install

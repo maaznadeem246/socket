@@ -26,11 +26,11 @@ if [[ "$(uname -s)" = "Darwin" ]]; then
   ldflags+=("-framework" "CoreBluetooth")
 fi
 
-declare sources=($(find "$root"/src/internal/*.cc))
+declare sources=($(find "$root"/src/core/*.cc))
 declare objects=()
 
-declare src_directory="$root/src/internal"
-declare output_directory="$root/build/internal"
+declare src_directory="$root/src/core"
+declare output_directory="$root/build/core"
 mkdir -p "$output_directory"
 
 for source in "${sources[@]}"; do
@@ -43,7 +43,7 @@ for source in "${sources[@]}"; do
   fi
 done
 
-declare static_library="$root/build/lib/libsocket-internal.a"
+declare static_library="$root/build/lib/libsocket-core.a"
 mkdir -p "$root/build/lib"
 rm -rf "$static_library"
 ar crus "$static_library" ${objects[@]}

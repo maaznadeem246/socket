@@ -1,13 +1,14 @@
 module;
 
 #include "../platform.hh"
-#include "../internal/internal.hh"
+#include "../core/internal.hh"
 #include <string>
 
 export module ssc.platform;
 import ssc.context;
 import ssc.string;
 import ssc.types;
+import ssc.loop;
 import ssc.json;
 
 using ssc::context::Context;
@@ -15,6 +16,7 @@ using ssc::string::String;
 using ssc::types::Mutex;
 using ssc::types::Lock;
 using ssc::types::Post;
+using ssc::loop::Loop;
 
 export namespace ssc::platform {
   struct PlatformInfo {
@@ -91,9 +93,8 @@ export namespace ssc::platform {
   };
 
   class Platform : public Context {
-    internal::Platform* internal;
     public:
-      Platform (auto runtime) : Context(runtime) {}
+      Platform (Loop& loop) : Context(loop) {}
       void event (
         const String seq,
         const String event,
@@ -107,6 +108,7 @@ export namespace ssc::platform {
         const String body,
         Context::Callback cb
       ) {
+        /*
         internal::platform::notify(
           this->internal,
           title,
@@ -123,6 +125,7 @@ export namespace ssc::platform {
 
             cb(seq, json, Post{});
           });
+          */
       }
 
       void openExternal (
@@ -130,6 +133,7 @@ export namespace ssc::platform {
         const String value,
         Context::Callback cb
       ) {
+        /*
         internal::platform::openExternal(
           this->internal,
           value,
@@ -145,6 +149,7 @@ export namespace ssc::platform {
 
             cb(seq, json, Post{});
           });
+          */
       }
   };
 

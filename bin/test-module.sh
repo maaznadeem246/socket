@@ -10,24 +10,39 @@ declare module_map_file="$module_path/modules.modulemap"
 
 declare flags=(
   -std=c++20
-  -stdlib=libc++
   -I"$root/build/input"
   -I"$root/build/input/include"
-  -L"$root/lib"
-  -luv
+  -Os
+  -fmodules-ts
   -fimplicit-modules
+  -fmodule-map-file="$module_map_file"
   -fmodules-cache-path="$cache_path"
   -fprebuilt-module-path="$module_path"
-  -fmodule-map-file="$module_map_file"
+  -DSSC_BUILD_TIME="$(date '+%s')"
+  -DSSC_VERSION_HASH=`git rev-parse --short HEAD`
+  -DSSC_VERSION=`cat VERSION.txt`
 )
 
-function build () {
-  "$root/bin/build-module.sh" "$@"
-}
+declare ldflags=(
+  -L"$root/lib"
+  -L"$root/build/lib"
+  -luv
+  -lsocket-core
+  -lsocket-modules
+)
+
+if [[ "$(uname -s)" = "Darwin" ]]; then
+  ldflags+=("-framework" "Cocoa")
+  ldflags+=("-framework" "CoreBluetooth")
+  ldflags+=("-framework" "Foundation")
+  ldflags+=("-framework" "Network")
+  ldflags+=("-framework" "UniformTypeIdentifiers")
+  ldflags+=("-framework" "UserNotifications")
+  ldflags+=("-framework" "WebKit")
+fi
 
 function main () {
-  build "$root/src/modules/"{types,string,json,javascript,config,env,log,uv,loop,codec,runtime,context,dns,init}.cc
-
+  "$root/bin/build-modules-library.sh"
   mkdir -p "$module_tests_path"
 
   while (( $# > 0 )); do
@@ -35,7 +50,8 @@ function main () {
     declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
     declare output="$module_tests_path/$filename"
 
-    "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$root/build/modules/"*.o -c "$source" -o "$output.o"
+    "$clang" $CFLAGS $CXXFLAGS ${flags[@]} -c "$source" -o "$output.o"
+    "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "${ldflags[@]}" "$output.o" -o "$output"
     echo " info: build (test) $(basename "$source") -> $(basename "$output")"
     "$output"
   done

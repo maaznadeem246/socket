@@ -83,6 +83,14 @@ bool flagDebugMode = true;
 bool flagQuietMode = false;
 Map defaultTemplateAttrs = {{ "ssc_version", VERSION_FULL_STRING }};
 
+#if defined(__OBJC__)
+@interface Foo : NSObject
+@end
+
+@implementation Foo
+@end
+#endif
+
 void log (const String s) {
   if (flagQuietMode) return;
   if (s.size() == 0) return;
@@ -440,6 +448,9 @@ inline String getCfgUtilPath() {
 }
 
 int main (const int argc, const char* argv[]) {
+#if defined(__OBJC__)
+  log("hello");
+#endif
   if (argc < 2) {
     printHelp("ssc");
     exit(0);

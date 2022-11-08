@@ -3,13 +3,13 @@ module;
 #include <functional>
 #include <map>
 #include <string>
-#include "../../internal/internal.hh"
 
 export module ssc.ipc.router;
 import ssc.ipc.message;
 import ssc.ipc.result;
 
 import ssc.javascript;
+import ssc.network;
 import ssc.runtime;
 import ssc.string;
 import ssc.types;
@@ -21,7 +21,9 @@ using ssc::ipc::message::MessageBuffer;
 using ssc::ipc::message::Message;
 using ssc::ipc::result::Result;
 
+using ssc::javascript::getResolveToRenderProcessJavaScript;
 using ssc::javascript::getEmitToRenderProcessJavaScript;
+using ssc::network::NetworkStatusObserver;
 using ssc::codec::encodeURIComponent;
 using ssc::runtime::Runtime;
 using ssc::string::String;
@@ -35,7 +37,6 @@ using ssc::types::Lock;
 
 export namespace ssc::ipc::router {
   // forward
-  class Bridge;
   class Router;
 
   using EvaluateJavaScriptCallback = std::function<void(const String)>;
@@ -53,34 +54,40 @@ export namespace ssc::ipc::router {
   using RouteTable = std::map<String, MessageCallbackContext>;
 
   class Router {
-    internal::Router* internal;
     public:
       EvaluateJavaScriptCallback evaluateJavaScriptFunction = nullptr;
       std::function<void(DispatchCallback)> dispatchFunction = nullptr;
+      NetworkStatusObserver networkStatusObserver;
       BufferMap buffers;
       Mutex mutex;
 
       RouteTable table;
       Runtime *runtime = nullptr;
-      Bridge *bridge = nullptr;
 
       std::shared_ptr<Posts> posts;
 
       Router (const Router &) = delete;
       Router () {
         this->posts = std::shared_ptr<Posts>(new Posts());
-        this->internal = internal::make<internal::Router>(internal::RouterOptions {
-          .onNetworkStatusChange = [this](auto status, auto message) {
-            this->emit(status, JSON::Object::Entries {
-              {"status", status},
-              {"message", message}
-            });
-          }
+
+        this->networkStatusObserver = NetworkStatusObserver([this](const String& statusName, const String& statusMessage) {
+          this->onNetworkStatusChange(statusName, statusMessage);
         });
       }
 
       ~Router () {
-        internal::deinit(this->internal);
+      }
+
+      void onNetworkStatusChange (
+        const String& statusName,
+        const String& statusMessage
+      ) {
+        auto json = JSON::Object::Entries {
+          {"status", statusName},
+          {"message", statusMessage}
+        };
+
+        this->emit(statusName, json);
       }
 
       auto hasMappedBuffer (int index, const Message::Seq& seq) {
@@ -218,9 +225,21 @@ export namespace ssc::ipc::router {
         return this->invoke(message, callback);
       }
 
-      bool send (const Message::Seq& seq, const String& data, const Post post) {
-        if (internal::router::send(this->internal, seq, data, post.body, post.length)) {
-          return true;
+      bool send (const Message::Seq& seq, const String& data, Post& post) {
+        if (post.body || seq == "-1") {
+          auto script = this->createPost(seq, data, post);
+          return this->evaluateJavaScript(script);
+        }
+
+        // this had a sequence, we need to try to resolve it.
+        if (seq != "-1" && seq.size() > 0) {
+          auto value = encodeURIComponent(data);
+          auto script = getResolveToRenderProcessJavaScript(seq, "0", value);
+          return this->evaluateJavaScript(script);
+        }
+
+        if (data.size() > 0) {
+          return this->evaluateJavaScript(data);
         }
 
         return false;

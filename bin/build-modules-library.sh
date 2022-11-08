@@ -16,13 +16,14 @@ declare modules=(
   loop
   ip
   codec
+  dns
   runtime
   context
   headers
   process
-  dns
   platform
   templates
+  network
   version
   init
 )
