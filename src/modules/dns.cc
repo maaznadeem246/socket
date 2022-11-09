@@ -1,6 +1,5 @@
-module; // global
-#include <string>
-#include <stdio.h>
+module;
+#include "../core/platform.hh"
 
 /**
  * @module ssc.dns

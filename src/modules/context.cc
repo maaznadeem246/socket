@@ -1,5 +1,5 @@
-module; // global
-#include <functional>
+module;
+#include "../core/platform.hh"
 
 /**
  * @module ssc.context

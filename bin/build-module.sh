@@ -10,6 +10,13 @@ declare should_build_module_map=1
 declare did_build_module_map=0
 
 declare namespace=""
+declare built_modules=0
+
+if (( $# == 0 )); then
+  echo "not ok - Please specify modules to build"
+  echo "usage: $0 ...<source files>"
+  exit 1
+fi
 
 while (( $# > 0 )); do
   declare source="$1"; shift
@@ -49,12 +56,19 @@ while (( $# > 0 )); do
 
   mkdir -p "$(dirname "$output")"
   rm -f "$output"
-  printf "# build: $(basename "$source")"
+  printf "# compiling $(basename "$source")"
   "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$source" -o "$output" || exit $?
   printf " -> $(basename "$output")"
   "$clang" -c "$output" -o "${output/.pcm/.o}" || exit $?
   printf " -> $(basename "${output/.pcm/.o}")"
   echo
+  echo "ok - built module $(basename "${output/.pcm/}")"
+
+  (( built_modules++ ))
 done
 
-wait
+if (( built_modules == 1 )); then
+  echo "ok - built 1 module"
+elif (( built_modules > 0 )); then
+  echo "ok - built $built_modules modules"
+fi

@@ -1,9 +1,9 @@
 module;
+#include "../core/platform.hh"
 
-import :interfaces;
-import :json;
+import ssc.json;
 
-export module ssc.runtime:fs;
+export module ssc.fs;
 
 export namespace ssc {
   #if !TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR

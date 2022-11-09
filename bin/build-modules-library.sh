@@ -32,14 +32,22 @@ declare modules=(
   #ipc/bridge
 )
 
+declare paths=()
+
+for module in "${modules[@]}"; do
+  paths+=("$root/src/modules/$module.cc")
+done
+
 function build () {
   "$root/bin/build-module.sh" "$@"
 }
 
 echo "# building modules static libary"
-for module in "${modules[@]}"; do
-  build "$root/src/modules/$module.cc"
-done
+build "${paths[@]}" || exit $?
 
-ar crus "$static_library" "$root/build/modules/"*.o
+ar crus "$static_library" "$root/build/modules/"*.o || {
+  echo "not ok - failed to build static library: $(basename "$static_library")"
+  exit 1
+}
+
 echo "ok - built static library: $(basename "$static_library")"

@@ -1,6 +1,5 @@
 module;
-#include <map>
-#include <string>
+#include "../core/platform.hh"
 
 /**
  * @module ssc.string

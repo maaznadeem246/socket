@@ -1,10 +1,9 @@
 module;
-
 #include "../core/platform.hh"
 
 /**
  * @module ssc.codec
- * @description Various utiltity encode/decode  functions
+ * @description Various utiltity encode/decode functions
  * @example
  * TODO
  */
