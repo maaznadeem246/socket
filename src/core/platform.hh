@@ -19,8 +19,9 @@
     #include <shobjidl.h>
     #include <signal.h>
     #include <wingdi.h>
-    #include <windows.h>
     #include <Winbase.h>
+    #include <windows.h>
+    #include <ws2tcpip.h>
 
     #include <future>
   #else

@@ -9,8 +9,9 @@ module; // global
  * import ssc.dns
  * namespace ssc {
  *   using DNS = ssc::dns::DNS:
- *   DNS dns(loop);
- *   dns.lookup(LookupOptions { "sockets.sh", 4 }, [](auto seq, auto json, auto data) {
+ *   auto DNS(loop);
+ *   auto options = LookupOptions("sockets.sh", 4);
+ *   dns.lookup(options, [](auto seq, auto json, auto data) {
  *     printf("address=%s\n", json.get("data").as<JSON::Object>().get("address").str().c_str());
  *   });
  * }

@@ -26,25 +26,20 @@ declare modules=(
   network
   version
   init
-)
-
-declare ipc_modules=(
-  message
-  result
-  router
-  #bridge
+  ipc/message
+  ipc/result
+  ipc/router
+  #ipc/bridge
 )
 
 function build () {
   "$root/bin/build-module.sh" "$@"
 }
 
+echo "# building modules static libary"
 for module in "${modules[@]}"; do
   build "$root/src/modules/$module.cc"
 done
 
-for module in "${ipc_modules[@]}"; do
-  build --namespace ipc "$root/src/modules/ipc/$module.cc"
-done
-
 ar crus "$static_library" "$root/build/modules/"*.o
+echo "ok - built static library: $(basename "$static_library")"

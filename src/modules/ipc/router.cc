@@ -1,9 +1,11 @@
 module;
+#include "../../core/platform.hh"
 
-#include <functional>
-#include <map>
-#include <string>
-
+/**
+ * @module ssc.ipc.result;
+ * @description TODO
+ * @example TODO
+ */
 export module ssc.ipc.router;
 import ssc.ipc.message;
 import ssc.ipc.result;

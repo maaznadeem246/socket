@@ -1,5 +1,11 @@
 module;
 #include "../../core/platform.hh"
+
+/**
+ * @module ssc.ipc.result;
+ * @description TODO
+ * @example TODO
+ */
 export module ssc.ipc.result;
 import ssc.ipc.message;
 import ssc.string;

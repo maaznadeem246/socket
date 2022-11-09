@@ -135,7 +135,7 @@ function _prepare {
     die $? "not ok - unable to clone. See trouble shooting guide in the README.md file"
   fi
 
-  echo "ok - directories prepared."
+  echo "ok - directories prepared"
 }
 
 function _install {

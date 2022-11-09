@@ -2,6 +2,7 @@
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare clang="$(which clang++)"
+declare modules="$root/src/modules/"
 
 declare flags=($("$root/bin/cflags.sh" -xc++-module --precompile))
 
@@ -23,11 +24,15 @@ while (( $# > 0 )); do
     continue
   fi
 
-  declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)/.pcm/g')"
-  declare module="${filename/.pcm/}"
+  declare module="$source"
+  module="$(realpath "$source")"
+  module="${module/$modules/}"
+  module="$(echo "$module" | sed 's/\//./g' | sed -E 's/.(hh|cc|mm|cpp)/.pcm/g')"
+  module="$(basename "$module")"
   if [ -n "$namespace" ]; then
     module="$namespace.$module"
   fi
+  module="${module/.pcm/}"
 
   declare output="$root/build/modules/ssc.$module.pcm"
 
@@ -44,9 +49,12 @@ while (( $# > 0 )); do
 
   mkdir -p "$(dirname "$output")"
   rm -f "$output"
+  printf "# build: $(basename "$source")"
   "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$source" -o "$output" || exit $?
+  printf " -> $(basename "$output")"
   "$clang" -c "$output" -o "${output/.pcm/.o}" || exit $?
-  echo " info: build $(basename "$source") -> $(basename "$output") -> $(basename "${output/.pcm/.o}")"
+  printf " -> $(basename "${output/.pcm/.o}")"
+  echo
 done
 
 wait

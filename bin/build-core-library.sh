@@ -23,6 +23,7 @@ if [[ "$(uname -s)" = "Darwin" ]]; then
   flags+=("-ObjC++")
 fi
 
+echo "# building core static libary"
 for source in "${sources[@]}"; do
   object="${source/.cc/.o}"
   object="${object/$src_directory/$output_directory}"
@@ -37,3 +38,4 @@ declare static_library="$root/build/lib/libsocket-core.a"
 mkdir -p "$root/build/lib"
 rm -rf "$static_library"
 ar crus "$static_library" ${objects[@]}
+echo "ok - built static library: $(basename "$static_library")"
