@@ -18,6 +18,8 @@ if (( $# == 0 )); then
   exit 1
 fi
 
+declare objects=()
+
 while (( $# > 0 )); do
   declare source="$1"; shift
 
@@ -59,13 +61,24 @@ while (( $# > 0 )); do
   printf "# compiling $(basename "$source")"
   "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$source" -o "$output" || exit $?
   printf " -> $(basename "$output")"
-  "$clang" -c "$output" -o "${output/.pcm/.o}" || exit $?
-  printf " -> $(basename "${output/.pcm/.o}")"
   echo
+  objects+=("${output/.pcm/.o}")
   echo "ok - built module $(basename "${output/.pcm/}")"
 
   (( built_modules++ ))
 done
+
+if (( ${#objects[@]} > 0 )); then
+  echo "# compiling objects..."
+  for object in "${objects[@]}"; do
+    {
+      "$clang" -c "${object/.o/.pcm}" -o "$object" || exit $?
+      echo "ok - built object $(basename "$object")"
+    } &
+  done
+fi
+
+wait
 
 if (( built_modules == 1 )); then
   echo "ok - built 1 module"

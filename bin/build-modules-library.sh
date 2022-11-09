@@ -27,7 +27,6 @@ declare modules=(
   ipc/result
   ipc/router
   log
-  init
   process
   #ipc/bridge
 )

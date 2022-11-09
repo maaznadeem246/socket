@@ -1,6 +1,12 @@
 module;
 #include "../core/network.hh"
 
+/**
+ * @module ssc.network
+ * @description Various network utilities
+ * @example
+ * TODO
+ */
 export module ssc.network;
 
 namespace ssc::network {

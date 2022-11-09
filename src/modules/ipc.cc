@@ -3,13 +3,13 @@
  * @description TODO
  */
 export module ssc.ipc;
-import ssc.ipc.message;
-import ssc.ipc.result;
-import ssc.ipc.router;
+export import ssc.ipc.message;
+export import ssc.ipc.result;
+export import ssc.ipc.router;
 
 export namespace ssc::ipc {
-  using Message = ssc::ipc::message::Message;
-  using Result = ssc::ipc::result::Result;
-  using Router = ssc::ipc::router::Router;
+  using ssc::ipc::message::Message;
+  using ssc::ipc::result::Result;
+  using ssc::ipc::router::Router;
   using Seq = Message::Seq;
 }

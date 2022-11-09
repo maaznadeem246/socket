@@ -2,7 +2,6 @@
 #include <new> // @TODO(jwerle): move this to `platform.hh` or similar
 
 import ssc.runtime;
-import ssc.init;
 import ssc.json;
 import ssc.dns;
 import ssc.log;
