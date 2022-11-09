@@ -47,9 +47,9 @@ namespace ssc::string {
     Vector<String> vec;
 
     for (auto n : s) {
-      if (n != c) {
+      if (n != c && c != (""[0])) {
         buff += n;
-      } else if (n == c) {
+      } else if (n == c || c == (""[0])) {
         vec.push_back(buff);
         buff = "";
       }
@@ -114,15 +114,17 @@ namespace ssc::string {
     Vector<String> vec;
 
     for (auto n : s) {
-      if(n != c) {
+      if (n != c && c != (""[0])) {
         buff += n;
-      } else if (n == c && buff != "") {
+      } else if ((n == c || c == (""[0])) && buff != "") {
         vec.push_back(buff);
         buff = "";
       }
     }
 
-    if (!buff.empty()) vec.push_back(buff);
+    if (!buff.empty()) {
+      vec.push_back(buff);
+    }
 
     return vec;
   }

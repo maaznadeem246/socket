@@ -5,7 +5,10 @@ module;
  * @module ssc.utils
  * @description Various utility helper functions
  * @example
- * TODO
+ * import ssc.util;
+ * namespace ssc {
+ *   auto u64 = utils::rand64();
+ * }
  */
 export module ssc.utils;
 

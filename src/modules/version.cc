@@ -3,9 +3,16 @@ module;
 
 /**
  * @module ssc.version;
- * @description TODO
+ * @description Library and command line version value constants.
  * @example
- * TODO
+ * import ssc.version;
+ * import ssc.log;
+ *
+ * namespace ssc {
+ *   log::info(version::VERSION_FULL_STRING);
+ *   log::info(version::VERSION_HASH_STRING);
+ *   log::info(version::VERSION_STRING);
+ * }
  */
 export module ssc.version;
 import ssc.string;
