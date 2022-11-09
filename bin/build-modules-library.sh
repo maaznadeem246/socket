@@ -11,7 +11,6 @@ declare modules=(
   config
   utils
   env
-  log
   uv
   loop
   ip
@@ -20,15 +19,16 @@ declare modules=(
   dns
   runtime
   headers
-  process
   platform
   templates
   network
   version
-  init
   ipc/message
   ipc/result
   ipc/router
+  log
+  init
+  process
   #ipc/bridge
 )
 

@@ -1,3 +1,4 @@
+#pragma clang diagnostic ignored "-Wunused-variable"
 module; // global
 #include <iostream>
 #include <stdio.h>
@@ -21,16 +22,19 @@ module; // global
  */
 export module ssc.log;
 import ssc.javascript;
+import ssc.headers;
 import ssc.string;
 import ssc.config;
 import ssc.json;
 
 using ssc::config::Config;
 using ssc::string::String;
+using ssc::headers::Headers;
 using ssc::javascript::Script;
 
 export namespace ssc::log {
   using ssc::string::format;
+
   inline auto write (const String& str, bool isError) {
     #if defined(_WIN32)
       StringStream ss;
@@ -92,6 +96,14 @@ export namespace ssc::log {
     info(script.str());
   }
 
+  inline auto info (const Headers& headers) {
+    info(headers.str());
+  }
+
+  inline auto info (const Headers::Entries& entries) {
+    info(Headers(entries).str());
+  }
+
   inline auto error (const String& string) {
     write(string, true);
   }
@@ -134,5 +146,13 @@ export namespace ssc::log {
 
   inline auto error (const Script& script) {
     error(script.str());
+  }
+
+  inline auto error (const Headers& headers) {
+    error(headers.str());
+  }
+
+  inline auto error (const Headers::Entries& entries) {
+    error(Headers(entries).str());
   }
 }

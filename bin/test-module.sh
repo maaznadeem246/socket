@@ -27,9 +27,9 @@ function main () {
 
     let local now=$(date +%s)
     "$output"
-    local rc=$?
-    local timing=$(( $(date +%s) - now ))
-    if ! "$output"; then
+    let local rc=$?
+    let local timing=$(( $(date +%s) - now ))
+    if (( rc != 0 )); then
       echo "not ok - $(basename "$output") tests failed in ${timing}ms"
       continue
     fi
