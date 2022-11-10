@@ -3,27 +3,19 @@
 
 #if !defined(SSC_INLINE_INCLUDE)
 #include "../platform.hh"
+#include "internal.hh"
 #endif
 
 namespace ssc::internal::webview {
-  #define SSC_INLINE_INCLUDE
-  #include "../types.hh"
-  #include "../string.hh"
-  #include "../utils.hh"
-  namespace JSON {
-    #include "../json.hh"
-  }
-  namespace javascript {
-    #include "../javascript.hh"
-  }
-  #include "../codec.hh"
-  #include "../headers.hh"
-  #include "../ipc/data.hh"
-  #include "../ipc/message.hh"
-  #undef SSC_INLINE_INCLUDE
-
   // forward
   struct SchemeRequest;
+
+  using namespace headers;
+  using namespace string;
+  using namespace types;
+  using namespace ipc::message;
+  using namespace ipc::data;
+  using namespace ipc;
 
   using SchemeResponseStatusCode = unsigned int;
   using SchemeResponseHeaders = Headers;
@@ -61,6 +53,20 @@ namespace ssc::internal::webview {
     String url;
     SchemeRequestBody body;
     void *internal = nullptr;
+
+    SchemeRequest (const String url) : SchemeRequest("GET", url) { }
+    SchemeRequest (const String method, const String url)
+      : SchemeRequest(method, url, { nullptr, 0 }) { }
+
+    SchemeRequest (
+      const String method,
+      const String url,
+      SchemeRequestBody body
+    ) : message(url) {
+      this->method = method;
+      this->url = url;
+      this->body = body;
+    }
 
     void end (const SchemeResponse& response) const;
     void end (

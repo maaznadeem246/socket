@@ -1,12 +1,11 @@
 #include "../private.hh"
 #include "webview.hh"
 
-using ssc::internal::webview::Lock;
-using ssc::internal::webview::Mutex;
-using ssc::internal::webview::String;
-using ssc::internal::webview::Message;
-
 #if defined(__APPLE__)
+using ssc::internal::types::Lock;
+using ssc::internal::types::Mutex;
+using ssc::internal::types::String;
+
 using SchemeTask = id<WKURLSchemeTask>;
 using SchemeTasks = std::map<std::string, SchemeTask>;
 
@@ -249,8 +248,9 @@ namespace ssc::internal::webview {
 - (void) webView: (WKWebView*) webview stopURLSchemeTask: (SchemeTask) task {}
 - (void) webView: (WKWebView*) webview startURLSchemeTask: (SchemeTask) task {
   auto request = ssc::internal::webview::SchemeRequest {
-    .method = String(task.request.HTTPMethod.UTF8String),
-    .url = String(task.request.URL.absoluteString.UTF8String)
+    String(task.request.HTTPMethod.UTF8String),
+    String(task.request.URL.absoluteString.UTF8String),
+    { nullptr, 0 }
   };
 
   auto body = task.request.HTTPBody;

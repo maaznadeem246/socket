@@ -4,6 +4,8 @@ module; // global
 #include <stdio.h>
 #include <string>
 
+#include "../core/internal/internal.hh"
+
 /**
  * @module ssc.log
  * @description Logging functions for stdout/stderr
@@ -26,6 +28,7 @@ import ssc.headers;
 import ssc.string;
 import ssc.config;
 import ssc.json;
+import ssc.ipc;
 
 using ssc::config::Config;
 using ssc::string::String;
@@ -104,6 +107,22 @@ export namespace ssc::log {
     info(Headers(entries).str());
   }
 
+  inline auto info (const ipc::Result& result) {
+    info(result.str());
+  }
+
+  inline auto info (const internal::ipc::result::Result& result) {
+    info(result.str());
+  }
+
+  inline auto info (const ipc::Message& message) {
+    info(message.str());
+  }
+
+  inline auto info (const internal::ipc::message::Message& message) {
+    info(message.str());
+  }
+
   inline auto error (const String& string) {
     write(string, true);
   }
@@ -154,5 +173,13 @@ export namespace ssc::log {
 
   inline auto error (const Headers::Entries& entries) {
     error(Headers(entries).str());
+  }
+
+  inline auto error (const ipc::Result& result) {
+    error(result.str());
+  }
+
+  inline auto error (const ipc::Message& message) {
+    error(message.str());
   }
 }

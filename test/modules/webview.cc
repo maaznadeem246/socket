@@ -17,16 +17,14 @@ void test_ipc_scheme_handler () {
   bool called = false;
   IPCSchemeHandler schemeHandler(&dataManager, [&](const auto& request) {
     called = true;
-    log::info(request.url);
+    assert(request.method == "GET");
+    assert(request.url == "ipc://hello?value=world");
+    assert(request.message.name == "hello");
+    assert(request.message.value == "world");
     return true;
   });
 
-  SchemeRequest request = {
-    .method = "GET",
-    .url = "ipc://hello?value=world"
-  };
-
-  log::info(request.url);
+  SchemeRequest request = { String("ipc://hello?value=world") };
 
   schemeHandler.onSchemeRequest(request);
   assert(called);

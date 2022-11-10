@@ -28,30 +28,10 @@ namespace ssc::webview {
   using SchemeResponseHeaders = internal::webview::SchemeResponseHeaders;
   using SchemeRequestHeaders = internal::webview::SchemeRequestHeaders;
 
-  struct SchemeResponseBody : public internal::webview::SchemeResponseBody {
-    JSON::Any json;
-    char* bytes;
-    size_t size;
-  };
-
-  struct SchemeRequestBody : public internal::webview::SchemeRequestBody {
-    char* bytes;
-    size_t size;
-  };
-
-  struct SchemeResponse : public internal::webview::SchemeResponse {
-    const SchemeRequest* request = nullptr;
-    SchemeResponseStatusCode statusCode = 200;
-    SchemeResponseHeaders headers;
-    SchemeResponseBody body;
-  };
-
-  struct SchemeRequest : public internal::webview::SchemeRequest {
-    Message message;
-    String method;
-    String url;
-    SchemeRequestBody body;
-  };
+  struct SchemeResponseBody : public internal::webview::SchemeResponseBody {};
+  struct SchemeRequestBody : public internal::webview::SchemeRequestBody {};
+  struct SchemeResponse : public internal::webview::SchemeResponse {};
+  struct SchemeRequest : public internal::webview::SchemeRequest {};
 
   using SchemeRequestCallback = internal::webview::SchemeRequestCallback;
   using IPCSchemeRequestRouteCallback = internal::webview::IPCSchemeRequestRouteCallback;
@@ -77,15 +57,6 @@ namespace ssc::webview {
       ) {
         // noop
       }
-
-      void onSchemeRequest (const SchemeRequest request) {
-        internal::webview::SchemeHandler::onSchemeRequest({
-          request.message.str(),
-          request.method,
-          request.url,
-          request.body
-        });
-      }
   };
 
   class IPCSchemeHandler : public internal::webview::IPCSchemeHandler {
@@ -99,15 +70,6 @@ namespace ssc::webview {
         onIPCSchemeRequestRouteCallback
       ) {
         // noop
-      }
-
-      void onSchemeRequest (const SchemeRequest request) {
-        internal::webview::IPCSchemeHandler::onSchemeRequest({
-          request.message.str(),
-          request.method,
-          request.url,
-          request.body
-        });
       }
   };
 #if !defined(SSC_INLINE_INCLUDE)
