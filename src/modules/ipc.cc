@@ -5,11 +5,11 @@
 export module ssc.ipc;
 export import ssc.ipc.message;
 export import ssc.ipc.result;
-export import ssc.ipc.router;
+export import ssc.ipc.data;
 
 export namespace ssc::ipc {
-  using ssc::ipc::message::Message;
-  using ssc::ipc::result::Result;
-  using ssc::ipc::router::Router;
-  using Seq = Message::Seq;
+  using message::Message;
+  using result::Result;
+  using data::Data;
+  using Seq = message::Message::Seq;
 }

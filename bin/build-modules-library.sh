@@ -17,15 +17,18 @@ declare modules=(
   codec
   context
   dns
-  runtime
   headers
   platform
   templates
   network
   version
   ipc/message
+  ipc/data
   ipc/result
-  ipc/router
+  ipc
+  webview
+  router
+  runtime
   log
   process
   #ipc/bridge

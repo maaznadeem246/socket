@@ -1,7 +1,6 @@
 #ifndef SSC_CORE_CODEC_HH
-#define SSC_CORE_CODEC_HH
-
 #if !defined(SSC_INLINE_INCLUDE)
+#define SSC_CORE_CODEC_HH
 #include "types.hh"
 #include "string.hh"
 #endif

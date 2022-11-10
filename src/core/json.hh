@@ -1,7 +1,6 @@
 #ifndef SSC_CORE_JSON_HH
-#define SSC_CORE_JSON_HH
-
 #if !defined(SSC_INLINE_INCLUDE)
+#define SSC_CORE_JSON_HH
 #include "platform.hh"
 #endif
 
@@ -337,6 +336,8 @@ namespace ssc::JSON {
         this->data = (double) number;
       }
 
+      Number (const String& string);
+
       float value () const {
         return this->data;
       }
@@ -393,6 +394,18 @@ namespace ssc::JSON {
         this->data = std::string(data);
       }
 
+      String (const Any& any) {
+        this->data = any.str();
+      }
+
+      String (const Number& number) {
+        this->data = number.str();
+      }
+
+      String (const Boolean& boolean) {
+        this->data = boolean.str();
+      }
+
       std::string str () const {
         auto escaped = escape(this->data, "\"", "\\\"");
         return "\"" + escape(escaped, "\n", "\\n") + "\"";
@@ -407,6 +420,9 @@ namespace ssc::JSON {
       }
   };
 
+  inline Number::Number (const String& string) {
+    this->data = std::stod(string.str());
+  }
 
   inline Any::Any (const Null null) {
     this->pointer = std::shared_ptr<void>(new Null());

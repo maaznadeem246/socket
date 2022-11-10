@@ -1,10 +1,10 @@
 #ifndef SSC_CORE_HEADERS_HH
-#define SSC_CORE_HEADERS_HH
-
 #if !defined(SSC_INLINE_INCLUDE)
+#define SSC_CORE_HEADERS_HH
 #include "platform.hh"
 #include "string.hh"
 #include "types.hh"
+#include "json.hh"
 #endif
 
 #if !defined(SSC_INLINE_INCLUDE)
@@ -113,20 +113,107 @@ namespace ssc::headers {
         }
       }
 
+      Headers (const Map& map) {
+        for (const auto& entry : map) {
+          this->set(entry.first, entry.second);
+        }
+      }
+
+      Headers (const String& source) {
+        for (const auto& line: split(source, '\n')) {
+          const auto pair = split(line, ':');
+          this->set(pair[0], pair[1]);
+        }
+      }
+
+      Headers (const char* source) : Headers(String(source)) {
+        // noop
+      }
+
+      void set (const String& key, const String& value) {
+        for (auto& entry : this->entries) {
+          if (entry.key == key) {
+            entry.value.string = value;
+            return;
+          }
+        }
+
+        this->entries.push_back({ key, value });
+      }
+
+      bool has (const String& key) const {
+        for (const auto& entry : this->entries) {
+          if (entry.key == key) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      String get (const String& key) const {
+        for (const auto& entry : this->entries) {
+          if (entry.key == key) {
+            return entry.value.str();
+          }
+        }
+
+        return "";
+      }
+
+      String operator [] (const String& key) const {
+        for (const auto& entry : this->entries) {
+          if (entry.key == key) {
+            return entry.value.str();
+          }
+        }
+
+        return "";
+      }
+
+      String &operator [] (const String& key) {
+        static String empty = "";
+
+        if (!this->has(key)) {
+          this->set(key, "");
+        }
+
+        for (auto& entry : this->entries) {
+          if (entry.key == key) {
+            return entry.value.string;
+          }
+        }
+
+        return empty;
+      }
+
       size_t size () const {
         return this->entries.size();
       }
 
       String str () const {
-        StringStream headers;
-        auto count = this->size();
+        Map mapping;
         for (const auto& entry : this->entries) {
-          headers << entry.key << ": " << entry.value.str();;
+          mapping[entry.key] = entry.value.str();
+        }
+
+        StringStream headers;
+        auto count = mapping.size();
+        for (const auto& entry : mapping) {
+          headers << entry.first << ": " << entry.second;
           if (--count > 0) {
             headers << "\n";
           }
         }
         return headers.str();
+      }
+
+      JSON::Object json () const {
+        auto json = JSON::Object {};
+        for (const auto& entry : this->entries) {
+          json[entry.key] = entry.value.str();
+        }
+        return json;
       }
   };
 

@@ -1,7 +1,6 @@
 #ifndef SSC_CORE_NETWORK_HH
-#define SSC_CORE_NETWORK_HH
-
 #if !defined(SSC_INLINE_INCLUDE)
+#define SSC_CORE_NETWORK_HH
 #include "platform.hh"
 #include "types.hh"
 #endif

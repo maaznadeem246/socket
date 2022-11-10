@@ -40,8 +40,6 @@
       #include <_types/_uint64_t.h>
       #include <netinet/in.h>
       #include <sys/un.h>
-    #else
-      #include <objc/objc-runtime.h>
     #endif
   #endif
 

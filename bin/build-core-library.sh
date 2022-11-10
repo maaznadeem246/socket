@@ -12,7 +12,7 @@ declare flags=(
 )
 
 declare ldflags=($("$root/bin/ldflags.sh"))
-declare sources=($(find "$root"/src/core/*.cc))
+declare sources=($(find "$root"/src/core/*.cc) $(find "$root"/src/core/internal/*.cc))
 declare objects=()
 
 declare src_directory="$root/src/core"
@@ -29,8 +29,10 @@ for source in "${sources[@]}"; do
   object="${object/$src_directory/$output_directory}"
   objects+=("$object")
   if ! test -f "$object" || (( $(stat "$source" -c %Y) > $(stat "$object" -c %Y) )); then
+    mkdir -p "$(dirname "$object")"
+    echo "# compiling object $(basename "$source")"
     "$clang" "${flags[@]}" -c "$source" -o "$object"
-    echo " info: build $(basename "$source") -> $(basename "$object")"
+    echo "ok - built $(basename "$source") -> $(basename "$object")"
   fi
 done
 

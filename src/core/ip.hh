@@ -1,7 +1,6 @@
 #ifndef SSC_CORE_IP_HH
-#define SSC_CORE_IP_HH
-
 #if !defined(SSC_INLINE_INCLUDE)
+#define SSC_CORE_IP_HH
 #include "platform.hh"
 #include "string.hh"
 #endif

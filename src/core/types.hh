@@ -1,7 +1,8 @@
 #ifndef SSC_CORE_TYPES_HH
+#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_TYPES_HH
-
 #include "platform.hh"
+#endif
 
 #if !defined(SSC_INLINE_INCLUDE)
 namespace ssc::types {
@@ -18,6 +19,7 @@ namespace ssc::types {
 
   template <int K> using Semaphore = std::counting_semaphore<K>;
   template <typename T> using SharedPointer = std::shared_ptr<T>;
+  template <typename T> using UniquePointer = std::unique_ptr<T>;
   using String = std::string;
   using StringStream = std::stringstream;
   using Thread = std::thread;

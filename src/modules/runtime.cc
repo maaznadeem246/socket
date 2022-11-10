@@ -18,21 +18,28 @@ module; // global
  */
 export module ssc.runtime;
 import ssc.string;
+import ssc.types;
 import ssc.loop;
+import ssc.ipc;
 import ssc.dns;
 
-using ssc::string::String;
-using ssc::loop::Loop;
 using ssc::dns::DNS;
+using ssc::ipc::data::DataManager;
+using ssc::loop::Loop;
+using ssc::string::String;
+using ssc::types::SharedPointer;
 
 export namespace ssc::runtime {
   class Runtime {
     public:
+      SharedPointer<DataManager> dataManager;
       Loop loop;
       DNS dns;
 
       ~Runtime () = default;
-      Runtime () : dns(this->loop) {}
+      Runtime () : dns(this->loop) {
+        this->dataManager = SharedPointer<DataManager>(new DataManager());
+      }
 
       void start () {
         this->loop.init();

@@ -1,7 +1,6 @@
 #ifndef SSC_CORE_ENV_HH
-#define SSC_CORE_ENV_HH
-
 #if !defined(SSC_INLINE_INCLUDE)
+#define SSC_CORE_ENV_HH
 #include "types.hh"
 #endif
 
