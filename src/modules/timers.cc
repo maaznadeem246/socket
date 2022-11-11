@@ -1,5 +1,5 @@
 module; // global
-#include "../platform.hh"
+#include <socket/platform.hh>
 
 /**
  * @module ssc.loop

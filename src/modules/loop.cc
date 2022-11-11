@@ -1,5 +1,11 @@
 module; // global
-#include "../core/platform.hh"
+#include <socket/platform.hh>
+#include <functional>
+#include <thread>
+
+#if defined(__APPLE__)
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 
 /**
  * @module ssc.loop

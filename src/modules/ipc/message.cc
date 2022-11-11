@@ -1,5 +1,5 @@
 module;
-#include "../../core/platform.hh"
+#include "../../core/ipc/message.hh"
 
 /**
  * @module ssc.ipc.message
@@ -7,16 +7,8 @@ module;
  * @example TODO
  */
 export module ssc.ipc.message;
-import ssc.string;
-import ssc.codec;
-import ssc.types;
-
-using ssc::codec::decodeURIComponent;
-using ssc::string::String;
-using ssc::string::split;
-using ssc::types::Map;
 
 export namespace ssc::ipc::message {
-  #define SSC_INLINE_INCLUDE
-  #include "../../core/ipc/message.hh"
+  using ssc::core::ipc::message::Message; // NOLINT(misc-unused-using-decls)
+  using ssc::core::ipc::message::MessageBuffer; // NOLINT(misc-unused-using-decls)
 }

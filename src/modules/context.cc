@@ -1,5 +1,6 @@
 module;
-#include "../core/platform.hh"
+#include <socket/platform.hh>
+#include <functional>
 
 /**
  * @module ssc.context

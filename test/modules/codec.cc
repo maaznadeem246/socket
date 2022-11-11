@@ -1,15 +1,14 @@
 #include <assert.h>
 
-import ssc.codec;
+#include <socket/runtime.hh>
 import ssc.string;
-import ssc.log;
+import ssc.codec;
 
-using String = ssc::string::String;
-
-using namespace ssc;
-using namespace ssc::codec;
 
 int main () {
+  using namespace ssc::codec;
+  using namespace ssc::string;
+
   assert(
     decodeURIComponent("betty%20aime%20le%20fromage%20fran%C3%A7ais") ==
     String("betty aime le fromage français")

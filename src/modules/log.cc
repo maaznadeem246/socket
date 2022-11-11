@@ -1,10 +1,7 @@
-#pragma clang diagnostic ignored "-Wunused-variable"
 module; // global
+#include <socket/platform.hh>
 #include <iostream>
-#include <stdio.h>
 #include <string>
-
-#include "../core/internal/internal.hh"
 
 /**
  * @module ssc.log
@@ -111,16 +108,12 @@ export namespace ssc::log {
     info(result.str());
   }
 
-  inline auto info (const internal::ipc::result::Result& result) {
-    info(result.str());
-  }
-
   inline auto info (const ipc::Message& message) {
     info(message.str());
   }
 
-  inline auto info (const internal::ipc::message::Message& message) {
-    info(message.str());
+  template <typename ...Args> auto info (const String& fmt, Args... args) {
+    info(format(fmt, args...));
   }
 
   inline auto error (const String& string) {
@@ -181,5 +174,9 @@ export namespace ssc::log {
 
   inline auto error (const ipc::Message& message) {
     error(message.str());
+  }
+
+  template <typename ...Args> auto error (const String& fmt, Args... args) {
+    info(format(fmt, args...));
   }
 }

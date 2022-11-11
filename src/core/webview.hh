@@ -1,78 +1,135 @@
 #ifndef SSC_CORE_WEBVIEW_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_WEBVIEW_HH
 
-#include "internal/webview.hh"
-#include "platform.hh"
+#include <socket/platform.hh>
+
 #include "headers.hh"
-#include "types.hh"
-#include "string.hh"
-#include "json.hh"
 #include "ipc/data.hh"
 #include "ipc/message.hh"
-#endif
+#include "string.hh"
+#include "types.hh"
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::webview {
-  using namespace ssc::types;
-  using ssc::ipc::data::DataManager;
-  using ssc::ipc::message::Message;
-  using ssc::string::String;
-#endif
+namespace ssc::core::webview {
   // forward
-  struct SchemeRequest;
+  struct CoreSchemeRequest;
 
-  using InternalDataManager = internal::webview::DataManager;
+  using namespace headers;
+  using namespace string;
+  using namespace types;
+  using namespace ipc::message;
+  using namespace ipc::data;
 
-  using SchemeResponseStatusCode = internal::webview::SchemeResponseStatusCode;
-  using SchemeResponseHeaders = internal::webview::SchemeResponseHeaders;
-  using SchemeRequestHeaders = internal::webview::SchemeRequestHeaders;
+  using CoreSchemeResponseStatusCode = unsigned int;
+  using CoreSchemeResponseHeaders = Headers;
+  using CoreSchemeRequestHeaders = Headers;
 
-  struct SchemeResponseBody : public internal::webview::SchemeResponseBody {};
-  struct SchemeRequestBody : public internal::webview::SchemeRequestBody {};
-  struct SchemeResponse : public internal::webview::SchemeResponse {};
-  struct SchemeRequest : public internal::webview::SchemeRequest {};
-
-  using SchemeRequestCallback = internal::webview::SchemeRequestCallback;
-  using IPCSchemeRequestRouteCallback = internal::webview::IPCSchemeRequestRouteCallback;
-
-  class SchemeHandler : public internal::webview::SchemeHandler {
-    public:
-      SchemeHandler () = default;
-      SchemeHandler (
-        const String& scheme,
-        DataManager* dataManager
-      ) : SchemeHandler(scheme, dataManager, nullptr) {
-        // noop
-      }
-
-      SchemeHandler (
-        const String& scheme,
-        DataManager* dataManager,
-        SchemeRequestCallback onSchemeRequestCallback
-      ) : internal::webview::SchemeHandler(
-        scheme,
-        (InternalDataManager*) dataManager,
-        onSchemeRequestCallback
-      ) {
-        // noop
-      }
+  struct CoreSchemeResponseBody {
+    JSON::Any json;
+    char* bytes;
+    size_t size;
   };
 
-  class IPCSchemeHandler : public internal::webview::IPCSchemeHandler {
-    public:
-      IPCSchemeHandler () = default;
-      IPCSchemeHandler (
-        DataManager* dataManager,
-        IPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
-      ) : internal::webview::IPCSchemeHandler(
-        (InternalDataManager*) dataManager,
-        onIPCSchemeRequestRouteCallback
-      ) {
-        // noop
-      }
+  struct CoreSchemeRequestBody {
+    char* bytes;
+    size_t size;
   };
-#if !defined(SSC_INLINE_INCLUDE)
+
+  struct CoreSchemeResponse {
+    const CoreSchemeRequest* request = nullptr;
+    CoreSchemeResponseStatusCode statusCode = 200;
+    CoreSchemeResponseHeaders headers;
+    CoreSchemeResponseBody body;
+
+    size_t size () const {
+      if (this->body.size > 0) {
+        return this->body.size;
+      }
+
+      return this->body.json.str().size();
+    }
+  };
+
+  struct CoreSchemeRequest {
+    String method;
+    String url;
+    CoreSchemeRequestBody body;
+    void *internal = nullptr;
+
+    CoreSchemeRequest (const String url) : CoreSchemeRequest("GET", url) { }
+    CoreSchemeRequest (const String method, const String url)
+      : CoreSchemeRequest(method, url, { nullptr, 0 }) { }
+
+    CoreSchemeRequest (
+      const String method,
+      const String url,
+      CoreSchemeRequestBody body
+    ) {
+      this->method = method;
+      this->url = url;
+      this->body = body;
+    }
+
+    void end (const CoreSchemeResponse& response) const;
+    void end (
+      const CoreSchemeResponseStatusCode statusCode,
+      const Headers headers,
+      const char* bytes,
+      size_t size
+    ) const;
+  };
+
+  using CoreSchemeRequestCallback = std::function<void(const CoreSchemeRequest&)>;
+  class CoreSchemeHandler {
+    public:
+      String scheme;
+      CoreSchemeRequestCallback onSchemeRequestCallback;
+      DataManager* dataManager;
+      void* internal = nullptr;
+
+      CoreSchemeHandler () = default;
+      CoreSchemeHandler (
+        const String& scheme,
+        DataManager* dataManager,
+        CoreSchemeRequestCallback onSchemeRequestCallback
+      );
+
+      ~CoreSchemeHandler();
+      void onSchemeRequest (const CoreSchemeRequest request);
+  };
+
+  struct CoreIPCSchemeRequest : public CoreSchemeRequest {
+    Message message;
+    CoreIPCSchemeRequest (const String url) : CoreIPCSchemeRequest("GET", url) { }
+    CoreIPCSchemeRequest (const String method, const String url)
+      : CoreIPCSchemeRequest(method, url, { nullptr, 0 }) { }
+    CoreIPCSchemeRequest (
+      const String method,
+      const String url,
+      CoreSchemeRequestBody body
+    ) : CoreSchemeRequest(method, url, body), message(url) {
+    }
+  };
+
+  using CoreIPCSchemeRequestRouteCallback = std::function<bool(const CoreIPCSchemeRequest&)>;
+  class CoreIPCSchemeHandler : public CoreSchemeHandler {
+    public:
+      CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback;
+      CoreIPCSchemeHandler () = default;
+      CoreIPCSchemeHandler (
+        DataManager* dataManager,
+        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+      );
+
+      void onSchemeRequest (const CoreIPCSchemeRequest request);
+  };
+
+  class CoreWebViewInternals;
+
+  class CoreWebView {
+    CoreWebViewInternals* internals = nullptr;
+    public:
+      CoreWebView ();
+      ~CoreWebView ();
+  };
 }
-#endif
 #endif

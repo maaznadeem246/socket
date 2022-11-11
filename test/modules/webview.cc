@@ -1,30 +1,32 @@
+#include <socket/runtime.hh>
 #include <assert.h>
-#include "../../src/core/platform.hh"
 
 import ssc.webview;
+import ssc.string;
 import ssc.types;
+import ssc.json;
 import ssc.ipc;
 import ssc.log;
 
-using namespace ssc;
-using namespace ssc::webview;
-using namespace ssc::types;
-using namespace ssc::ipc;
+#include <new>
+
 using namespace ssc::ipc::data;
+using namespace ssc::types;
+using namespace ssc::webview;
 
 void test_ipc_scheme_handler () {
   DataManager dataManager;
   bool called = false;
   IPCSchemeHandler schemeHandler(&dataManager, [&](const auto& request) {
     called = true;
-    assert(request.method == "GET");
-    assert(request.url == "ipc://hello?value=world");
-    assert(request.message.name == "hello");
-    assert(request.message.value == "world");
+    assert(request.method == String("GET"));
+    assert(request.url == String("ipc://hello?value=world"));
+    assert(request.message.name == String("hello"));
+    assert(request.message.value == String("world"));
     return true;
   });
 
-  SchemeRequest request = { String("ipc://hello?value=world") };
+  IPCSchemeRequest request = { String("ipc://hello?value=world") };
 
   schemeHandler.onSchemeRequest(request);
   assert(called);

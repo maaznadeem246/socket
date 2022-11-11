@@ -1,5 +1,7 @@
 module;
-#include "../core/platform.hh"
+#include <socket/platform.hh>
+#include <new>
+#include <string>
 
 /**
  * @module ssc.dns

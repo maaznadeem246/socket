@@ -1,5 +1,5 @@
 module;
-#include "../core/platform.hh"
+#include "../core/env.hh"
 
 /**
  * @module ssc.env
@@ -16,11 +16,8 @@ module;
  * TODO
  */
 export module ssc.env;
-import ssc.string;
-
-using String = ssc::string::String;
 
 export namespace ssc::env {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/env.hh"
+  using ssc::core::env::get; // NOLINT(misc-unused-using-decls)
+  using ssc::core::env::set; // NOLINT(misc-unused-using-decls)
 }

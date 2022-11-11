@@ -1,13 +1,10 @@
 #ifndef SSC_CORE_ENV_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_ENV_HH
-#include "types.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::env {
-  using namespace ssc::types;
-#endif
+#include "string.hh"
+
+namespace ssc::core::env {
+  using namespace ssc::core::string;
 
   inline auto get (const char* variableName) {
     #if defined(_WIN32)
@@ -56,8 +53,5 @@ namespace ssc::env {
   inline auto set (const String& key, const String& value) {
     return set(key.c_str(), value.c_str());
   }
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

@@ -1,5 +1,5 @@
 module;
-#include "../core/platform.hh"
+#include "../core/codec.hh"
 
 /**
  * @module ssc.codec
@@ -8,12 +8,8 @@ module;
  * TODO
  */
 export module ssc.codec;
-import ssc.string;
-import ssc.types;
-
-using ssc::string::String;
-
 export namespace ssc::codec {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/codec.hh"
+  using ssc::core::codec::decodeUTF8; // NOLINT(misc-unused-using-decls)
+  using ssc::core::codec::decodeURIComponent; // NOLINT(misc-unused-using-decls)
+  using ssc::core::codec::encodeURIComponent; // NOLINT(misc-unused-using-decls)
 }

@@ -1,5 +1,5 @@
 module;
-#include "../../core/platform.hh"
+#include "../../core/ipc/result.hh"
 
 /**
  * @module ssc.ipc.result;
@@ -7,14 +7,7 @@ module;
  * @example TODO
  */
 export module ssc.ipc.result;
-import ssc.ipc.message;
-import ssc.ipc.data;
-import ssc.types;
-import ssc.json;
-
-using namespace ssc::types;
 
 export namespace ssc::ipc::result {
-  #define SSC_INLINE_INCLUDE
-  #include "../../core/ipc/result.hh"
+  using ssc::core::ipc::result::Result; // NOLINT(misc-unused-using-decls)
 }

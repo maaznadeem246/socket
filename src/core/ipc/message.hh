@@ -1,17 +1,15 @@
 #ifndef SSC_CORE_IPC_MESSAGE_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_IPC_MESSAGE_HH
-#include "../types.hh"
-#include "../string.hh"
-#include "../codec.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::ipc::message {
-  using namespace ssc::types;
-  using ssc::codec::decodeURIComponent;
-  using ssc::string::split;
-#endif
+#include <socket/platform.hh>
+#include "../codec.hh"
+#include "../string.hh"
+#include "../types.hh"
+
+namespace ssc::core::ipc::message {
+  using namespace types;
+  using codec::decodeURIComponent;
+  using string::split;
 
   struct MessageBuffer {
     char *bytes = nullptr;
@@ -26,11 +24,11 @@ namespace ssc::ipc::message {
   class Message {
     public:
       using Seq = String;
+      String uri = "";
       MessageBuffer buffer;
       String value = "";
       String name = "";
       String seq = "";
-      String uri = "";
       int index = -1;
       Map args;
 
@@ -122,8 +120,5 @@ namespace ssc::ipc::message {
         return this->uri.c_str();
       }
   };
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

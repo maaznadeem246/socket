@@ -1,4 +1,38 @@
+import ssc.application;
+import ssc.codec;
+import ssc.config;
+import ssc.env;
+import ssc.ipc;
+import ssc.javascript;
+import ssc.log;
+import ssc.process;
+import ssc.string;
+import ssc.window;
+
+#include <socket/socket.hh>
+#include <filesystem>
 #include <functional>
+#include <span>
+#include <new>
+
+using namespace ssc::string;
+using namespace ssc::codec;
+using namespace ssc::javascript;
+using namespace ssc::platform;
+using namespace ssc::process;
+
+using ssc::application::Application;
+using ssc::ipc::Message;
+using ssc::window::Window;
+using ssc::window::WindowFactory;
+using ssc::window::WindowFactoryOptions;
+using ssc::window::WindowOptions;
+
+namespace env = ssc::env;
+namespace fs = std::filesystem;
+namespace log = ssc::log;
+
+const PlatformInfo platform;
 
 //
 // A cross platform MAIN macro that
@@ -20,7 +54,7 @@
 #endif
 
 #define InvalidWindowIndexError(index) \
-  SSC::String("Invalid index given for window: ") + std::to_string(index)
+  String("Invalid index given for window: ") + std::to_string(index)
 
 #ifndef PORT
 #define PORT 0
@@ -39,7 +73,7 @@ void signalHandler (int signal) {
 // which on windows is hInstance, on mac and linux this is just an int.
 //
 MAIN {
-  App app(instanceId);
+  Application app(instanceId);
   WindowFactory windowFactory(app);
 
   app.setWindowFactory(&windowFactory);
@@ -51,17 +85,17 @@ MAIN {
   constexpr auto _debug = DEBUG;
   constexpr auto _port = PORT;
 
-  const SSC::String OK_STATE = "0";
-  const SSC::String ERROR_STATE = "1";
-  const SSC::String EMPTY_SEQ = SSC::String("");
+  const String OK_STATE = "0";
+  const String ERROR_STATE = "1";
+  const String EMPTY_SEQ = String("");
 
   auto cwd = app.getCwd();
-  app.appData = parseConfig(decodeURIComponent(_settings));
+  app.appData = decodeURIComponent(_settings);
 
-  SSC::String suffix = "";
+  String suffix = "";
 
-  SSC::StringStream argvArray;
-  SSC::StringStream argvForward;
+  StringStream argvArray;
+  StringStream argvForward;
 
   bool isCommandMode = false;
   bool isHeadless = false;
@@ -78,7 +112,7 @@ MAIN {
   // isn't the most robust way of doing this. possible a URI-encoded query
   // string would be more in-line with how everything else works.
   for (auto const arg : std::span(argv, argc)) {
-    auto s = SSC::String(arg);
+    auto s = String(arg);
 
     argvArray
       << "'"
@@ -112,7 +146,7 @@ MAIN {
 
     if (s.find("--from-ssc") == 0) {
       fromSSC = true;
-      app.fromSSC = true;
+      app.wasStartedFromCli = true;
     }
 
     if (s.find("--test") == 0) {
@@ -131,7 +165,7 @@ MAIN {
     } else if (versionRequested) {
       argvForward << " " << "version --warn-arg-usage=" << s;
     } else if (c > 1 || isCommandMode) {
-      argvForward << " " << SSC::String(arg);
+      argvForward << " " << String(arg);
     }
   }
 
@@ -150,17 +184,17 @@ MAIN {
     argvForward << " --debug=1";
   #endif
 
-  SSC::StringStream env;
+  StringStream env;
   for (auto const &envKey : split(app.appData["env"], ',')) {
     auto cleanKey = trim(envKey);
-    auto envValue = getEnv(cleanKey.c_str());
+    auto envValue = env::get(cleanKey.c_str());
 
-    env << SSC::String(
+    env << String(
       cleanKey + "=" + encodeURIComponent(envValue) + "&"
     );
   }
 
-  SSC::String cmd;
+  String cmd;
   if (platform.os == "win32") {
     cmd = app.appData["win_cmd"];
   } else {
@@ -202,22 +236,22 @@ MAIN {
       cmd,
       argvForward.str(),
       cwd,
-      [&](SSC::String const &out) {
-        IPC::Message message(out);
+      [&](String const &out) {
+        Message message(out);
 
         if (message.name != "exit") {
-          stdWrite(decodeURIComponent(message.get("value")), false);
+          log::write(decodeURIComponent(message.get("value")), false);
         } else if (message.name == "exit") {
           exitCode = stoi(message.get("value"));
           exit(exitCode);
         }
       },
-      [](SSC::String const &out) { stdWrite(out, true); },
-      [](SSC::String const &code){ exit(std::stoi(code)); }
+      [](String const &out) { log::write(out, true); },
+      [](String const &code){ exit(std::stoi(code)); }
     );
 
     if (cmd.size() == 0) {
-      stdWrite("No " + platform.os + "_cmd provided in ssc.config", true);
+      log::write("No " + platform.os + "_cmd provided in ssc.config", true);
       exit(1);
     }
 
@@ -267,7 +301,7 @@ MAIN {
   // # Main -> Render
   // Launch the main process and connect callbacks to the stdio and stderr pipes.
   //
-  auto onStdOut = [&](SSC::String const &out) {
+  auto onStdOut = [&](String const &out) {
     //
     // ## Dispatch
     // Messages from the main process may be sent to the render process. If they
@@ -275,18 +309,18 @@ MAIN {
     // just stdout and we can write the data to the pipe.
     //
     app.dispatch([&, out] {
-      IPC::Message message(out);
+      Message message(out);
 
       auto value = message.get("value");
       auto seq = message.get("seq");
 
       if (message.name == "log" || message.name == "stdout") {
-        stdWrite(decodeURIComponent(value), false);
+        log::write(decodeURIComponent(value), false);
         return;
       }
 
       if (message.name == "stderr") {
-        stdWrite(decodeURIComponent(value), true);
+        log::write(decodeURIComponent(value), true);
         return;
       }
 
@@ -295,7 +329,7 @@ MAIN {
         return;
       }
 
-      if (message.index > SSC_MAX_WINDOWS) {
+      if (message.index > ssc::window::MAX_WINDOWS) {
         // @TODO: print warning
         return;
       }
@@ -398,7 +432,7 @@ MAIN {
       if (message.name == "getScreenSize") {
         auto size = window->getScreenSize();
 
-        SSC::String value(
+        String value(
           "{"
             "\"width\":" + std::to_string(size.width) + ","
             "\"height\":" + std::to_string(size.height) + ""
@@ -485,7 +519,7 @@ MAIN {
     cwd,
     onStdOut,
     onStdErr,
-    [&](SSC::String const &code) {
+    [&](String const &code) {
       for (auto& window : windowFactory.windows) {
         window->eval(getEmitToRenderProcessJavaScript("main-exit", code));
       }
@@ -505,7 +539,7 @@ MAIN {
   // main thread.
   //
   auto onMessage = [&](auto out) {
-    IPC::Message message(out);
+    Message message(out);
 
     auto window = windowFactory.getWindow(message.index);
     auto value = message.get("value");
@@ -544,12 +578,12 @@ MAIN {
     }
 
     if (message.name == "log" || message.name == "stdout") {
-      stdWrite(decodeURIComponent(value), false);
+      log::write(decodeURIComponent(value), false);
       return;
     }
 
     if (message.name == "stderr") {
-      stdWrite(decodeURIComponent(value), true);
+      log::write(decodeURIComponent(value), true);
       return;
     }
 
@@ -655,9 +689,9 @@ MAIN {
       bool bDirs = message.get("allowDirs").compare("true") == 0;
       bool bFiles = message.get("allowFiles").compare("true") == 0;
       bool bMulti = message.get("allowMultiple").compare("true") == 0;
-      SSC::String defaultName = decodeURIComponent(message.get("defaultName"));
-      SSC::String defaultPath = decodeURIComponent(message.get("defaultPath"));
-      SSC::String title = decodeURIComponent(message.get("title"));
+      String defaultName = decodeURIComponent(message.get("defaultName"));
+      String defaultPath = decodeURIComponent(message.get("defaultPath"));
+      String title = decodeURIComponent(message.get("title"));
 
       window->openDialog(message.get("seq"), bSave, bDirs, bFiles, bMulti, defaultPath, title, defaultName);
       return;
@@ -702,7 +736,7 @@ MAIN {
     exit(code);
   };
 
-  app.onExit = shutdownHandler;
+  app.callbacks.onExit = shutdownHandler;
 
   windowFactory.configure(WindowFactoryOptions {
     .defaultHeight = height,
@@ -713,7 +747,7 @@ MAIN {
     .isTest = isTest,
     .argv = argvArray.str(),
     .cwd = cwd,
-    .appData = app.appData,
+    .appData = app.appData.entries,
     .onMessage = onMessage,
     .onExit = shutdownHandler
   });

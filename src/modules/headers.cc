@@ -1,5 +1,5 @@
 module;
-#include "../core/platform.hh"
+#include "../core/headers.hh"
 
 /**
  * @module ssc.headers
@@ -8,17 +8,8 @@ module;
  * TODO
  */
 export module ssc.headers;
-import ssc.string;
-import ssc.types;
-import ssc.json;
-
-using ssc::string::split;
-using ssc::string::String;
-using ssc::string::StringStream;
-using ssc::types::Map;
-using ssc::types::Vector;
 
 export namespace ssc::headers {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/headers.hh"
+  using ssc::core::headers::Header; // NOLINT(misc-unused-using-decls)
+  using ssc::core::headers::Headers; // NOLINT(misc-unused-using-decls)
 }

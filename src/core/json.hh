@@ -1,12 +1,10 @@
 #ifndef SSC_CORE_JSON_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_JSON_HH
-#include "platform.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::JSON {
-#endif
+#include <socket/platform.hh>
+#include "types.hh"
+
+namespace ssc::core::JSON {
 
   // forward
   class Any;
@@ -536,9 +534,6 @@ namespace ssc::JSON {
 
     return "";
   }
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 
 #endif

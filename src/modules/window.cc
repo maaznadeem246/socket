@@ -1,176 +1,35 @@
-#ifndef SSC_WINDOW_WINDOW_H
-#define SSC_WINDOW_WINDOW_H
+module;
+#include "../core/window.hh"
 
-#include "../ipc/ipc.hh"
-#include "../app/app.hh"
-#include "options.hh"
+/**
+ * @module window
+ * @description Core platform agnostic Window APIs
+ */
+export module ssc.window;
+import ssc.application;
+import ssc.string;
+import ssc.codec;
+import ssc.types;
+import ssc.env;
 
-#ifndef SSC_MAX_WINDOWS
-#define SSC_MAX_WINDOWS 32
-#endif
+using namespace ssc::types;
+using ssc::application::Application;
+using ssc::codec::encodeURIComponent;
+using ssc::string::String;
+using ssc::string::trim;
+using ssc::string::split;
 
-namespace ssc {
-  inline String getResolveToMainProcessMessage (
-    const String& seq,
-    const String& state,
-    const String& value
-  ) {
-    return String("ipc://resolve?seq=" + seq + "&state=" + state + "&value=" + value);
-  }
-  struct ScreenSize {
-    int height = 0;
-    int width = 0;
-  };
+export namespace ssc::window {
+  using ssc::core::window::CoreWindow; // NOLINT
+  using ssc::core::window::CoreWindowOptions; // NOLINT
 
-  struct WindowOptions {
-    bool resizable = true;
-    bool frameless = false;
-    bool utility = false;
-    bool canExit = false;
-    int height = 0;
-    int width = 0;
-    int index = 0;
-    int debug = 0;
-    int port = 0;
-    bool isTest = false;
-    bool headless = false;
-    bool forwardConsole = false;
-    String cwd = "";
-    String executable = "";
-    String title = "";
-    String url = "data:text/html,<html>";
-    String version = "";
-    String argv = "";
-    String preload = "";
-    String env;
-    Map appData;
-    MessageCallback onMessage = [](const String) {};
-    ExitCallback onExit = nullptr;
-  };
-}
+  constexpr auto& MAX_WINDOWS = ssc::core::window::MAX_WINDOWS;
 
-#if defined(__APPLE__)
-#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-@interface SSCBridgedWebView : WKWebView
-@end
-#else
-@interface SSCBridgedWebView : WKWebView<
-  WKUIDelegate,
-  NSDraggingDestination,
-  NSFilePromiseProviderDelegate,
-  NSDraggingSource
->
--   (NSDragOperation) draggingSession: (NSDraggingSession *) session
-sourceOperationMaskForDraggingContext: (NSDraggingContext) context;
-@end
-#endif
+  using WindowOptions = ssc::core::window::CoreWindowOptions;
 
-@interface SSCNavigationDelegate : NSObject<WKNavigationDelegate>
--                  (void) webview: (SSCBridgedWebView*) webview
-  decidePolicyForNavigationAction: (WKNavigationAction*) navigationAction
-                  decisionHandler: (void (^)(WKNavigationActionPolicy)) decisionHandler;
-@end
-#endif
-
-namespace SSC {
-#if defined(_WIN32)
-  class DragDrop;
-#endif
-
-  enum {
-    WINDOW_HINT_NONE = 0,  // Width and height are default size
-    WINDOW_HINT_MIN = 1,   // Width and height are minimum bounds
-    WINDOW_HINT_MAX = 2,   // Width and height are maximum bounds
-    WINDOW_HINT_FIXED = 3  // Window size can not be changed by a user
-  };
-
-  class Window {
+  class Window : public CoreWindow {
     public:
-      App& app;
-      WindowOptions opts;
-
-      MessageCallback onMessage = [](const String) {};
-      ExitCallback onExit = nullptr;
-      IPC::Bridge *bridge = nullptr;
-      int index = 0;
-
-#if defined(__APPLE__)
-#if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-      NSWindow* window;
-#endif
-      SSCBridgedWebView* webview;
-#elif defined(__linux__) && !defined(__ANDROID__)
-      GtkSelectionData *selectionData = nullptr;
-      GtkAccelGroup *accelGroup = nullptr;
-      GtkWidget *webview = nullptr;
-      GtkWidget *window = nullptr;
-      GtkWidget *menubar = nullptr;
-      GtkWidget *vbox = nullptr;
-      GtkWidget *popup = nullptr;
-      std::vector<String> draggablePayload;
-      double dragLastX = 0;
-      double dragLastY = 0;
-      bool isDragInvokedInsideWindow;
-      int popupId;
-#elif defined(_WIN32)
-      static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-      ICoreWebView2Controller *controller = nullptr;
-      ICoreWebView2 *webview = nullptr;
-      HMENU systemMenu;
-      DWORD mainThread = GetCurrentThreadId();
-      POINT m_minsz = POINT {0, 0};
-      POINT m_maxsz = POINT {0, 0};
-      DragDrop* drop;
-      HWND window;
-      std::map<int, std::string> menuMap;
-      void resize (HWND window);
-#endif
-
-      Window (App&, WindowOptions);
-
-      void about ();
-      void eval (const String&);
-      void show (const String&);
-      void hide (const String&);
-      void kill ();
-      void exit (int code);
-      void close (int code);
-      void navigate (const String&, const String&);
-      void setTitle (const String&, const String&);
-      void setSize (const String&, int, int, int);
-      void setContextMenu (const String&, const String&);
-      void closeContextMenu (const String&);
-      void closeContextMenu ();
-#if defined(__linux__) && !defined(__ANDROID__)
-      void closeContextMenu (GtkWidget *, const String&);
-#endif
-      void setBackgroundColor (int r, int g, int b, float a);
-      void setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos);
-      void setSystemMenu (const String& seq, const String& menu);
-      ScreenSize getScreenSize ();
-      void showInspector ();
-      int openExternal (const String& s);
-      void openDialog ( // @TODO(jwerle): use `OpenDialogOptions` here instead
-        const String&,
-        bool,
-        bool,
-        bool,
-        bool,
-        const String&,
-        const String&,
-        const String&
-      );
-
-      void resolvePromise (
-        const String& seq,
-        const String& state,
-        const String& value
-      ) {
-        if (seq.find("R") == 0) {
-          this->eval(getResolveToRenderProcessJavaScript(seq, state, value));
-        }
-
-        this->onMessage(IPC::getResolveToMainProcessMessage(seq, state, value));
+      Window (Application& app, WindowOptions opts) : CoreWindow(app, opts) {
       }
   };
 
@@ -214,7 +73,7 @@ namespace SSC {
 
           WindowWithMetadata (
             WindowFactory &factory,
-            App &app,
+            Application &app,
             WindowOptions opts
           ) : Window(app, opts) , factory(factory) { }
 
@@ -279,25 +138,25 @@ namespace SSC {
           }
       };
 
-#if DEBUG
+    #if DEBUG
       std::chrono::system_clock::time_point lastDebugLogLine;
-#endif
+    #endif
 
-      App &app;
+      Application &app;
       bool destroyed = false;
       std::vector<bool> inits;
       std::vector<WindowWithMetadata*> windows;
       std::recursive_mutex mutex;
       WindowFactoryOptions options;
 
-      WindowFactory (App &app) :
+      WindowFactory (Application &app) :
         app(app),
-        inits(SSC_MAX_WINDOWS),
-        windows(SSC_MAX_WINDOWS)
+        inits(MAX_WINDOWS),
+        windows(MAX_WINDOWS)
     {
-#if DEBUG
+    #if DEBUG
         lastDebugLogLine = std::chrono::system_clock::now();
-#endif
+    #endif
       }
 
       ~WindowFactory () {
@@ -332,14 +191,13 @@ namespace SSC {
       }
 
       void inline log (const String line) {
+      #if DEBUG
         if (destroyed) return;
-#if DEBUG
         using namespace std::chrono;
-
-#ifdef _WIN32 // unicode console support
-        // SetConsoleOutputCP(CP_UTF8);
-        // setvbuf(stdout, nullptr, _IOFBF, 1000);
-#endif
+        #ifdef _WIN32 // unicode console support
+          // SetConsoleOutputCP(CP_UTF8);
+          // setvbuf(stdout, nullptr, _IOFBF, 1000);
+        #endif
 
         auto now = system_clock::now();
         auto delta = duration_cast<milliseconds>(now - lastDebugLogLine).count();
@@ -349,7 +207,7 @@ namespace SSC {
         std::cout << std::endl;
 
         lastDebugLogLine = now;
-#endif
+      #endif
       }
 
       Window* getWindow (int index, WindowStatus status) {
@@ -442,7 +300,7 @@ namespace SSC {
         if (opts.appData.size() > 0) {
           for (auto const &envKey : split(opts.appData["env"], ',')) {
             auto cleanKey = trim(envKey);
-            auto envValue = getEnv(cleanKey.c_str());
+            auto envValue = env::get(cleanKey);
 
             env << String(
               cleanKey + "=" + encodeURIComponent(envValue) + "&"
@@ -451,7 +309,7 @@ namespace SSC {
         } else {
           for (auto const &envKey : split(this->options.appData["env"], ',')) {
             auto cleanKey = trim(envKey);
-            auto envValue = getEnv(cleanKey.c_str());
+            auto envValue = env::get(cleanKey);
 
             env << String(
               cleanKey + "=" + encodeURIComponent(envValue) + "&"
@@ -474,11 +332,11 @@ namespace SSC {
           .isHeightInPercent = isHeightInPercent,
           .isWidthInPercent = isWidthInPercent,
           .index = opts.index,
-#if DEBUG
+        #if DEBUG
           .debug = DEBUG || opts.debug,
-#else
+        #else
           .debug = opts.debug,
-#endif
+        #endif
           .port = opts.port,
           .isTest = this->options.isTest,
           .headless = this->options.headless || opts.headless || opts.appData["headless"] == "true",
@@ -495,9 +353,9 @@ namespace SSC {
           .appData = opts.appData.size() > 0 ? opts.appData : this->options.appData
         };
 
-#if DEBUG
+      #if DEBUG
         this->log("Creating Window#" + std::to_string(opts.index));
-#endif
+      #endif
         auto window = new WindowWithMetadata(*this, app, windowOptions);
 
         window->status = WindowStatus::WINDOW_CREATED;
@@ -518,73 +376,11 @@ namespace SSC {
           .height = opts.height,
           .width = opts.width,
           .index = 0,
-#ifdef PORT
+        #ifdef PORT
           .port = PORT,
-#endif
+        #endif
           .appData = opts.appData
         });
       }
   };
-
-#if defined(_WIN32)
-  using IEnvHandler = ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler;
-  using IConHandler = ICoreWebView2CreateCoreWebView2ControllerCompletedHandler;
-  using INavHandler = ICoreWebView2NavigationCompletedEventHandler;
-  using IRecHandler = ICoreWebView2WebMessageReceivedEventHandler;
-  using IArgs = ICoreWebView2WebMessageReceivedEventArgs;
-
-	// constexpr COLORREF darkBkColor = 0x383838;
-	// constexpr COLORREF darkTextColor = 0xFFFFFF;
-	// static HBRUSH hbrBkgnd = nullptr;
-
-  enum WINDOWCOMPOSITIONATTRIB {
-    WCA_UNDEFINED = 0,
-    WCA_NCRENDERING_ENABLED = 1,
-    WCA_NCRENDERING_POLICY = 2,
-    WCA_TRANSITIONS_FORCEDISABLED = 3,
-    WCA_ALLOW_NCPAINT = 4,
-    WCA_CAPTION_BUTTON_BOUNDS = 5,
-    WCA_NONCLIENT_RTL_LAYOUT = 6,
-    WCA_FORCE_ICONIC_REPRESENTATION = 7,
-    WCA_EXTENDED_FRAME_BOUNDS = 8,
-    WCA_HAS_ICONIC_BITMAP = 9,
-    WCA_THEME_ATTRIBUTES = 10,
-    WCA_NCRENDERING_EXILED = 11,
-    WCA_NCADORNMENTINFO = 12,
-    WCA_EXCLUDED_FROM_LIVEPREVIEW = 13,
-    WCA_VIDEO_OVERLAY_ACTIVE = 14,
-    WCA_FORCE_ACTIVEWINDOW_APPEARANCE = 15,
-    WCA_DISALLOW_PEEK = 16,
-    WCA_CLOAK = 17,
-    WCA_CLOAKED = 18,
-    WCA_ACCENT_POLICY = 19,
-    WCA_FREEZE_REPRESENTATION = 20,
-    WCA_EVER_UNCLOAKED = 21,
-    WCA_VISUAL_OWNER = 22,
-    WCA_HOLOGRAPHIC = 23,
-    WCA_EXCLUDED_FROM_DDA = 24,
-    WCA_PASSIVEUPDATEMODE = 25,
-    WCA_USEDARKMODECOLORS = 26,
-    WCA_LAST = 27
-  };
-
-  struct WINDOWCOMPOSITIONATTRIBDATA {
-    WINDOWCOMPOSITIONATTRIB Attrib;
-    PVOID pvData;
-    SIZE_T cbData;
-  };
-
-  using RefreshImmersiveColorPolicyState = VOID(WINAPI*)();
-  using SetWindowCompositionAttribute = BOOL(WINAPI *)(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA*);
-  using ShouldSystemUseDarkMode = BOOL(WINAPI*)();
-  using AllowDarkModeForApp = BOOL(WINAPI*)(BOOL allow);
-
-  extern RefreshImmersiveColorPolicyState refreshImmersiveColorPolicyState;
-  extern SetWindowCompositionAttribute setWindowCompositionAttribute;
-  extern ShouldSystemUseDarkMode shouldSystemUseDarkMode;
-  extern AllowDarkModeForApp allowDarkModeForApp;
-
-  auto bgBrush = CreateSolidBrush(RGB(0, 0, 0));
-#endif
 }
-#endif

@@ -1,6 +1,5 @@
 module;
-
-#include "../core/common.hh"
+#include <socket/platform.hh>
 
 #include <bitset>
 #include <functional>

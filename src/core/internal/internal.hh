@@ -2,7 +2,18 @@
 #define SSC_CORE_INTERNAL_HH
 
 #if !defined(SSC_INLINE_INCLUDE)
-#include "../platform.hh"
+  #include <socket/platform.hh>
+  #include <socket/common.hh>
+  #include <any>
+  #include <map>
+  #include <mutex>
+  #include <queue>
+  #include <regex>
+  #include <semaphore>
+  #include <string>
+  #include <sstream>
+  #include <thread>
+  #include <vector>
 #endif
 
 /**

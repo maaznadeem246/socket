@@ -1,14 +1,11 @@
 #ifndef SSC_CORE_NETWORK_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_NETWORK_HH
-#include "platform.hh"
-#include "types.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::network {
-  using namespace ssc::types;
-#endif
+#include <socket/platform.hh>
+#include "types.hh"
+
+namespace ssc::core::network {
+  using namespace types;
 
   using NetworkStatusChangeCallback = std::function<void(
     const String& statusName,

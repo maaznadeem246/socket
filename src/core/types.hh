@@ -1,13 +1,21 @@
 #ifndef SSC_CORE_TYPES_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_TYPES_HH
-#include "platform.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::types {
-#endif
+#include <socket/platform.hh>
 
+#include <any>
+#include <map>
+#include <mutex>
+#include <new>
+#include <queue>
+#include <regex>
+#include <semaphore>
+#include <string>
+#include <sstream>
+#include <thread>
+#include <vector>
+
+namespace ssc::core::types {
   using Any = std::any;
   using AtomicBool = std::atomic<bool>;
   using BinarySemaphore = std::binary_semaphore; // aka `Semaphore<1>`
@@ -29,6 +37,7 @@ namespace ssc::types {
   using WString = std::wstring;
   using WStringStream = std::wstringstream;
 
+  // FIXME: remove this eventuallyk
   struct Post {
     uint64_t id = 0;
     uint64_t ttl = 0;
@@ -39,8 +48,5 @@ namespace ssc::types {
   };
 
   using Posts = std::map<uint64_t, Post>;
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

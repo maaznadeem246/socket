@@ -1,11 +1,12 @@
 #ifndef SSC_CORE_PRIVATE_H
 #define SSC_CORE_PRIVATE_H
+
   #if defined(_WIN32)
     #undef _WINSOCKAPI_
     #define _WINSOCKAPI_
   #endif
 
-  #include "common.hh"
+  #include <socket/socket.hh>
 
   #if defined(__APPLE__)
     #include <Foundation/Foundation.h>

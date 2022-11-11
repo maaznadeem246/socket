@@ -1,5 +1,5 @@
-#ifndef SSC_CORE_COMMON_H
-#define SSC_CORE_COMMON_H
+#ifndef SSC_SOCKET_COMMON_H
+#define SSC_SOCKET_COMMON_H
 
 #define _STR_VALUE(arg) #arg
 #define STR_VALUE(arg) _STR_VALUE(arg)

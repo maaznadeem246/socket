@@ -83,18 +83,18 @@ fi
 
 function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
-  local flags=($("$root/bin/cflags.sh" -Os))
+  local flags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
   local ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-{core,modules}}))
 
   mkdir -p "$BUILD_DIR/cli"
   mkdir -p "$BUILD_DIR/bin"
 
   quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} \
-    -c src/cli/cli.cc                     \
+    -c src/cli/cli.cc                           \
     -o "$BUILD_DIR/cli/cli.o"
 
   quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} ${ldflags[@]} \
-    build/cli/cli.o                                     \
+    build/cli/cli.o                                           \
     -o "$BUILD_DIR/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"

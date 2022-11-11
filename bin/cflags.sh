@@ -9,6 +9,7 @@ declare module_map_file="$module_path/modules.modulemap"
 
 declare cflags=(
   -std=c++20
+  -I"$root/include"
   -I"$root/build/uv/include"
   -fimplicit-modules
   -fmodule-map-file="$module_map_file"

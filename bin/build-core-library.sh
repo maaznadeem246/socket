@@ -7,8 +7,8 @@ declare module_path="$root/build/modules"
 
 declare flags=(
   -std=c++20
-  -I"$root/build/input"
-  -I"$root/build/input/include"
+  -I"$root/include"
+  -I"$root/build/uv/include"
 )
 
 declare ldflags=($("$root/bin/ldflags.sh"))

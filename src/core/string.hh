@@ -1,13 +1,11 @@
 #ifndef SSC_CORE_STRING_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_STRING_HH
-#include "types.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::string {
-  using namespace ssc::types;
-#endif
+#include <socket/platform.hh>
+#include "types.hh"
+
+namespace ssc::core::string {
+  using namespace ssc::core::types;
 
   inline WString ToWString (const String& string) {
     return WString(string.begin(), string.end());
@@ -23,6 +21,10 @@ namespace ssc::string {
 
   inline String ToString (const String& string) {
     return string;
+  }
+
+  template <typename T> auto toString (T value) {
+    return std::to_string(value);
   }
 
   inline WString StringToWString (const String& string) {
@@ -46,16 +48,19 @@ namespace ssc::string {
     Vector<String> vec;
 
     for (auto n : s) {
-      if (n != c && c != (""[0])) {
+      if (c == 0) {
         buff += n;
-      } else if (n == c || c == (""[0])) {
+        vec.push_back(buff);
+        buff = "";
+      } else if (n != c) {
+        buff += n;
+      } else if (n == c) {
         vec.push_back(buff);
         buff = "";
       }
     }
 
     vec.push_back(buff);
-
     return vec;
   }
 
@@ -100,7 +105,6 @@ namespace ssc::string {
   inline String& replaceAll (String& src, String const& from, String const& to) {
     size_t start = 0;
     size_t index;
-
     while ((index = src.find(from, start)) != String::npos) {
       src.replace(index, from.size(), to);
       start = index + to.size();
@@ -113,9 +117,13 @@ namespace ssc::string {
     Vector<String> vec;
 
     for (auto n : s) {
-      if (n != c && c != (""[0])) {
+      if (c == 0) {
         buff += n;
-      } else if ((n == c || c == (""[0])) && buff != "") {
+        vec.push_back(buff);
+        buff = "";
+      } else if (n != c) {
+        buff += n;
+      } else if (n ==  c && buff != "") {
         vec.push_back(buff);
         buff = "";
       }
@@ -136,18 +144,13 @@ namespace ssc::string {
 
   inline String tmpl (const String s, Map pairs) {
     String output = s;
-
     for (auto item : pairs) {
       auto key = String("[{]+(" + item.first + ")[}]+");
       auto value = item.second;
       output = std::regex_replace(output, std::regex(key), value);
     }
-
     return output;
   }
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 
 #endif

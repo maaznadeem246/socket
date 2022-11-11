@@ -1,17 +1,14 @@
 #ifndef SSC_CORE_HEADERS_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_HEADERS_HH
-#include "platform.hh"
+
+#include <socket/platform.hh>
 #include "string.hh"
 #include "types.hh"
 #include "json.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::headers {
-  using namespace ssc::string;
-  using namespace ssc::types;
-#endif
+namespace ssc::core::headers {
+  using namespace ssc::core::string;
+  using namespace ssc::core::types;
 
   /**
     * A container for a header value supporting varying types in the
@@ -216,9 +213,5 @@ namespace ssc::headers {
         return json;
       }
   };
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
-
 #endif

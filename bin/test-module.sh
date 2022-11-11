@@ -11,8 +11,8 @@ declare ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-{core,modules}}))
 function main () {
   "$root/bin/build-core-library.sh"
   "$root/bin/build-modules-library.sh"
-  mkdir -p "$module_tests_path"
 
+  mkdir -p "$module_tests_path"
   echo "# running tests"
   while (( $# > 0 )); do
     declare source="$1"; shift
@@ -22,7 +22,7 @@ function main () {
     if ! test -f "$output" || (( $(stat "$source" -c %Y) > $(stat "$output" -c %Y) )); then
       "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output.o" || continue
       "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$output.o" -o "$output" || continue
-      echo "# build: (test) $(basename "$source") -> $(basename "$output")"
+      echo "ok - built $(basename "$output") test"
     fi
 
     let local now=$(date +%s)

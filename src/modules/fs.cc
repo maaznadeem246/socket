@@ -1,5 +1,5 @@
 module;
-#include "../core/platform.hh"
+#include <socket/platform.hh>
 
 import ssc.json;
 

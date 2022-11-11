@@ -1,16 +1,102 @@
-#include ".../interface/apple.hh"
+#include "../private.hh"
+#include "../window.hh"
 
+#if defined(__APPLE__)
 
-namespace SSC {
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+@interface CoreWindowDelegate : NSObject
+@end
+#else
+@interface CoreWindowDelegate : NSObject <NSWindowDelegate, WKScriptMessageHandler>
+- (void) userContentController: (WKUserContentController*) userContentController
+       didReceiveScriptMessage: (WKScriptMessage*) scriptMessage;
+@end
+
+@implementation CoreWindowDelegate
+- (void) userContentController: (WKUserContentController*) userContentController
+       didReceiveScriptMessage: (WKScriptMessage*) scriptMessage
+{
+  // overloaded with `class_replaceMethod()`
+}
+@end
+#endif
+
+namespace ssc::core::window {
+  using namespace application;
+  using namespace string;
+
   static bool isDelegateSet = false;
 
-  Window::Window (App& app, WindowOptions opts) : app(app), opts(opts) {
-    this->bridge = new IPC::Bridge(app.runtime);
+  class CoreWindowInternals {
+    public:
+    #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+      NSWindow* window;
+    #endif
 
+      CoreWindowInternals (const CoreWindowOptions& opts);
+  };
+
+  CoreWindowInternals::CoreWindowInternals (const CoreWindowOptions& opts) {
+    // Window style: titled, closable, minimizable
+    uint style = NSWindowStyleMaskTitled;
+
+    // Set window to be resizable
+    if (opts.resizable) {
+      style |= NSWindowStyleMaskResizable;
+    }
+
+    if (opts.frameless) {
+      style |= NSWindowStyleMaskFullSizeContentView;
+      style |= NSWindowStyleMaskBorderless;
+    } else if (opts.utility) {
+      style |= NSWindowStyleMaskUtilityWindow;
+    } else {
+      style |= NSWindowStyleMaskClosable;
+      style |= NSWindowStyleMaskMiniaturizable;
+    }
+
+    auto draggableTypes = [NSArray arrayWithObjects:
+      NSPasteboardTypeURL,
+      NSPasteboardTypeFileURL,
+      (NSString*) kPasteboardTypeFileURLPromise,
+      NSPasteboardTypeString,
+      NSPasteboardTypeHTML,
+      nil
+		];
+
+    this->window = [[NSWindow alloc]
+        initWithContentRect: NSMakeRect(0, 0, opts.width, opts.height)
+                  styleMask: style
+                    backing: NSBackingStoreBuffered
+                      defer: NO];
+
+    // Position window in center of screen
+    [window center];
+    [window setOpaque: YES];
+    // Minimum window size
+    [window setContentMinSize: NSMakeSize(opts.width, opts.height)];
+    [window setBackgroundColor: [NSColor controlBackgroundColor]];
+    [window registerForDraggedTypes: draggableTypes];
+    // [window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
+    // [window setMovableByWindowBackground: true];
+
+    if (opts.frameless) {
+      [window setTitlebarAppearsTransparent: true];
+    }
+  }
+
+  CoreWindow::CoreWindow (
+    CoreApplication& app,
+    const CoreWindowOptions opts
+  ) : CoreWindow(app) {
+    this->opts = opts;
+    this->internals = new CoreWindowInternals(opts);
+
+
+    this->bridge = new IPC::Bridge(app.runtime);
     this->bridge->router.dispatchFunction = [this] (auto callback) {
       this->app.dispatch(callback);
     };
-
     this->bridge->router.evaluateJavaScriptFunction = [this](auto js) {
       dispatch_async(dispatch_get_main_queue(), ^{ this->eval(js); });
     };
@@ -21,7 +107,7 @@ namespace SSC {
       auto  script = [NSString stringWithUTF8String: value.c_str()];
 
       dispatch_async(dispatch_get_main_queue(), ^{
-        [webview evaluateJavaScript: script completionHandler: ^(id result, NSError *error) {
+        [this->internals->webview evaluateJavaScript: script completionHandler: ^(id result, NSError *error) {
           if (result) {
             auto msg = String([[NSString stringWithFormat:@"%@", result] UTF8String]);
             this->bridge->router.send(seq, msg, Post{});
@@ -49,8 +135,6 @@ namespace SSC {
       });
     });
 
-    // Window style: titled, closable, minimizable
-    uint style = NSWindowStyleMaskTitled;
 
     // Set window to be resizable
     if (opts.resizable) {
@@ -124,7 +208,7 @@ namespace SSC {
     WKUserContentController* controller = [config userContentController];
 
     // Add preload script, normalizing the interface to be cross-platform.
-    ssc::String preload = ToString(createPreload(opts));
+    String preload = ToString(createPreload(opts));
 
     WKUserScript* userScript = [WKUserScript alloc];
 
@@ -205,7 +289,7 @@ namespace SSC {
             if (![body isKindOfClass:[NSString class]]) {
               return;
             }
-            ssc::String msg = [body UTF8String];
+            String msg = [body UTF8String];
 
             if (bridge->route(msg, nullptr, 0)) return;
             w->onMessage(msg);
@@ -222,10 +306,10 @@ namespace SSC {
             if (w->onMessage == nullptr) return;
 
             id menuItem = (id) item;
-            ssc::String title = [[menuItem title] UTF8String];
-            ssc::String state = [menuItem state] == NSControlStateValueOn ? "true" : "false";
-            ssc::String parent = [[[menuItem menu] title] UTF8String];
-            ssc::String seq = std::to_string([menuItem tag]);
+            String title = [[menuItem title] UTF8String];
+            String state = [menuItem state] == NSControlStateValueOn ? "true" : "false";
+            String parent = [[[menuItem menu] title] UTF8String];
+            String seq = std::to_string([menuItem tag]);
 
             w->eval(getResolveMenuSelectionJavaScript(seq, title, parent));
           }),
@@ -257,7 +341,7 @@ namespace SSC {
     navigate("0", opts.url);
   }
 
-  ScreenSize Window::getScreenSize () {
+  ScreenSize CoreWindow::getScreenSize () {
     NSRect e = [[NSScreen mainScreen] frame];
 
     return ScreenSize {
@@ -266,7 +350,7 @@ namespace SSC {
     };
   }
 
-  void Window::show (const ssc::String& seq) {
+  void CoreWindow::show (const String& seq) {
     if (this->opts.headless == true) {
       [NSApp activateIgnoringOtherApps: NO];
     } else {
@@ -281,20 +365,20 @@ namespace SSC {
     }
   }
 
-  void Window::exit (int code) {
+  void CoreWindow::exit (int code) {
     if (onExit != nullptr) onExit(code);
   }
 
-  void Window::kill () {
+  void CoreWindow::kill () {
   }
 
-  void Window::close (int code) {
-    [window performClose:nil];
+  void CoreWindow::close (int code) {
+    [this->internals->window performClose:nil];
   }
 
-  void Window::hide (const ssc::String& seq) {
-    [window orderOut:window];
-    this->eval(getEmitToRenderProcessJavaScript("windowHide", "{}"));
+  void CoreWindow::hide (const String& seq) {
+    [this->internals->window orderOut: this->internals->window];
+    this->eval(javascript::getEmitToRenderProcessJavaScript("windowHide", "{}"));
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);
@@ -302,13 +386,13 @@ namespace SSC {
     }
   }
 
-  void Window::eval (const ssc::String& js) {
+  void CoreWindow::eval (const String& js) {
     [webview evaluateJavaScript:
       [NSString stringWithUTF8String:js.c_str()]
       completionHandler:nil];
   }
 
-  void Window::setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos) {
+  void CoreWindow::setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos) {
     NSMenu* menuBar = [NSApp mainMenu];
     NSArray* menuBarItems = [menuBar itemArray];
 
@@ -324,7 +408,7 @@ namespace SSC {
     [menuItem setAction: NULL];
   }
 
-  void Window::navigate (const ssc::String& seq, const ssc::String& value) {
+  void CoreWindow::navigate (const String& seq, const String& value) {
     [webview loadRequest:
       [NSURLRequest requestWithURL:
         [NSURL URLWithString:
@@ -336,7 +420,7 @@ namespace SSC {
     }
   }
 
-  void Window::setTitle (const ssc::String& seq, const ssc::String& value) {
+  void CoreWindow::setTitle (const String& seq, const String& value) {
     [window setTitle:[NSString stringWithUTF8String:value.c_str()]];
 
     if (seq.size() > 0) {
@@ -345,7 +429,7 @@ namespace SSC {
     }
   }
 
-  void Window::setSize (const ssc::String& seq, int width, int height, int hints) {
+  void CoreWindow::setSize (const String& seq, int width, int height, int hints) {
     [window setFrame:NSMakeRect(0.f, 0.f, (float) width, (float) height) display:YES animate:YES];
     [window center];
 
@@ -355,27 +439,27 @@ namespace SSC {
     }
   }
 
-  int Window::openExternal (const ssc::String& s) {
+  int CoreWindow::openExternal (const String& s) {
     NSString* nsu = [NSString stringWithUTF8String:s.c_str()];
     return [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString: nsu]];
   }
 
-  void Window::closeContextMenu () {
+  void CoreWindow::closeContextMenu () {
     // @TODO(jwerle)
   }
 
-  void Window::closeContextMenu (const ssc::String &seq) {
+  void CoreWindow::closeContextMenu (const String &seq) {
     // @TODO(jwerle)
   }
 
-  void Window::showInspector () {
+  void CoreWindow::showInspector () {
     // This is a private method on the webview, so we need to use
     // the pragma keyword to suppress the access warning.
     #pragma clang diagnostic ignored "-Wobjc-method-access"
     [[this->webview _inspector] show];
   }
 
-  void Window::setBackgroundColor (int r, int g, int b, float a) {
+  void CoreWindow::setBackgroundColor (int r, int g, int b, float a) {
     CGFloat sRGBComponents[4] = { r / 255.0, g / 255.0, b / 255.0, a };
     NSColorSpace *colorSpace = [NSColorSpace sRGBColorSpace];
 
@@ -386,7 +470,7 @@ namespace SSC {
     ];
   }
 
-  void Window::setContextMenu (const ssc::String& seq, const ssc::String& value) {
+  void CoreWindow::setContextMenu (const String& seq, const String& value) {
     auto menuItems = split(value, '_');
     auto id = std::stoi(seq.substr(1)); // remove the 'R' prefix
 
@@ -432,8 +516,8 @@ namespace SSC {
         inView:nil];
   }
 
-  void Window::setSystemMenu (const ssc::String& seq, const ssc::String& value) {
-    ssc::String menu = ssc::String(value);
+  void CoreWindow::setSystemMenu (const String& seq, const String& value) {
+    String menu = String(value);
 
     NSMenu *mainMenu;
     NSString *title;
@@ -479,7 +563,7 @@ namespace SSC {
         auto parts = split(line, ':');
         auto title = parts[0];
         NSUInteger mask = 0;
-        ssc::String key = "";
+        String key = "";
 
         if (title.size() > 0 && title.find("!") == 0) {
           title = title.substr(1);
@@ -582,15 +666,15 @@ namespace SSC {
     }
   }
 
-  void Window::openDialog (
-    const ssc::String& seq,
+  void CoreWindow::openDialog (
+    const String& seq,
     bool isSave,
     bool allowDirs,
     bool allowFiles,
     bool allowMultiple,
-    const ssc::String& defaultPath = "",
-    const ssc::String& title = "",
-    const ssc::String& defaultName = "")
+    const String& defaultPath = "",
+    const String& title = "",
+    const String& defaultName = "")
   {
 
     NSURL *url;
@@ -653,15 +737,15 @@ namespace SSC {
 
     if (isSave) {
       if ([dialog_save runModal] == NSModalResponseOK) {
-        ssc::String url = (char*) [[[dialog_save URL] path] UTF8String];
-        auto wrapped = ssc::String("\"" + url + "\"");
+        String url = (char*) [[[dialog_save URL] path] UTF8String];
+        auto wrapped = String("\"" + url + "\"");
         this->resolvePromise(seq, "0", encodeURIComponent(wrapped));
       }
       return;
     }
 
-    ssc::String result = "";
-    ssc::Vector<ssc::String> paths;
+    String result = "";
+    ssc::Vector<String> paths;
     NSArray* urls;
 
     if ([dialog_open runModal] == NSModalResponseOK) {
@@ -669,7 +753,7 @@ namespace SSC {
 
       for (NSURL* url in urls) {
         if ([url isFileURL]) {
-          paths.push_back(ssc::String((char*) [[url path] UTF8String]));
+          paths.push_back(String((char*) [[url path] UTF8String]));
         }
       }
     }
@@ -681,7 +765,7 @@ namespace SSC {
       result += paths[i];
     }
 
-    auto wrapped = ssc::String("\"" + result + "\"");
+    auto wrapped = String("\"" + result + "\"");
     this->resolvePromise(seq, "0", encodeURIComponent(wrapped));
   }
 }

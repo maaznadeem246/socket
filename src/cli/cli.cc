@@ -1,4 +1,4 @@
-#include "../core/common.hh"
+#include <socket/socket.hh>
 
 #include <filesystem>
 #include <fstream>
@@ -8,6 +8,16 @@
 #include <span>
 #include <sstream>
 #include <thread>
+
+import ssc.templates;
+import ssc.platform;
+import ssc.process;
+import ssc.version;
+import ssc.codec;
+import ssc.config;
+import ssc.string;
+import ssc.types;
+import ssc.env;
 
 #ifdef __linux__
 #include <cstring>
@@ -38,16 +48,6 @@
 #ifndef SSC_BUILD_TIME
 #define SSC_BUILD_TIME 0
 #endif
-
-import ssc.templates;
-import ssc.platform;
-import ssc.process;
-import ssc.version;
-import ssc.codec;
-import ssc.config;
-import ssc.string;
-import ssc.types;
-import ssc.env;
 
 namespace env = ssc::env;
 namespace fs = std::filesystem;
@@ -82,14 +82,6 @@ auto start = system_clock::now();
 bool flagDebugMode = true;
 bool flagQuietMode = false;
 Map defaultTemplateAttrs = {{ "ssc_version", VERSION_FULL_STRING }};
-
-#if defined(__OBJC__)
-@interface Foo : NSObject
-@end
-
-@implementation Foo
-@end
-#endif
 
 void log (const String s) {
   if (flagQuietMode) return;

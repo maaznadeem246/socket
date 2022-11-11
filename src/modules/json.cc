@@ -1,7 +1,5 @@
 module; // global
-#include <new>
-
-#include "../core/platform.hh"
+#include "../core/json.hh"
 
 /**
  * @module ssc.json
@@ -32,6 +30,13 @@ module; // global
 export module ssc.json;
 
 export namespace ssc::JSON {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/json.hh"
+  using Any = ssc::core::JSON::Any;
+  using Null = ssc::core::JSON::Null;
+  using Object = ssc::core::JSON::Object;
+  using Array = ssc::core::JSON::Array;
+  using Boolean = ssc::core::JSON::Boolean;
+  using Number = ssc::core::JSON::Number;
+  using String = ssc::core::JSON::String;
+
+  const auto& typeof = ssc::core::JSON::typeof;
 }

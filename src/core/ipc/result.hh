@@ -1,19 +1,15 @@
 #ifndef SSC_CORE_IPC_RESULT_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_IPC_RESULT_HH
+
+#include <socket/platform.hh>
 #include "../codec.hh"
 #include "../json.hh"
 #include "../types.hh"
-#include "message.hh"
 #include "data.hh"
-#endif
+#include "message.hh"
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::ipc::result {
-#endif
-  #if !defined(SSC_INLINE_INCLUDE)
-  using namespace ssc::types;
-  #endif
+namespace ssc::core::ipc::result {
+  using namespace types;
 
   struct Value {
     data::Data data;
@@ -112,9 +108,5 @@ namespace ssc::ipc::result {
         return JSON::Object(entries);
       }
   };
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
-
 #endif

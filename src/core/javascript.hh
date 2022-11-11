@@ -1,32 +1,41 @@
 #ifndef SSC_CORE_JAVASCRIPT_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_JAVASCRIPT_HH
-#include "platform.hh"
+
+#include <socket/platform.hh>
 #include "string.hh"
 #include "json.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::javascript {
-  using namespace ssc::types;
-  using ssc::string::trim;
-#endif
+namespace ssc::core::javascript {
+  using namespace ssc::core::types;
+  using namespace ssc::core::string;
 
   class Script {
     public:
       String name;
       String source;
       Script () = default;
+      Script (const Script& script) {
+        this->name = script.name;
+        this->source = script.source;
+      }
+
+      Script (const String& source) {
+        this->source = source;
+      }
+
       Script (const String& name, const String& source) {
         this->name = name;
         this->source = source;
       }
 
       String str () const {
-        return String(
-          ";(() => {\n" + trim(this->source) + "\n})();\n"
-          "//# sourceURL=" + this->name + "\n"
-        );
+        auto string = String(";(() => {\n" + trim(this->source) + "\n})();");
+
+        if (this->name.size() > 0) {
+          string += "\n//# sourceURL=" + this->name + "\n";
+        }
+
+        return string;
       }
 
       JSON::String json () const {
@@ -146,8 +155,5 @@ namespace ssc::javascript {
       "window.dispatchEvent(event);                          \n"
     );
   }
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

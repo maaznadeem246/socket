@@ -1,13 +1,14 @@
 #include <assert.h>
 
+#include <socket/runtime.hh>
+#include <string>
 import ssc.config;
 import ssc.string;
 import ssc.log;
 
-using String = ssc::string::String;
-using Config = ssc::config::Config;
 
-using namespace ssc;
+using namespace ssc::string;
+using namespace ssc::config;
 
 auto constexpr source = R"CONFIG(
 # a comment

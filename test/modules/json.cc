@@ -1,6 +1,7 @@
 #include <assert.h>
+#include <stdio.h>
 
-import ssc.log;
+//import ssc.log;
 import ssc.json;
 import ssc.string;
 

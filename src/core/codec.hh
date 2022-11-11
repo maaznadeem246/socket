@@ -1,14 +1,11 @@
 #ifndef SSC_CORE_CODEC_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_CODEC_HH
+
 #include "types.hh"
 #include "string.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::codec {
-  using namespace ssc::types;
-#endif
+namespace ssc::core::codec {
+  using namespace ssc::core::types;
 
   #define IN_URANGE(c, a, b) (                \
     (unsigned char) c >= (unsigned char) a && \
@@ -20,10 +17,7 @@ namespace ssc::codec {
   // encoded as a URI component. This prevents escaping the
   // protocol.
   //
-  #if !defined(SSC_INLINE_INCLUDE)
-  static
-  #endif
-  const signed char HEX2DEC[256] = {
+  static const signed char HEX2DEC[256] = {
     /*       0  1  2  3   4  5  6  7   8  9  A  B   C  D  E  F */
     /* 0 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
     /* 1 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
@@ -46,10 +40,7 @@ namespace ssc::codec {
     /* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
   };
 
-  #if !defined(SSC_INLINE_INCLUDE)
-  static
-  #endif
-  const char SAFE[256] = {
+  static const char SAFE[256] = {
     /*      0 1 2 3  4 5 6 7  8 9 A B  C D E F */
     /* 0 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     /* 1 */ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
@@ -171,7 +162,7 @@ namespace ssc::codec {
     // but are not followed by two hexadecimal characters (0-9, A-F) are reserved
     // for future extension"
 
-    auto s = std::regex_replace(sSrc, std::regex("\\+"), " ");
+    auto s = ssc::core::string::replace(sSrc, "\\+", " ");
     const unsigned char* pSrc = (const unsigned char *) s.c_str();
     const int SRC_LEN = (int) sSrc.length();
     const unsigned char* const SRC_END = pSrc + SRC_LEN;
@@ -227,8 +218,5 @@ namespace ssc::codec {
     delete [] pStart;
     return sResult;
   }
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

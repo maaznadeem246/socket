@@ -31,6 +31,7 @@ declare modules=(
   runtime
   log
   process
+  application
   #ipc/bridge
 )
 

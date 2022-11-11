@@ -1,26 +1,23 @@
 #ifndef SSC_CORE_IPC_DATA_HH
-#if !defined(SSC_INLINE_INCLUDE)
 #define SSC_CORE_IPC_DATA_HH
-#include "../javascript.hh"
-#include "../platform.hh"
+
+#include <socket/platform.hh>
 #include "../headers.hh"
+#include "../javascript.hh"
+#include "../json.hh"
 #include "../string.hh"
 #include "../types.hh"
-#include "../json.hh"
 #include "../utils.hh"
-#endif
 
-#if !defined(SSC_INLINE_INCLUDE)
-namespace ssc::ipc::data {
-  using ssc::headers::Headers;
-  using ssc::string::String;
-  using ssc::string::trim;
-  using ssc::types::Lock;
-  using ssc::types::Mutex;
-  using ssc::types::SharedPointer;
-  using ssc::types::Vector;
-  using ssc::utils::rand64;
-#endif
+namespace ssc::core::ipc::data {
+  using headers::Headers;
+  using string::String;
+  using string::trim;
+  using types::Lock;
+  using types::Mutex;
+  using types::SharedPointer;
+  using types::Vector;
+  using utils::rand64;
 
   struct Data {
     uint64_t id = 0;
@@ -170,8 +167,5 @@ namespace ssc::ipc::data {
         return js;
       }
   };
-
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

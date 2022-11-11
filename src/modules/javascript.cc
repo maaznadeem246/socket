@@ -1,5 +1,5 @@
 module; // global
-#include "../core/platform.hh"
+#include "../core/javascript.hh"
 
 /**
  * @module ssc.javascript
@@ -11,13 +11,11 @@ module; // global
  * }
  */
 export module ssc.javascript;
-import ssc.json;
-import ssc.string;
-
-using String = ssc::string::String;
-using ssc::string::trim;
 
 export namespace ssc::javascript {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/javascript.hh"
+  using ssc::core::javascript::createJavaScript; // NOLINT(misc-unused-using-decls)
+  using ssc::core::javascript::getEmitToRenderProcessJavaScript; // NOLINT(misc-unused-using-decls)
+  using ssc::core::javascript::getResolveMenuSelectionJavaScript;  // NOLINT(misc-unused-using-decls)
+  using ssc::core::javascript::getResolveToRenderProcessJavaScript; // NOLINT(misc-unused-using-decls)
+  using ssc::core::javascript::Script; // NOLINT(misc-unused-using-decls)
 }

@@ -1,11 +1,11 @@
-#include <assert.h>
-#include <new> // @TODO(jwerle): move this to `platform.hh` or similar
-
 import ssc.runtime;
 import ssc.string;
 import ssc.json;
 import ssc.dns;
 import ssc.log;
+
+#include <new>
+#include <assert.h>
 
 using namespace ssc;
 using ssc::dns::DNS;

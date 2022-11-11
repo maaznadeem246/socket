@@ -1,5 +1,8 @@
 module;
-#include "../core/platform.hh"
+#include <socket/platform.hh>
+#include <functional>
+#include <map>
+#include <string>
 
 /**
  * @module ssc.ipc.result;

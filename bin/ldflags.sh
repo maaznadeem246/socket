@@ -7,7 +7,6 @@ declare module_tests_path="$root/build/tests/modules"
 declare module_map_file="$module_path/modules.modulemap"
 
 declare ldflags=(
-  -L"$root/lib"
   -L"$root/build/lib"
 )
 

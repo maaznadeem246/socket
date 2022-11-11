@@ -1,5 +1,5 @@
 module;
-#include "../core/platform.hh"
+#include "../core/utils.hh"
 
 /**
  * @module ssc.utils
@@ -13,6 +13,5 @@ module;
 export module ssc.utils;
 
 export namespace ssc::utils {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/utils.hh"
+  const auto& rand64 = ssc::core::utils::rand64;
 }

@@ -1,5 +1,5 @@
 module;
-#include "../core/platform.hh"
+#include "../core/version.hh"
 
 /**
  * @module ssc.version;
@@ -15,11 +15,9 @@ module;
  * }
  */
 export module ssc.version;
-import ssc.string;
-
-using namespace ssc::string;
 
 export namespace ssc::version {
-  #define SSC_INLINE_INCLUDE
-  #include "../core/version.hh"
+  using ssc::core::version::VERSION_FULL_STRING; // NOLINT(misc-unused-using-decls)
+  using ssc::core::version::VERSION_HASH_STRING; // NOLINT(misc-unused-using-decls)
+  using ssc::core::version::VERSION_STRING; // NOLINT(misc-unused-using-decls)
 }
