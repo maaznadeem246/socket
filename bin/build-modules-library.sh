@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
-declare static_library="$root/build/lib/libsocket-modules.a"
+declare build_dir="${BUILD_DIR:-$root/build}"
+declare static_library="$build_dir/lib/libsocket-modules.a"
 
 declare modules=(
   types
@@ -26,12 +27,13 @@ declare modules=(
   ipc/data
   ipc/result
   ipc
-  webview
   router
+  application
+  webview
+  window
   runtime
   log
   process
-  application
   #ipc/bridge
 )
 
@@ -48,7 +50,7 @@ function build () {
 echo "# building modules static libary"
 build "${paths[@]}" || exit $?
 
-ar crus "$static_library" "$root/build/modules/"*.o || {
+ar crus "$static_library" "$build_dir/modules/"*.o || {
   echo "not ok - failed to build static library: $(basename "$static_library")"
   exit 1
 }

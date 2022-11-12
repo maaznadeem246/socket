@@ -25,17 +25,18 @@ namespace ssc::core::types {
   using MessageCallback = std::function<void(const std::string)>;
   using Mutex = std::recursive_mutex;
 
-  template <int K> using Semaphore = std::counting_semaphore<K>;
-  template <typename T> using SharedPointer = std::shared_ptr<T>;
-  template <typename T> using UniquePointer = std::unique_ptr<T>;
   using String = std::string;
   using StringStream = std::stringstream;
   using Thread = std::thread;
-  template <typename T> using Queue = std::queue<T>;
-  template <typename T> using Vector = std::vector<T>;
-
   using WString = std::wstring;
   using WStringStream = std::wstringstream;
+
+  template <int K> using Semaphore = std::counting_semaphore<K>;
+  template <typename T> using SharedPointer = std::shared_ptr<T>;
+  template <typename T> using UniquePointer = std::unique_ptr<T>;
+  template <typename T> using Function = std::function<T>;
+  template <typename T> using Queue = std::queue<T>;
+  template <typename T> using Vector = std::vector<T>;
 
   // FIXME: remove this eventuallyk
   struct Post {

@@ -30,7 +30,7 @@
 // macOS/iOS
 #if defined(__APPLE__)
   #if !defined(debug)
-    #define debug(format, ...) NSLog(@format, ##__VA_ARGS__)
+    #define debug(format, ...) fprintf(stderr, format "\n", ##__VA_ARGS__)
   #endif
 #endif
 

@@ -7,17 +7,20 @@ module;
  */
 export module ssc.window;
 import ssc.application;
+import ssc.webview;
 import ssc.string;
 import ssc.codec;
 import ssc.types;
 import ssc.env;
+import ssc.ipc;
 
 using namespace ssc::types;
 using ssc::application::Application;
 using ssc::codec::encodeURIComponent;
+using ssc::ipc::DataManager;
+using ssc::string::split;
 using ssc::string::String;
 using ssc::string::trim;
-using ssc::string::split;
 
 export namespace ssc::window {
   using ssc::core::window::CoreWindow; // NOLINT
@@ -27,9 +30,14 @@ export namespace ssc::window {
 
   using WindowOptions = ssc::core::window::CoreWindowOptions;
 
+  bool onIPCSchemeRequestRouteCallback (const webview::IPCSchemeRequest& request) {
+    return false;
+  }
+
   class Window : public CoreWindow {
     public:
-      Window (Application& app, WindowOptions opts) : CoreWindow(app, opts) {
+      Window (Application& app, WindowOptions opts)
+        : CoreWindow(app, opts, onIPCSchemeRequestRouteCallback) {
       }
   };
 
@@ -45,6 +53,7 @@ export namespace ssc::window {
     Map appData;
     MessageCallback onMessage = [](const String) {};
     ExitCallback onExit = nullptr;
+    DataManager* dataManager = nullptr;
   };
 
   class WindowFactory  {
@@ -188,6 +197,7 @@ export namespace ssc::window {
         this->options.isTest = configuration.isTest;
         this->options.argv = configuration.argv;
         this->options.cwd = configuration.cwd;
+        this->options.dataManager = configuration.dataManager;
       }
 
       void inline log (const String line) {
@@ -350,7 +360,8 @@ export namespace ssc::window {
           .argv = this->options.argv,
           .preload = opts.preload.size() > 0 ? opts.preload : "",
           .env = env.str(),
-          .appData = opts.appData.size() > 0 ? opts.appData : this->options.appData
+          .appData = opts.appData.size() > 0 ? opts.appData : this->options.appData,
+          .dataManager = opts.dataManager != nullptr ? opts.dataManager : this->options.dataManager
         };
 
       #if DEBUG
@@ -379,7 +390,8 @@ export namespace ssc::window {
         #ifdef PORT
           .port = PORT,
         #endif
-          .appData = opts.appData
+          .appData = opts.appData,
+          .dataManager = opts.dataManager
         });
       }
   };

@@ -20,6 +20,7 @@ export namespace ssc::types {
   using ssc::core::types::AtomicBool;
   using ssc::core::types::BinarySemaphore;
   using ssc::core::types::ExitCallback;
+  using ssc::core::types::Function;
   using ssc::core::types::Map;
   using ssc::core::types::Lock;
   using ssc::core::types::MessageCallback;

@@ -1,17 +1,14 @@
-#include "../private.hh"
 #include "../window.hh"
+#include "../private.hh"
+#include "../internal/window.hh"
+#include "../internal/webview.hh"
 
 #if defined(__APPLE__)
 
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-@interface CoreWindowDelegate : NSObject
+@implementation CoreWindowDelegate
 @end
 #else
-@interface CoreWindowDelegate : NSObject <NSWindowDelegate, WKScriptMessageHandler>
-- (void) userContentController: (WKUserContentController*) userContentController
-       didReceiveScriptMessage: (WKScriptMessage*) scriptMessage;
-@end
-
 @implementation CoreWindowDelegate
 - (void) userContentController: (WKUserContentController*) userContentController
        didReceiveScriptMessage: (WKScriptMessage*) scriptMessage
@@ -26,15 +23,6 @@ namespace ssc::core::window {
   using namespace string;
 
   static bool isDelegateSet = false;
-
-  class CoreWindowInternals {
-    public:
-    #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-      NSWindow* window;
-    #endif
-
-      CoreWindowInternals (const CoreWindowOptions& opts);
-  };
 
   CoreWindowInternals::CoreWindowInternals (const CoreWindowOptions& opts) {
     // Window style: titled, closable, minimizable
@@ -64,11 +52,15 @@ namespace ssc::core::window {
       nil
 		];
 
+    this->delegate = [[CoreWindowDelegate alloc] init];
     this->window = [[NSWindow alloc]
         initWithContentRect: NSMakeRect(0, 0, opts.width, opts.height)
                   styleMask: style
                     backing: NSBackingStoreBuffered
-                      defer: NO];
+                      defer: NO
+    ];
+
+    [this->window setDelegate: this->delegate];
 
     // Position window in center of screen
     [window center];
@@ -85,14 +77,9 @@ namespace ssc::core::window {
     }
   }
 
-  CoreWindow::CoreWindow (
-    CoreApplication& app,
-    const CoreWindowOptions opts
-  ) : CoreWindow(app) {
-    this->opts = opts;
-    this->internals = new CoreWindowInternals(opts);
+  void CoreWindow::initialize ()  {
 
-
+    /*
     this->bridge = new IPC::Bridge(app.runtime);
     this->bridge->router.dispatchFunction = [this] (auto callback) {
       this->app.dispatch(callback);
@@ -134,192 +121,86 @@ namespace ssc::core::window {
         }];
       });
     });
+    */
 
-
-    // Set window to be resizable
-    if (opts.resizable) {
-      style |= NSWindowStyleMaskResizable;
-    }
-
-    if (opts.frameless) {
-      style |= NSWindowStyleMaskFullSizeContentView;
-      style |= NSWindowStyleMaskBorderless;
-    } else if (opts.utility) {
-      style |= NSWindowStyleMaskUtilityWindow;
-    } else {
-      style |= NSWindowStyleMaskClosable;
-      style |= NSWindowStyleMaskMiniaturizable;
-    }
-
-    ScreenSize screenSize = this->getScreenSize();
-    auto height = opts.isHeightInPercent ? screenSize.height * opts.height / 100 : opts.height;
-    auto width = opts.isWidthInPercent ? screenSize.width * opts.width / 100 : opts.width;
-
-    window = [[NSWindow alloc]
-        initWithContentRect: NSMakeRect(0, 0, width, height)
-                  styleMask: style
-                    backing: NSBackingStoreBuffered
-                      defer: NO];
-
-    NSArray* draggableTypes = [NSArray arrayWithObjects:
-      NSPasteboardTypeURL,
-      NSPasteboardTypeFileURL,
-      (NSString*) kPasteboardTypeFileURLPromise,
-      NSPasteboardTypeString,
-      NSPasteboardTypeHTML,
-      nil
-		];
-
-    // Position window in center of screen
-    [window center];
-    [window setOpaque: YES];
-    // Minimum window size
-    [window setContentMinSize: NSMakeSize(opts.width, opts.height)];
-    [window setBackgroundColor: [NSColor controlBackgroundColor]];
-    [window registerForDraggedTypes: draggableTypes];
-    // [window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
-
-    if (opts.frameless) {
-      [window setTitlebarAppearsTransparent: true];
-    }
-
-    // window.movableByWindowBackground = true;
-    window.titlebarAppearsTransparent = true;
-
-    // Initialize WKWebView
-    WKWebViewConfiguration* config = [WKWebViewConfiguration new];
-    // https://webkit.org/blog/10882/app-bound-domains/
-    // https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/3585117-limitsnavigationstoappbounddomai
-    // config.limitsNavigationsToAppBoundDomains = YES;
-
-    [config setURLSchemeHandler: bridge->router.schemeHandler
-                   forURLScheme: @"ipc"];
-
-    [config setURLSchemeHandler: bridge->router.schemeHandler
-                   forURLScheme: @"ssc"];
-
-    WKPreferences* prefs = [config preferences];
-    [prefs setJavaScriptCanOpenWindowsAutomatically:NO];
-
-    #if DEBUG == 1 // Adds "Inspect" option to context menus
-      [prefs setValue:@YES forKey:@"developerExtrasEnabled"];
-    #endif
-
-    WKUserContentController* controller = [config userContentController];
-
-    // Add preload script, normalizing the interface to be cross-platform.
-    String preload = ToString(createPreload(opts));
-
-    WKUserScript* userScript = [WKUserScript alloc];
-
-    [userScript
-      initWithSource: [NSString stringWithUTF8String:preload.c_str()]
-      injectionTime: WKUserScriptInjectionTimeAtDocumentStart
-      forMainFrameOnly: NO];
-
-    [controller addUserScript: userScript];
-
-    webview = [[SSCBridgedWebView alloc]
-      initWithFrame: NSZeroRect
-      configuration: config];
-
-    [webview.configuration.preferences
-      setValue:@YES
-      forKey:@"allowFileAccessFromFileURLs"];
-
-    /* [webview
-      setValue: [NSNumber numberWithBool: YES]
-        forKey: @"drawsTransparentBackground"
-    ]; */
-
-    /* [[NSNotificationCenter defaultCenter] addObserver: webview
-                                             selector: @selector(systemColorsDidChangeNotification:)
-                                                 name: NSSystemColorsDidChangeNotification
-                                               object: nil
-    ]; */
-
-    // [webview registerForDraggedTypes:
-    //  [NSArray arrayWithObject:NSPasteboardTypeFileURL]];
-    //
     bool exiting = false;
 
-    SSCWindowDelegate* delegate = [SSCWindowDelegate alloc];
-    [controller addScriptMessageHandler: delegate name: @"external"];
-
     // Set delegate to window
-    [window setDelegate:delegate];
-
-    SSCNavigationDelegate *navDelegate = [[SSCNavigationDelegate alloc] init];
-    [webview setNavigationDelegate: navDelegate];
+    [this->webview->internals->controller
+      addScriptMessageHandler: this->internals->delegate
+                         name: @"external"
+    ];
 
     if (!isDelegateSet) {
       isDelegateSet = true;
 
       class_replaceMethod(
-        [SSCWindowDelegate class],
+        [CoreWindowDelegate class],
         @selector(windowShouldClose:),
         imp_implementationWithBlock(
           [&](id self, SEL cmd, id notification) {
             if (exiting) return true;
 
-            auto* w = (Window*) objc_getAssociatedObject(self, "webview");
+            auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
 
-            if (w->opts.canExit) {
+            if (window->opts.canExit) {
               exiting = true;
-              w->exit(0);
+              window->exit(0);
               return true;
             }
 
-            w->eval(getEmitToRenderProcessJavaScript("windowHide", "{}"));
-            w->hide("");
+            window->eval(javascript::getEmitToRenderProcessJavaScript("windowHide", "{}"));
+            window->hide("");
             return false;
           }),
         "v@:@"
       );
 
       class_replaceMethod(
-        [SSCWindowDelegate class],
+        [CoreWindowDelegate class],
         @selector(userContentController:didReceiveScriptMessage:),
         imp_implementationWithBlock(
           [=](id self, SEL cmd, WKScriptMessage* scriptMessage) {
-            auto* w = (Window*) objc_getAssociatedObject(self, "webview");
-            if (w->onMessage == nullptr) return;
+            auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
+            if (window->onMessage != nullptr) {
+              id body = [scriptMessage body];
 
-            id body = [scriptMessage body];
-            if (![body isKindOfClass:[NSString class]]) {
-              return;
+              if (![body isKindOfClass:[NSString class]]) {
+                return;
+              }
+
+              String msg = [body UTF8String];
+
+              // if (bridge->route(msg, nullptr, 0)) return; // FIXME
+              window->onMessage(msg);
             }
-            String msg = [body UTF8String];
-
-            if (bridge->route(msg, nullptr, 0)) return;
-            w->onMessage(msg);
           }),
         "v@:@"
       );
 
       class_addMethod(
-        [SSCWindowDelegate class],
+        [CoreWindowDelegate class],
         @selector(menuItemSelected:),
         imp_implementationWithBlock(
           [=](id self, SEL _cmd, id item) {
-            auto* w = (Window*) objc_getAssociatedObject(self, "webview");
-            if (w->onMessage == nullptr) return;
+            auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
+            if (window->onMessage != nullptr) {
+              id menuItem = (id) item;
+              String title = [[menuItem title] UTF8String];
+              String state = [menuItem state] == NSControlStateValueOn ? "true" : "false";
+              String parent = [[[menuItem menu] title] UTF8String];
+              String seq = std::to_string([menuItem tag]);
 
-            id menuItem = (id) item;
-            String title = [[menuItem title] UTF8String];
-            String state = [menuItem state] == NSControlStateValueOn ? "true" : "false";
-            String parent = [[[menuItem menu] title] UTF8String];
-            String seq = std::to_string([menuItem tag]);
-
-            w->eval(getResolveMenuSelectionJavaScript(seq, title, parent));
+              window->eval(javascript::getResolveMenuSelectionJavaScript(seq, title, parent));
+            }
           }),
         "v@:@:@:"
       );
     }
 
     objc_setAssociatedObject(
-      delegate,
-      "webview",
+      this->internals->delegate,
+      "window",
       (id) this,
       OBJC_ASSOCIATION_ASSIGN
     );
@@ -336,7 +217,7 @@ namespace ssc::core::window {
     }
 
     // Add webview to window
-    [window setContentView: webview];
+    [this->internals->window setContentView: this->webview->internals->webview];
 
     navigate("0", opts.url);
   }
@@ -345,8 +226,8 @@ namespace ssc::core::window {
     NSRect e = [[NSScreen mainScreen] frame];
 
     return ScreenSize {
-      .height = (int) e.size.height,
-      .width = (int) e.size.width
+      .height = (size_t) e.size.height,
+      .width = (size_t) e.size.width
     };
   }
 
@@ -354,10 +235,9 @@ namespace ssc::core::window {
     if (this->opts.headless == true) {
       [NSApp activateIgnoringOtherApps: NO];
     } else {
-      [window makeKeyAndOrderFront: nil];
+      [this->internals->window makeKeyAndOrderFront: nil];
       [NSApp activateIgnoringOtherApps: YES];
     }
-
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);
@@ -387,9 +267,10 @@ namespace ssc::core::window {
   }
 
   void CoreWindow::eval (const String& js) {
-    [webview evaluateJavaScript:
-      [NSString stringWithUTF8String:js.c_str()]
-      completionHandler:nil];
+    [this->webview->internals->webview
+      evaluateJavaScript: [NSString stringWithUTF8String: js.c_str()]
+       completionHandler: nil
+    ];
   }
 
   void CoreWindow::setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos) {
@@ -409,10 +290,13 @@ namespace ssc::core::window {
   }
 
   void CoreWindow::navigate (const String& seq, const String& value) {
-    [webview loadRequest:
-      [NSURLRequest requestWithURL:
-        [NSURL URLWithString:
-          [NSString stringWithUTF8String: value.c_str()]]]];
+    [this->webview->internals->webview
+      loadRequest: [NSURLRequest
+        requestWithURL: [NSURL
+          URLWithString: [NSString stringWithUTF8String: value.c_str()]
+        ]
+      ]
+    ];
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);
@@ -421,7 +305,7 @@ namespace ssc::core::window {
   }
 
   void CoreWindow::setTitle (const String& seq, const String& value) {
-    [window setTitle:[NSString stringWithUTF8String:value.c_str()]];
+    [this->internals->window setTitle: [NSString stringWithUTF8String: value.c_str()]];
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);
@@ -430,8 +314,13 @@ namespace ssc::core::window {
   }
 
   void CoreWindow::setSize (const String& seq, int width, int height, int hints) {
-    [window setFrame:NSMakeRect(0.f, 0.f, (float) width, (float) height) display:YES animate:YES];
-    [window center];
+    [this->internals->window
+        setFrame: NSMakeRect(0.f, 0.f, (float) width, (float) height)
+         display: YES
+         animate: YES
+    ];
+
+    [this->internals->window center];
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);
@@ -456,17 +345,19 @@ namespace ssc::core::window {
     // This is a private method on the webview, so we need to use
     // the pragma keyword to suppress the access warning.
     #pragma clang diagnostic ignored "-Wobjc-method-access"
-    [[this->webview _inspector] show];
+    [[this->webview->internals->webview _inspector] show];
   }
 
   void CoreWindow::setBackgroundColor (int r, int g, int b, float a) {
     CGFloat sRGBComponents[4] = { r / 255.0, g / 255.0, b / 255.0, a };
     NSColorSpace *colorSpace = [NSColorSpace sRGBColorSpace];
 
-    [window setBackgroundColor:
-      [NSColor colorWithColorSpace: colorSpace
-                        components: sRGBComponents
-                             count: 4]
+    [this->internals->window
+      setBackgroundColor: [NSColor
+        colorWithColorSpace: colorSpace
+                 components: sRGBComponents
+                      count: 4
+      ]
     ];
   }
 
@@ -511,9 +402,10 @@ namespace ssc::core::window {
     }
 
     [pMenu
-      popUpMenuPositioningItem:pMenu.itemArray[0]
-        atLocation:NSPointFromCGPoint(CGPointMake(mouseLocation.x, mouseLocation.y))
-        inView:nil];
+      popUpMenuPositioningItem: pMenu.itemArray[0]
+                    atLocation: NSPointFromCGPoint(CGPointMake(mouseLocation.x, mouseLocation.y))
+                        inView: nil
+    ];
   }
 
   void CoreWindow::setSystemMenu (const String& seq, const String& value) {
@@ -745,7 +637,7 @@ namespace ssc::core::window {
     }
 
     String result = "";
-    ssc::Vector<String> paths;
+    Vector<String> paths;
     NSArray* urls;
 
     if ([dialog_open runModal] == NSModalResponseOK) {

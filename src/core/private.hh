@@ -14,6 +14,7 @@
     #include <UserNotifications/UserNotifications.h>
     #include <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
     #include <WebKit/WebKit.h>
+    #include <objc/objc-runtime.h>
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
       #include <UIKit/UIKit.h>
     #else

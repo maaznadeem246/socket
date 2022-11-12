@@ -12,8 +12,12 @@ declare flags=(
 )
 
 declare ldflags=($("$root/bin/ldflags.sh"))
-declare sources=($(find "$root"/src/core/*.cc) $(find "$root"/src/core/internal/*.cc))
+declare sources=($(find "$root"/src/core/*.cc))
 declare objects=()
+
+if [[ "$(uname -s)" = "Darwin" ]]; then
+  sources+=("$root"/src/core/window/apple.cc)
+fi
 
 declare src_directory="$root/src/core"
 declare output_directory="$root/build/core"

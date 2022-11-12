@@ -1,3 +1,9 @@
+#include <socket/socket.hh>
+#include <filesystem>
+#include <functional>
+#include <span>
+#include <new>
+
 import ssc.application;
 import ssc.codec;
 import ssc.config;
@@ -8,12 +14,6 @@ import ssc.log;
 import ssc.process;
 import ssc.string;
 import ssc.window;
-
-#include <socket/socket.hh>
-#include <filesystem>
-#include <functional>
-#include <span>
-#include <new>
 
 using namespace ssc::string;
 using namespace ssc::codec;
@@ -785,7 +785,7 @@ MAIN {
   // start the platform specific event loop for the main
   // thread and run it until it returns a non-zero int.
   //
-  while(app.run() == 0);
+  while (app.run() == 0);
 
   exit(exitCode);
 }

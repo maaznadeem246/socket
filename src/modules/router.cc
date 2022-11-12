@@ -17,7 +17,6 @@ import ssc.ipc.data;
 import ssc.javascript;
 import ssc.network;
 import ssc.string;
-import ssc.webview;
 import ssc.types;
 import ssc.utils;
 import ssc.codec;
@@ -41,8 +40,6 @@ using ssc::types::Lock;
 using ssc::types::Mutex;
 using ssc::types::SharedPointer;
 using ssc::types::Vector;
-
-using ssc::webview::IPCSchemeHandler;
 
 export namespace ssc::router {
   // forward
@@ -69,7 +66,6 @@ export namespace ssc::router {
       DispatchCallback dispatchFunction = nullptr;
 
       NetworkStatusObserver networkStatusObserver;
-      IPCSchemeHandler schemeHandler;
       DataManager dataManager;
       RouteTable table;
       BufferMap buffers;
@@ -77,16 +73,6 @@ export namespace ssc::router {
 
       Router (const Router &) = delete;
       Router () {
-        this->schemeHandler = {
-          &this->dataManager,
-          [this](const auto& request) {
-            auto message = Message { request.url };
-            message.buffer.bytes = request.body.bytes;
-            message.buffer.size = request.body.size;
-            return this->invoke(message);
-          }
-        };
-
         this->networkStatusObserver = {
           [this](const String& statusName, const String& statusMessage) {
             this->onNetworkStatusChange(statusName, statusMessage);

@@ -4,6 +4,7 @@
 #include <socket/platform.hh>
 #include "application.hh"
 #include "codec.hh"
+#include "ipc/data.hh"
 #include "string.hh"
 #include "types.hh"
 #include "webview.hh"
@@ -11,6 +12,7 @@
 namespace ssc::core::window {
   using application::CoreApplication;
   using codec::encodeURIComponent;
+  using ipc::data::DataManager;
   using string::String;
   using string::trim;
   using types::ExitCallback;
@@ -66,6 +68,7 @@ namespace ssc::core::window {
     Map appData;
     MessageCallback onMessage = [](const String) {};
     ExitCallback onExit = nullptr;
+    DataManager* dataManager = nullptr;
   };
 
   #if defined(_WIN32)
@@ -123,6 +126,7 @@ namespace ssc::core::window {
       CoreWindowOptions opts;
       CoreWindowInternals *internals = nullptr;
       CoreWebView* webview = nullptr;
+      DataManager* dataManager = nullptr;
 
       MessageCallback onMessage = [](const String) {};
       ExitCallback onExit = nullptr;
@@ -161,9 +165,14 @@ namespace ssc::core::window {
       void resize (HWND window);
 #endif
 */
-      CoreWindow (CoreApplication& app);
-      CoreWindow (CoreApplication&, CoreWindowOptions);
+      CoreWindow () = delete;
+      CoreWindow (
+        CoreApplication&,
+        const CoreWindowOptions,
+        webview::CoreIPCSchemeRequestRouteCallback
+      );
 
+      void initialize ();
       void about ();
       void eval (const String&);
       void show (const String&);
@@ -178,7 +187,7 @@ namespace ssc::core::window {
       void closeContextMenu (const String&);
       void closeContextMenu ();
       /*
-      k#if defined(__linux__) && !defined(__ANDROID__)
+      #if defined(__linux__) && !defined(__ANDROID__)
       void closeContextMenu (GtkWidget *, const String&);
       #endif
       */
@@ -206,10 +215,9 @@ namespace ssc::core::window {
       );
   };
 
-
-  inline String createCorePreload (CoreWindowOptions opts) {
+  inline String createPreload (CoreWindowOptions opts) {
+    static platform::PlatformInfo platform;
     auto cwd = String(opts.cwd);
-    platform::PlatformInfo platform;
     std::replace(cwd.begin(), cwd.end(), '\\', '/');
 
     auto preload = String(

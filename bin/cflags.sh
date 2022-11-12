@@ -3,9 +3,9 @@
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 declare cache_path="$root/build/cache"
-declare module_path="$root/build/modules"
+declare module_path="modules"
 declare module_tests_path="$root/build/tests/modules"
-declare module_map_file="$module_path/modules.modulemap"
+declare module_map_file="modules/modules.modulemap"
 
 declare cflags=(
   -std=c++20
@@ -17,7 +17,7 @@ declare cflags=(
   -fprebuilt-module-path="$module_path"
   -DSSC_BUILD_TIME="$(date '+%s')"
   -DSSC_VERSION_HASH=`git rev-parse --short HEAD`
-  -DSSC_VERSION=`cat VERSION.txt`
+  -DSSC_VERSION=`cat "$root/VERSION.txt"`
 )
 
 while (( $# > 0 )); do

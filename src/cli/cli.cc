@@ -987,34 +987,28 @@ int main (const int argc, const char* argv[]) {
     if (platform.mac && !flagBuildForIOS && !flagBuildForAndroid) {
       log("preparing build for mac");
 
-      flags = "-std=c++2a -ObjC++";
+      flags = "-std=c++20";
       flags += " -framework UniformTypeIdentifiers";
       flags += " -framework CoreBluetooth";
       flags += " -framework Network";
       flags += " -framework UserNotifications";
       flags += " -framework WebKit";
       flags += " -framework Cocoa";
+      flags += " -framework Foundation";
       flags += " -DMACOS=1";
       flags += " -I" + prefixFile();
       flags += " -I" + prefixFile("include");
       flags += " -L" + prefixFile("lib");
       flags += " -luv";
-      flags += " -lsocket";
+      flags += " -lsocket-core";
+      flags += " -lsocket-modules";
+      flags += " -fimplicit-modules";
+      flags += " -fmodule-map-file=" + prefixFile("modules/modules.modulemap");
+      flags += " -fmodules-cache-path=" + prefixFile("cache");
       flags += " -fprebuilt-module-path=" + prefixFile("modules");
       flags += " " + getCxxFlags();
 
-      files += prefixFile("src/app/app.cc");
-      files += prefixFile("src/runtime/bluetooth.cc");
-      files += prefixFile("src/runtime/runtime.cc");
-      files += prefixFile("src/runtime/fs.cc");
-      files += prefixFile("src/runtime/javascript.cc");
-      files += prefixFile("src/runtime/json.cc");
-      files += prefixFile("src/runtime/peer.cc");
-      files += prefixFile("src/runtime/udp.cc");
       files += prefixFile("src/desktop/main.cc");
-      files += prefixFile("src/ipc/bridge.cc");
-      files += prefixFile("src/ipc/ipc.cc");
-      files += prefixFile("src/window/apple.mm");
 
       fs::path pathBase = "Contents";
       pathResources = { paths.pathPackage / pathBase / "Resources" };
@@ -1022,7 +1016,7 @@ int main (const int argc, const char* argv[]) {
       fs::create_directories(paths.pathBin);
       fs::create_directories(pathResources);
 
-      auto plistInfo = tmpl(gPListInfo, settings.data);
+      auto plistInfo = tmpl(gPListInfo, settings.entries);
 
       writeFile(paths.pathPackage / pathBase / "Info.plist", plistInfo);
 
@@ -1220,18 +1214,18 @@ int main (const int argc, const char* argv[]) {
       // Android Project
       writeFile(
         src / "main" / "AndroidManifest.xml",
-        trim(tmpl(tmpl(gAndroidManifest, settings.data), manifestContext))
+        trim(tmpl(tmpl(gAndroidManifest, settings.entries), manifestContext))
       );
 
-      writeFile(app / "proguard-rules.pro", trim(tmpl(gProGuardRules, settings.data)));
-      writeFile(app / "build.gradle", trim(tmpl(gGradleBuildForSource, settings.data)));
+      writeFile(app / "proguard-rules.pro", trim(tmpl(gProGuardRules, settings.entries)));
+      writeFile(app / "build.gradle", trim(tmpl(gGradleBuildForSource, settings.entries)));
 
-      writeFile(output / "settings.gradle", trim(tmpl(gGradleSettings, settings.data)));
-      writeFile(output / "build.gradle", trim(tmpl(gGradleBuild, settings.data)));
-      writeFile(output / "gradle.properties", trim(tmpl(gGradleProperties, settings.data)));
+      writeFile(output / "settings.gradle", trim(tmpl(gGradleSettings, settings.entries)));
+      writeFile(output / "build.gradle", trim(tmpl(gGradleBuild, settings.entries)));
+      writeFile(output / "gradle.properties", trim(tmpl(gGradleProperties, settings.entries)));
 
-      writeFile(res / "layout" / "web_view_activity.xml", trim(tmpl(gAndroidLayoutWebviewActivity, settings.data)));
-      writeFile(res / "values" / "strings.xml", trim(tmpl(gAndroidValuesStrings, settings.data)));
+      writeFile(res / "layout" / "web_view_activity.xml", trim(tmpl(gAndroidLayoutWebviewActivity, settings.entries)));
+      writeFile(res / "values" / "strings.xml", trim(tmpl(gAndroidValuesStrings, settings.entries)));
       writeFile(src / "main" / "assets" / "__ssc_vital_check_ok_file__.txt", "OK");
 
       writeFile(
@@ -1276,25 +1270,25 @@ int main (const int argc, const char* argv[]) {
             WStringToString(readFile(targetPath / file )),
             std::regex("__BUNDLE_IDENTIFIER__"),
             bundle_identifier
-          ), settings.data)
+          ), settings.entries)
         );
       }
 
       if (settings["android_native_makefile"].size() > 0) {
         makefileContext["android_native_make_context"] =
-          trim(tmpl(tmpl(WStringToString(readFile(targetPath / settings["android_native_makefile"])), settings.data), makefileContext));
+          trim(tmpl(tmpl(WStringToString(readFile(targetPath / settings["android_native_makefile"])), settings.entries), makefileContext));
       } else {
         makefileContext["android_native_make_context"] = "";
       }
 
       writeFile(
         jni / "Application.mk",
-        trim(tmpl(tmpl(gAndroidApplicationMakefile, makefileContext), settings.data))
+        trim(tmpl(tmpl(gAndroidApplicationMakefile, makefileContext), settings.entries))
       );
 
       writeFile(
         jni / "Android.mk",
-        trim(tmpl(tmpl(gAndroidMakefile, makefileContext), settings.data))
+        trim(tmpl(tmpl(gAndroidMakefile, makefileContext), settings.entries))
       );
 
       // Android Source
@@ -1316,7 +1310,7 @@ int main (const int argc, const char* argv[]) {
             WStringToString(readFile(targetPath / file )),
             std::regex("__BUNDLE_IDENTIFIER__"),
             bundle_identifier
-          ), settings.data)
+          ), settings.entries)
         );
       }
     }
@@ -1413,10 +1407,10 @@ int main (const int argc, const char* argv[]) {
         fs::copy_options::overwrite_existing | fs::copy_options::recursive
       );
 
-      writeFile(paths.platformSpecificOutputPath / "exportOptions.plist", tmpl(gXCodeExportOptions, settings.data));
-      writeFile(paths.platformSpecificOutputPath / "Info.plist", tmpl(gXCodePlist, settings.data));
-      writeFile(pathToProject / "project.pbxproj", tmpl(gXCodeProject, settings.data));
-      writeFile(pathToScheme / schemeName, tmpl(gXCodeScheme, settings.data));
+      writeFile(paths.platformSpecificOutputPath / "exportOptions.plist", tmpl(gXCodeExportOptions, settings.entries));
+      writeFile(paths.platformSpecificOutputPath / "Info.plist", tmpl(gXCodePlist, settings.entries));
+      writeFile(pathToProject / "project.pbxproj", tmpl(gXCodeProject, settings.entries));
+      writeFile(pathToScheme / schemeName, tmpl(gXCodeScheme, settings.entries));
 
       pathResources = paths.platformSpecificOutputPath / "ui";
       fs::create_directories(pathResources);
@@ -1494,13 +1488,13 @@ int main (const int argc, const char* argv[]) {
         (settings["executable"] + ".png")
       ).string();
 
-      writeFile(pathManifestFile / (settings["name"] + ".desktop"), tmpl(gDestkopManifest, settings.data));
+      writeFile(pathManifestFile / (settings["name"] + ".desktop"), tmpl(gDestkopManifest, settings.entries));
 
       if (!settings.has("deb_name")) {
         settings["deb_name"] = settings["name"];
       }
 
-      writeFile(pathControlFile / "control", tmpl(gDebianManifest, settings.data));
+      writeFile(pathControlFile / "control", tmpl(gDebianManifest, settings.entries));
 
       auto pathToIconSrc = (targetPath / settings["linux_icon"]).string();
       auto pathToIconDest = (pathIcons / (settings["executable"] + ".png")).string();
@@ -1557,7 +1551,7 @@ int main (const int argc, const char* argv[]) {
 
       settings["exe"] = executable.string();
 
-      writeFile(p, tmpl(gWindowsAppManifest, settings.data));
+      writeFile(p, tmpl(gWindowsAppManifest, settings.entries));
 
       // TODO Copy the files into place
     }
@@ -1667,7 +1661,7 @@ int main (const int argc, const char* argv[]) {
 
       writeFile(pathBase / "LaunchScreen.storyboard", gStoryboardLaunchScreen);
       // TODO allow the user to copy their own if they have one
-      writeFile(pathToDist / "socket.entitlements", tmpl(gXcodeEntitlements, settings.data));
+      writeFile(pathToDist / "socket.entitlements", tmpl(gXcodeEntitlements, settings.entries));
 
       //
       // For iOS we're going to bail early and let XCode infrastructure handle
@@ -1724,7 +1718,7 @@ int main (const int argc, const char* argv[]) {
       if (flagBuildForSimulator && flagShouldRun) {
         String app = (settings["name"] + ".app");
         auto pathToApp = paths.platformSpecificOutputPath / app;
-        runIOSSimulator(pathToApp, settings.data);
+        runIOSSimulator(pathToApp, settings.entries);
       }
 
       if (flagShouldPackage) {
@@ -2543,7 +2537,7 @@ int main (const int argc, const char* argv[]) {
     if (isIosSimulator) {
       String app = (settings["name"] + ".app");
       auto pathToApp = paths.platformSpecificOutputPath / app;
-      runIOSSimulator(pathToApp, settings.data);
+      runIOSSimulator(pathToApp, settings.entries);
     } else {
       auto executable = fs::path(settings["executable"] + (platform.win ? ".exe" : ""));
       auto exitCode = runApp(paths.pathBin / executable, argvForward, flagHeadless);

@@ -83,18 +83,18 @@ fi
 
 function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
-  local flags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
+  local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
   local ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-{core,modules}}))
 
   mkdir -p "$BUILD_DIR/cli"
   mkdir -p "$BUILD_DIR/bin"
 
-  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} \
-    -c src/cli/cli.cc                           \
+  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} \
+    -c "$root/src/cli/cli.cc"                    \
     -o "$BUILD_DIR/cli/cli.o"
 
-  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${flags[@]} ${ldflags[@]} \
-    build/cli/cli.o                                           \
+  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} ${ldflags[@]} \
+    "$BUILD_DIR/cli/cli.o"                                     \
     -o "$BUILD_DIR/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
@@ -103,12 +103,13 @@ function _build_cli {
 
 function _build_core {
   echo "# building core library"
-  quiet "$root/bin/build-core-library.sh"
+ "$root/bin/build-core-library.sh"
 }
 
 function _build_modules {
   echo "# building modules library"
-  quiet "$root/bin/build-modules-library.sh"
+  # build directly to the output assets directory for correct module file paths
+  BUILD_DIR=$ASSETS_DIR "$root/bin/build-modules-library.sh"
 }
 
 function _build_library {
@@ -125,7 +126,7 @@ function _prepare {
 
   echo "# preparing directories..."
   rm -rf "$ASSETS_DIR"
-  mkdir -p $ASSETS_DIR/{lib,src,include,build,modules}
+  mkdir -p $ASSETS_DIR/{lib,src,include,build,modules,cache}
   mkdir -p $LIB_DIR
 
   if [ ! -d "$BUILD_DIR/uv" ]; then
@@ -139,22 +140,23 @@ function _prepare {
 }
 
 function _install {
-  cp -r `pwd`/src "$ASSETS_DIR"
-
   echo "# copying sources to $ASSETS_DIR/src"
+  cp -r "$WORK_DIR"/src/* "$ASSETS_DIR/src"
 
-  if [ -d `pwd`/lib ]; then
-    echo "# copying libraries to $ASSETS_DIR/lib"
-    rm -rf "$ASSETS_DIR/lib"
-    mkdir -p "$ASSETS_DIR/lib"
-    cp -r "$BUILD_DIR"/lib/* "$ASSETS_DIR/lib"
-  fi
+  echo "# copying libraries to $ASSETS_DIR/lib"
+  rm -rf "$ASSETS_DIR/lib"
+  mkdir -p "$ASSETS_DIR/lib"
+  cp -fr "$BUILD_DIR"/lib/* "$ASSETS_DIR/lib"
+
+  rm -rf "$ASSETS_DIR/include"
+  mkdir -p "$ASSETS_DIR/include"
+  cp -rf "$WORK_DIR"/include/* $ASSETS_DIR/include
 
   if [ -z "$TEST" ]; then
     local binDest="/usr/local/bin/ssc"
     echo "# moving binary to $binDest (prompting to copy file into directory)"
     sudo mkdir -p /usr/local/bin
-    sudo mv `pwd`/build/bin/ssc $binDest
+    sudo mv "$BUILD_DIR"/bin/ssc $binDest
   fi
 
   die $? "not ok - unable to move binary into place"
@@ -311,6 +313,8 @@ die $? "not ok - could not copy headers"
 echo "ok - copied headers"
 cd $WORK_DIR
 
+cd "$BUILD_DIR"
+export BUILD_DIR
 _build_core
 _build_modules
 _build_cli

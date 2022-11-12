@@ -1,3 +1,4 @@
+/*
 #include <string>
 
 #if defined(__APPLE__)
@@ -10,29 +11,8 @@
   #endif
 #endif
 
-#include "internal.hh"
-
-using String = std::string;
-
-namespace ssc::internal {
-  struct Platform {
-  };
-
-  void alloc (Platform** platform) {
-    *platform = new Platform;
-  }
-
-  void init (Platform* platform) {
-  }
-
-  void deinit (Platform* platform) {
-    delete platform;
-  }
-}
-
-namespace ssc::internal::platform {
+namespace ssc::icore::platform {
   void notify (
-    Platform* platform,
     const String& title,
     const String& body,
     NotifyCallback cb
@@ -132,3 +112,4 @@ namespace ssc::internal::platform {
     #endif
   }
 }
+*/

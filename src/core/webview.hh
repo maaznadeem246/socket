@@ -9,10 +9,17 @@
 #include "string.hh"
 #include "types.hh"
 
+namespace ssc::core::window {
+  // forward
+  class CoreWindow;
+}
+
 namespace ssc::core::webview {
   // forward
   struct CoreSchemeRequest;
+  class CoreWebViewInternals;
 
+  using namespace window;
   using namespace headers;
   using namespace string;
   using namespace types;
@@ -55,7 +62,8 @@ namespace ssc::core::webview {
     CoreSchemeRequestBody body;
     void *internal = nullptr;
 
-    CoreSchemeRequest (const String url) : CoreSchemeRequest("GET", url) { }
+    CoreSchemeRequest (const String url)
+      : CoreSchemeRequest("GET", url) { }
     CoreSchemeRequest (const String method, const String url)
       : CoreSchemeRequest(method, url, { nullptr, 0 }) { }
 
@@ -72,13 +80,13 @@ namespace ssc::core::webview {
     void end (const CoreSchemeResponse& response) const;
     void end (
       const CoreSchemeResponseStatusCode statusCode,
-      const Headers headers,
+      const CoreSchemeResponseHeaders headers,
       const char* bytes,
       size_t size
     ) const;
   };
 
-  using CoreSchemeRequestCallback = std::function<void(const CoreSchemeRequest&)>;
+  using CoreSchemeRequestCallback = Function<void(const CoreSchemeRequest&)>;
   class CoreSchemeHandler {
     public:
       String scheme;
@@ -99,7 +107,8 @@ namespace ssc::core::webview {
 
   struct CoreIPCSchemeRequest : public CoreSchemeRequest {
     Message message;
-    CoreIPCSchemeRequest (const String url) : CoreIPCSchemeRequest("GET", url) { }
+    CoreIPCSchemeRequest (const String url)
+      : CoreIPCSchemeRequest("GET", url) { }
     CoreIPCSchemeRequest (const String method, const String url)
       : CoreIPCSchemeRequest(method, url, { nullptr, 0 }) { }
     CoreIPCSchemeRequest (
@@ -110,7 +119,7 @@ namespace ssc::core::webview {
     }
   };
 
-  using CoreIPCSchemeRequestRouteCallback = std::function<bool(const CoreIPCSchemeRequest&)>;
+  using CoreIPCSchemeRequestRouteCallback = Function<bool(const CoreIPCSchemeRequest&)>;
   class CoreIPCSchemeHandler : public CoreSchemeHandler {
     public:
       CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback;
@@ -123,13 +132,55 @@ namespace ssc::core::webview {
       void onSchemeRequest (const CoreIPCSchemeRequest request);
   };
 
-  class CoreWebViewInternals;
+  template <class CoreSchemeTask> class CoreSchemeTaskManager {
+    public:
+      using CoreSchemeTasks = std::map<std::string, CoreSchemeTask>;
+      CoreSchemeTasks tasks;
+      Mutex mutex;
+
+      CoreSchemeTask get (String id) {
+        Lock lock(this->mutex);
+        if (this->tasks.find(id) == this->tasks.end()) {
+          return CoreSchemeTask{};
+        }
+
+        return this->tasks.at(id);
+      }
+
+      bool has (String id) {
+        Lock lock(this->mutex);
+        return id.size() > 0 && this->tasks.find(id) != this->tasks.end();
+      }
+
+      void remove (String id) {
+        Lock lock(this->mutex);
+        if (this->has(id)) {
+          this->tasks.erase(id);
+        }
+      }
+
+      void put (String id, CoreSchemeTask task) {
+        Lock lock(this->mutex);
+        this->tasks.insert_or_assign(id, task);
+      }
+  };
 
   class CoreWebView {
-    CoreWebViewInternals* internals = nullptr;
     public:
-      CoreWebView ();
+      CoreIPCSchemeHandler* ipcSchemeHandler = nullptr;
+      CoreWebViewInternals* internals = nullptr;
+      CoreWindow* window = nullptr;
+      DataManager* dataManager = nullptr;
+
+      CoreWebView (
+        CoreWindow* window,
+        DataManager* dataManager,
+        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+      );
+
       ~CoreWebView ();
+
+      bool addPreloadScript (const javascript::Script script);
   };
 }
 #endif

@@ -4,7 +4,7 @@ declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare clang="$(which clang++)"
 declare modules="$root/src/modules/"
 
-declare flags=($("$root/bin/cflags.sh" -xc++-module --precompile))
+declare cflags=($("$root/bin/cflags.sh" -xc++-module --precompile))
 
 declare should_build_module_map=1
 declare did_build_module_map=0
@@ -20,6 +20,8 @@ fi
 
 declare objects=()
 
+declare build_dir="${BUILD_DIR:-$root/build}"
+cd "$build_dir"
 while (( $# > 0 )); do
   declare source="$1"; shift
 
@@ -43,7 +45,7 @@ while (( $# > 0 )); do
   fi
   module="${module/.pcm/}"
 
-  declare output="$root/build/modules/ssc.$module.pcm"
+  declare output="modules/ssc.$module.pcm"
 
   if test -f "$output"; then
     if (( $(stat "$source" -c %Y) < $(stat "$output" -c %Y) )); then
@@ -59,7 +61,7 @@ while (( $# > 0 )); do
   mkdir -p "$(dirname "$output")"
   rm -f "$output"
   printf "# compiling $(basename "$source")"
-  "$clang" $CFLAGS $CXXFLAGS ${flags[@]} "$source" -o "$output" || exit $?
+  "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "$source" -o "$output" || exit $?
   printf " -> $(basename "$output")"
   echo
   objects+=("${output/.pcm/.o}")

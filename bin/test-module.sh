@@ -14,8 +14,9 @@ function main () {
 
   mkdir -p "$module_tests_path"
   echo "# running tests"
+  cd "$root/build"
   while (( $# > 0 )); do
-    declare source="$1"; shift
+    declare source="$root/$1"; shift
     declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
     declare output="$module_tests_path/$filename"
 
