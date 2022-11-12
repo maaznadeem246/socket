@@ -35,6 +35,10 @@ while (( $# > 0 )); do
     continue
   fi
 
+  if ! test -f "$source"; then
+    source="$root/$source"
+  fi
+
   declare module="$source"
   module="$(realpath "$source")"
   module="${module/$modules/}"

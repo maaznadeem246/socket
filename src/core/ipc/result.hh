@@ -3,16 +3,17 @@
 
 #include <socket/platform.hh>
 #include "../codec.hh"
+#include "../data.hh"
 #include "../json.hh"
 #include "../types.hh"
-#include "data.hh"
 #include "message.hh"
 
 namespace ssc::core::ipc::result {
   using namespace types;
+  using ssc::core::data::CoreData;
 
   struct Value {
-    data::Data data;
+    data::CoreData data;
     struct {
       JSON::Any data;
       JSON::Any err;
@@ -73,7 +74,7 @@ namespace ssc::core::ipc::result {
         const message::Message::Seq& seq,
         const message::Message& message,
         JSON::Any json
-      ) : Result(seq, message, json, data::Data{}) {
+      ) : Result(seq, message, json, data::CoreData{}) {
         // noop
       }
 
@@ -81,7 +82,7 @@ namespace ssc::core::ipc::result {
         const message::Message::Seq& seq,
         const message::Message& message,
         JSON::Any json,
-        data::Data data
+        CoreData data
       ) : Result(seq, message) {
         this->value.data = data;
         if (json.type != JSON::Type::Any) {

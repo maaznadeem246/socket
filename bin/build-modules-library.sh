@@ -16,6 +16,7 @@ declare modules=(
   loop
   ip
   codec
+  data
   context
   dns
   headers
@@ -24,16 +25,15 @@ declare modules=(
   network
   version
   ipc/message
-  ipc/data
   ipc/result
   ipc
   router
-  application
-  webview
-  window
   runtime
+  webview
   log
   process
+  application
+  window
   #ipc/bridge
 )
 

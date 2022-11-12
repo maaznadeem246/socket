@@ -4,7 +4,7 @@
 #include <socket/platform.hh>
 #include "application.hh"
 #include "codec.hh"
-#include "ipc/data.hh"
+#include "data.hh"
 #include "string.hh"
 #include "types.hh"
 #include "webview.hh"
@@ -12,7 +12,7 @@
 namespace ssc::core::window {
   using application::CoreApplication;
   using codec::encodeURIComponent;
-  using ipc::data::DataManager;
+  using data::CoreDataManager;
   using string::String;
   using string::trim;
   using types::ExitCallback;
@@ -68,7 +68,7 @@ namespace ssc::core::window {
     Map appData;
     MessageCallback onMessage = [](const String) {};
     ExitCallback onExit = nullptr;
-    DataManager* dataManager = nullptr;
+    CoreDataManager* dataManager = nullptr;
   };
 
   #if defined(_WIN32)
@@ -126,18 +126,13 @@ namespace ssc::core::window {
       CoreWindowOptions opts;
       CoreWindowInternals *internals = nullptr;
       CoreWebView* webview = nullptr;
-      DataManager* dataManager = nullptr;
+      CoreDataManager* dataManager = nullptr;
 
       MessageCallback onMessage = [](const String) {};
       ExitCallback onExit = nullptr;
       int index = 0;
 
       /*
-#if defined(__APPLE__)
-#if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-      NSWindow* window;
-#endif
-      SSCBridgedWebView* webview;
 #elif defined(__linux__) && !defined(__ANDROID__)
       GtkSelectionData *selectionData = nullptr;
       GtkAccelGroup *accelGroup = nullptr;

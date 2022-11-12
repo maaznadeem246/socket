@@ -3,8 +3,8 @@
 
 #include <socket/platform.hh>
 
+#include "data.hh"
 #include "headers.hh"
-#include "ipc/data.hh"
 #include "ipc/message.hh"
 #include "string.hh"
 #include "types.hh"
@@ -24,7 +24,7 @@ namespace ssc::core::webview {
   using namespace string;
   using namespace types;
   using namespace ipc::message;
-  using namespace ipc::data;
+  using namespace data;
 
   using CoreSchemeResponseStatusCode = unsigned int;
   using CoreSchemeResponseHeaders = Headers;
@@ -91,13 +91,13 @@ namespace ssc::core::webview {
     public:
       String scheme;
       CoreSchemeRequestCallback onSchemeRequestCallback;
-      DataManager* dataManager;
+      CoreDataManager* coreDataManager;
       void* internal = nullptr;
 
       CoreSchemeHandler () = default;
       CoreSchemeHandler (
         const String& scheme,
-        DataManager* dataManager,
+        CoreDataManager* coreDataManager,
         CoreSchemeRequestCallback onSchemeRequestCallback
       );
 
@@ -125,7 +125,7 @@ namespace ssc::core::webview {
       CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback;
       CoreIPCSchemeHandler () = default;
       CoreIPCSchemeHandler (
-        DataManager* dataManager,
+        CoreDataManager* coreDataManager,
         CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
       );
 
@@ -167,14 +167,13 @@ namespace ssc::core::webview {
 
   class CoreWebView {
     public:
-      CoreIPCSchemeHandler* ipcSchemeHandler = nullptr;
       CoreWebViewInternals* internals = nullptr;
-      CoreWindow* window = nullptr;
-      DataManager* dataManager = nullptr;
+      CoreWindow* coreWindow = nullptr;
+      CoreDataManager* coreDataManager = nullptr;
 
       CoreWebView (
-        CoreWindow* window,
-        DataManager* dataManager,
+        CoreWindow* coreWindow,
+        CoreDataManager* coreDataManager,
         CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
       );
 

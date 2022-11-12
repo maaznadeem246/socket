@@ -65,5 +65,4 @@ namespace ssc::core::config {
       }
   };
 }
-
 #endif

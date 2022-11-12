@@ -73,6 +73,8 @@ void signalHandler (int signal) {
 // which on windows is hInstance, on mac and linux this is just an int.
 //
 MAIN {
+  ssc::settings::init();
+
   Application app(instanceId);
   WindowFactory windowFactory(app);
 
@@ -81,10 +83,12 @@ MAIN {
   //
   // SSC_SETTINGS and DEBUG are compile time variables provided by the compiler.
   //
-  constexpr auto _settings = STR_VALUE(SSC_SETTINGS);
+  //constexpr auto _settings = STR_VALUE(SSC_SETTINGS);
+  const auto _settings = ssc::settings::getSourceString();
   constexpr auto _debug = DEBUG;
   constexpr auto _port = PORT;
 
+  printf("%s\n", _settings);
   const String OK_STATE = "0";
   const String ERROR_STATE = "1";
   const String EMPTY_SEQ = String("");

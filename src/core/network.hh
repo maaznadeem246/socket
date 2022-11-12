@@ -7,7 +7,7 @@
 namespace ssc::core::network {
   using namespace types;
 
-  using NetworkStatusChangeCallback = std::function<void(
+  using NetworkStatusChangeCallback = Function<void(
     const String& statusName,
     const String& statusMessage
   )>;
@@ -24,7 +24,5 @@ namespace ssc::core::network {
         const String& statusMessage
       ) const;
   };
-#if !defined(SSC_INLINE_INCLUDE)
 }
-#endif
 #endif

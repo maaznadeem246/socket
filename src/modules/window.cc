@@ -10,6 +10,7 @@ import ssc.application;
 import ssc.webview;
 import ssc.string;
 import ssc.codec;
+import ssc.data;
 import ssc.types;
 import ssc.env;
 import ssc.ipc;
@@ -17,7 +18,7 @@ import ssc.ipc;
 using namespace ssc::types;
 using ssc::application::Application;
 using ssc::codec::encodeURIComponent;
-using ssc::ipc::DataManager;
+using ssc::data::DataManager;
 using ssc::string::split;
 using ssc::string::String;
 using ssc::string::trim;
@@ -36,7 +37,7 @@ export namespace ssc::window {
 
   class Window : public CoreWindow {
     public:
-      Window (Application& app, WindowOptions opts)
+      Window (Application& app, const WindowOptions opts)
         : CoreWindow(app, opts, onIPCSchemeRequestRouteCallback) {
       }
   };

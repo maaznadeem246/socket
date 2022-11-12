@@ -2,6 +2,7 @@
 #define SSC_CORE_APPLICATION_H
 
 #include "config.hh"
+#include "data.hh"
 #include "string.hh"
 #include "types.hh"
 
@@ -9,6 +10,7 @@ namespace ssc::core::application {
   using namespace string;
   using namespace types;
   using config::Config;
+  using data::CoreDataManager;
 
   struct Callbacks {
     ExitCallback onExit = nullptr;
@@ -21,9 +23,12 @@ namespace ssc::core::application {
       static inline AtomicBool isReady = false;
 
       AtomicBool exitWasRequested = false;
+      // FIXME(jwerle): use 'SSC_CLI' env var instead of `wasStartedFromCli` boolean
       AtomicBool wasStartedFromCli = false;
       Callbacks callbacks;
-      Config appData;
+      CoreDataManager dataManager;
+      Config appData; // FIXME(jwerle): use 'config` instead of `appData`
+      Config config;
 
       CoreApplication ();
 
@@ -50,6 +55,7 @@ namespace ssc::core::application {
       }
   };
 
+  // FIXME(jwerle): move this to globa headers
 #if defined(_WIN32)
   extern FILE* console;
 #endif

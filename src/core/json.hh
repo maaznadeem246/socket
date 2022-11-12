@@ -5,7 +5,6 @@
 #include "types.hh"
 
 namespace ssc::core::JSON {
-
   // forward
   class Any;
   class Null;
@@ -535,5 +534,4 @@ namespace ssc::core::JSON {
     return "";
   }
 }
-
 #endif

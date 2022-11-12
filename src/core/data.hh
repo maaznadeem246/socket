@@ -1,15 +1,15 @@
-#ifndef SSC_CORE_IPC_DATA_HH
-#define SSC_CORE_IPC_DATA_HH
+#ifndef SSC_CORE_DATA_HH
+#define SSC_CORE_DATA_HH
 
 #include <socket/platform.hh>
-#include "../headers.hh"
-#include "../javascript.hh"
-#include "../json.hh"
-#include "../string.hh"
-#include "../types.hh"
-#include "../utils.hh"
+#include "headers.hh"
+#include "javascript.hh"
+#include "json.hh"
+#include "string.hh"
+#include "types.hh"
+#include "utils.hh"
 
-namespace ssc::core::ipc::data {
+namespace ssc::core::data {
   using headers::Headers;
   using string::String;
   using string::trim;
@@ -19,7 +19,7 @@ namespace ssc::core::ipc::data {
   using types::Vector;
   using utils::rand64;
 
-  struct Data {
+  struct CoreData {
     uint64_t id = 0;
     uint64_t ttl = 0;
     char *body = nullptr;
@@ -28,29 +28,29 @@ namespace ssc::core::ipc::data {
     bool bodyNeedsFree = false;
   };
 
-  class DataManager {
+  class CoreDataManager {
     public:
-      using Entries = std::map<uint64_t, Data>;
+      using Entries = std::map<uint64_t, CoreData>;
       SharedPointer<Entries> entries;
       Mutex mutex;
 
-      DataManager () {
+      CoreDataManager () {
         this->entries = SharedPointer<Entries>(new Entries());
       }
 
-      DataManager (const DataManager& dataManager) = delete;
+      CoreDataManager (const CoreDataManager& dataManager) = delete;
 
-      Data get (uint64_t id) {
+      CoreData get (uint64_t id) {
         Lock lock(this->mutex);
 
         if (this->entries->find(id) == this->entries->end()) {
-          return Data{};
+          return CoreData{};
         }
 
         return this->entries->at(id);
       }
 
-      void put (uint64_t id, Data& data) {
+      void put (uint64_t id, CoreData& data) {
         Lock lock(this->mutex);
         data.ttl = std::chrono::time_point_cast<std::chrono::milliseconds>(
           std::chrono::system_clock::now() +
@@ -114,11 +114,11 @@ namespace ssc::core::ipc::data {
         }
       }
 
-      String create (const String& seq, const JSON::Any& json, Data& data) {
+      String create (const String& seq, const JSON::Any& json, CoreData& data) {
         return this->create(seq, json.str(), data);
       }
 
-      String create (const String& seq, const String& params, Data& data) {
+      String create (const String& seq, const String& params, CoreData& data) {
         Lock lock(this->mutex);
 
         if (data.id == 0) {

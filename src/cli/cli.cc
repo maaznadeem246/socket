@@ -1008,7 +1008,8 @@ int main (const int argc, const char* argv[]) {
       flags += " -fprebuilt-module-path=" + prefixFile("modules");
       flags += " " + getCxxFlags();
 
-      files += prefixFile("src/desktop/main.cc");
+      files += prefixFile("src/settings.cc");
+      files += prefixFile("build/main.o");
 
       fs::path pathBase = "Contents";
       pathResources = { paths.pathPackage / pathBase / "Resources" };

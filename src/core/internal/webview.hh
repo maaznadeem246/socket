@@ -47,15 +47,22 @@ namespace ssc::core::webview {
   class CoreWebViewInternals {
     public:
       CoreWebView* coreWebView = nullptr;
+      CoreWindow* coreWindow = nullptr;
+      CoreIPCSchemeHandler* coreIPCSchemeHandler = nullptr;
     #if defined(__APPLE__)
       CoreWKWebView* webview = nullptr; // aka WKWebView
       WKUserContentController* controller = nullptr;
       WKWebViewConfiguration* configuration = nullptr;
       WKPreferences* preferences = nullptr;
       CoreNavigationDelegate* navigationDelegate = nullptr;
-      CoreWindow* window = nullptr;
     #endif
-      CoreWebViewInternals (CoreWebView* coreWebView, CoreWindow* window);
+      CoreWebViewInternals (
+        CoreWebView* coreWebView,
+        CoreWindow* coreWindow,
+        CoreDataManager* coreDataManager,
+        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+      );
+
       ~CoreWebViewInternals ();
   };
 }

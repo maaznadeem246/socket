@@ -12,7 +12,7 @@ module;
 export module ssc.router;
 import ssc.ipc.message;
 import ssc.ipc.result;
-import ssc.ipc.data;
+import ssc.data;
 
 import ssc.javascript;
 import ssc.network;
@@ -22,35 +22,28 @@ import ssc.utils;
 import ssc.codec;
 import ssc.json;
 
-using ssc::ipc::data::Data;
-using ssc::ipc::data::DataManager;
+using ssc::codec::encodeURIComponent;
+using ssc::data::Data;
+using ssc::data::DataManager;
 using ssc::ipc::message::Message;
 using ssc::ipc::message::MessageBuffer;
 using ssc::ipc::result::Result;
-
 using ssc::javascript::getEmitToRenderProcessJavaScript;
 using ssc::javascript::getResolveToRenderProcessJavaScript;
-
-using ssc::codec::encodeURIComponent;
 using ssc::network::NetworkStatusObserver;
 
-using ssc::string::String;
-
-using ssc::types::Lock;
-using ssc::types::Mutex;
-using ssc::types::SharedPointer;
-using ssc::types::Vector;
+using namespace ssc::types;
 
 export namespace ssc::router {
   // forward
   class Router;
 
-  using EvaluateJavaScriptCallback = std::function<void(const String)>;
-  using DispatchFunction = std::function<void()>;
-  using DispatchCallback = std::function<void(DispatchFunction)>;
-  using ReplyCallback = std::function<void(const Result&)>;
-  using ResultCallback = std::function<void(Result)>;
-  using MessageCallback = std::function<void(const Message, Router*, ReplyCallback)>;
+  using EvaluateJavaScriptCallback = Function<void(const String)>;
+  using DispatchFunction = Function<void()>;
+  using DispatchCallback = Function<void(DispatchFunction)>;
+  using ReplyCallback = Function<void(const Result&)>;
+  using ResultCallback = Function<void(Result)>;
+  using MessageCallback = Function<void(const Message, Router*, ReplyCallback)>;
   using BufferMap = std::map<String, MessageBuffer>;
 
   struct MessageCallbackContext {

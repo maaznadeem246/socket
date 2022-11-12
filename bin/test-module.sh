@@ -16,7 +16,12 @@ function main () {
   echo "# running tests"
   cd "$root/build"
   while (( $# > 0 )); do
-    declare source="$root/$1"; shift
+    declare source="$1"; shift
+
+    if ! test -f "$source"; then
+      source="$root/$source"
+    fi
+
     declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
     declare output="$module_tests_path/$filename"
 

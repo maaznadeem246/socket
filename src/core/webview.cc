@@ -80,9 +80,17 @@ class LinuxCoreWebView {
 namespace ssc::core::webview {
   CoreWebViewInternals::CoreWebViewInternals (
     CoreWebView* coreWebView,
-    CoreWindow* window
+    CoreWindow* coreWindow,
+    CoreDataManager* coreDataManager,
+    CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
   ) {
     this->coreWebView = coreWebView;
+    this->coreWindow = coreWindow;
+    this->coreIPCSchemeHandler = new CoreIPCSchemeHandler(
+      coreDataManager,
+      onIPCSchemeRequestRouteCallback
+    );
+
   #if defined(__APPLE__)
     this->configuration = [WKWebViewConfiguration new];
     // https://webkit.org/blog/10882/app-bound-domains/
@@ -110,9 +118,8 @@ namespace ssc::core::webview {
     ];
 
     [this->webview setNavigationDelegate: this->navigationDelegate];
-    auto schemeHandler = (::CoreSchemeHandler*) coreWebView->ipcSchemeHandler->internal;
     [this->configuration
-      setURLSchemeHandler: schemeHandler
+      setURLSchemeHandler: (::CoreSchemeHandler*) this->coreIPCSchemeHandler->internal
              forURLScheme: @"ipc"
     ];
 
@@ -147,6 +154,10 @@ namespace ssc::core::webview {
       this->webview = nullptr;
     }
 
+    if (this->coreIPCSchemeHandler != nullptr) {
+      delete this->coreIPCSchemeHandler;
+    }
+
     // @TODO(jwerle): determine if/how these are released
     this->controller = nullptr;
     this->configuration = nullptr;
@@ -155,16 +166,16 @@ namespace ssc::core::webview {
   }
 
   CoreWebView::CoreWebView (
-    CoreWindow* window,
-    DataManager* dataManager,
+    CoreWindow* coreWindow,
+    CoreDataManager* coreDataManager,
     CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
   ) {
-    this->window = window;
-    this->internals = new CoreWebViewInternals(this, window);
-    this->dataManager = dataManager;
-
-    this->ipcSchemeHandler = new CoreIPCSchemeHandler(
-      dataManager,
+    this->coreDataManager = coreDataManager;
+    this->coreWindow = coreWindow;
+    this->internals = new CoreWebViewInternals(
+      this,
+      coreWindow,
+      coreDataManager,
       onIPCSchemeRequestRouteCallback
     );
   }
@@ -172,10 +183,6 @@ namespace ssc::core::webview {
   CoreWebView::~CoreWebView () {
     if (this->internals != nullptr) {
       delete this->internals;
-    }
-
-    if (this->ipcSchemeHandler != nullptr) {
-      delete this->ipcSchemeHandler;
     }
   }
 
@@ -196,11 +203,11 @@ namespace ssc::core::webview {
 
   CoreSchemeHandler::CoreSchemeHandler (
     const String& scheme,
-    DataManager* dataManager,
+    CoreDataManager* coreDataManager,
     CoreSchemeRequestCallback onSchemeRequestCallback
   ) {
     this->scheme = scheme;
-    this->dataManager = dataManager;
+    this->coreDataManager = coreDataManager;
     this->onSchemeRequestCallback = onSchemeRequestCallback;
 
     #if defined(__APPLE__)
@@ -293,9 +300,9 @@ namespace ssc::core::webview {
   }
 
   CoreIPCSchemeHandler::CoreIPCSchemeHandler (
-    DataManager* dataManager,
+    CoreDataManager* coreDataManager,
     CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
-  ) : CoreSchemeHandler("ipc", dataManager, nullptr) {
+  ) : CoreSchemeHandler("ipc", coreDataManager, nullptr) {
     this->onIPCSchemeRequestRouteCallback = onIPCSchemeRequestRouteCallback;
   }
 
@@ -321,7 +328,7 @@ namespace ssc::core::webview {
       } else {
         try {
           auto id = std::stoull(message.get("id"));
-          if (!this->dataManager->has(id)) {
+          if (!this->coreDataManager->has(id)) {
             response.body.json = JSON::Object::Entries {
               {"source", "data"},
               {"err", JSON::Object::Entries {
@@ -331,7 +338,7 @@ namespace ssc::core::webview {
             };
           }
 
-          auto data = this->dataManager->get(id);
+          auto data = this->coreDataManager->get(id);
           response.body.bytes = data.body;
           response.body.size = data.length;
           response.headers = data.headers;
@@ -340,7 +347,7 @@ namespace ssc::core::webview {
             NSTimeInterval timeout = 0.16;
             auto block = ^(NSTimer* timer) {
               dispatch_async(dispatch_get_main_queue(), ^{
-                this->dataManager->remove(id);
+                this->coreDataManager->remove(id);
               });
             };
 

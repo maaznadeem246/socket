@@ -25,7 +25,6 @@ import ssc.ipc;
 import ssc.dns;
 
 using ssc::dns::DNS;
-using ssc::ipc::data::DataManager;
 using ssc::loop::Loop;
 using ssc::string::String;
 using ssc::types::SharedPointer;
@@ -33,14 +32,13 @@ using ssc::types::SharedPointer;
 export namespace ssc::runtime {
   class Runtime {
     public:
-      SharedPointer<DataManager> dataManager;
       Loop loop;
       DNS dns;
 
-      ~Runtime () = default;
+      Runtime (const Runtime&) = delete;
       Runtime () : dns(this->loop) {
-        this->dataManager = SharedPointer<DataManager>(new DataManager());
       }
+      ~Runtime () = default;
 
       void start () {
         this->loop.init();

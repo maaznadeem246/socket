@@ -106,10 +106,22 @@ function _build_core {
  "$root/bin/build-core-library.sh"
 }
 
+function _build_desktop_main () {
+  echo "# precompiling main program for desktop"
+  local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
+
+  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} \
+    -c "$root/src/desktop/main.cc"               \
+    -o "$ASSETS_DIR/build/main.o"
+
+  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  echo "ok - precompiled main program for desktop"
+}
+
 function _build_modules {
   echo "# building modules library"
   # build directly to the output assets directory for correct module file paths
-  BUILD_DIR=$ASSETS_DIR "$root/bin/build-modules-library.sh"
+  "$root/bin/build-modules-library.sh"
 }
 
 function _build_library {
@@ -142,6 +154,7 @@ function _prepare {
 function _install {
   echo "# copying sources to $ASSETS_DIR/src"
   cp -r "$WORK_DIR"/src/* "$ASSETS_DIR/src"
+  cp -fr "$BUILD_DIR"/desktop "$ASSETS_DIR/src/desktop"
 
   echo "# copying libraries to $ASSETS_DIR/lib"
   rm -rf "$ASSETS_DIR/lib"
@@ -151,6 +164,11 @@ function _install {
   rm -rf "$ASSETS_DIR/include"
   mkdir -p "$ASSETS_DIR/include"
   cp -rf "$WORK_DIR"/include/* $ASSETS_DIR/include
+
+  echo "# copying modules to $ASSETS_DIR/lib"
+  rm -rf "$ASSETS_DIR/modules"
+  mkdir -p "$ASSETS_DIR/modules"
+  cp -fr "$BUILD_DIR"/modules/* "$ASSETS_DIR/modules"
 
   if [ -z "$TEST" ]; then
     local binDest="/usr/local/bin/ssc"
@@ -314,8 +332,9 @@ echo "ok - copied headers"
 cd $WORK_DIR
 
 cd "$BUILD_DIR"
-export BUILD_DIR
+#export BUILD_DIR
 _build_core
 _build_modules
+_build_desktop_main
 _build_cli
 _install
