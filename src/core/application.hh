@@ -23,11 +23,9 @@ namespace ssc::core::application {
       static inline AtomicBool isReady = false;
 
       AtomicBool exitWasRequested = false;
-      // FIXME(jwerle): use 'SSC_CLI' env var instead of `wasStartedFromCli` boolean
       AtomicBool wasStartedFromCli = false;
       Callbacks callbacks;
       CoreDataManager dataManager;
-      Config appData; // FIXME(jwerle): use 'config` instead of `appData`
       Config config;
 
       CoreApplication ();
@@ -48,16 +46,11 @@ namespace ssc::core::application {
 
       void setWindowFactory (void *windowFactory) {
         this->windowFactory = windowFactory;
-      }
 
+      }
       void * getWindowFactory () const {
         return this->windowFactory;
       }
   };
-
-  // FIXME(jwerle): move this to globa headers
-#if defined(_WIN32)
-  extern FILE* console;
-#endif
 }
 #endif

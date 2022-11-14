@@ -5,12 +5,13 @@ import ssc.webview;
 import ssc.string;
 import ssc.types;
 import ssc.json;
+import ssc.data;
 import ssc.ipc;
 import ssc.log;
 
 #include <new>
 
-using namespace ssc::ipc::data;
+using namespace ssc::data;
 using namespace ssc::types;
 using namespace ssc::webview;
 

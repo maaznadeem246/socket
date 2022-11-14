@@ -1,5 +1,5 @@
 module; // global
-#include "../platform.hh"
+#include <socket/platform.hh>
 
 /**
  * @module ssc.os
@@ -12,164 +12,163 @@ module; // global
  * }
  */
 export module ssc.os;
-import ssc.context;
-import ssc.runtime;
+import ssc.string;
+import ssc.types;
 import ssc.json;
+import ssc.loop;
+import ssc.data;
+import ssc.utils;
 import ssc.uv;
 
-using Context = ssc::context::Context;
+using namespace ssc::data;
+using namespace ssc::loop;
+using namespace ssc::string;
+using namespace ssc::types;
+using namespace ssc::utils;
 
 export namespace ssc::os {
   const int RECV_BUFFER = 1;
   const int SEND_BUFFER = 0;
 
-  class OS : public Context {
+  class OS {
     public:
-      OS (auto runtime) : Context(runtime) {}
+      using Callback = std::function<void(String, JSON::Any, Data)>;
+
+      Loop& loop;
+      OS (Loop& loop) : loop(loop) {}
       void bufferSize (
         const String seq,
         uint64_t peerId,
         size_t size,
         int buffer,
-        Context::Callback cb
-      );
-      void networkInterfaces (const String seq, Context::Callback cb) const;
-  };
+        Callback callback
+      ) {
+        if (buffer < 0) {
+          buffer = SEND_BUFFER;
+        } else if (buffer > 1) {
+          buffer = RECV_BUFFER;
+        }
 
-  void OS::networkInterfaces (
-    const String seq,
-    Context::Callback cb
-  ) const {
-    uv_interface_address_t *infos = nullptr;
-    StringStream value;
-    StringStream v4;
-    StringStream v6;
-    int count = 0;
+        this->loop.dispatch([=, this]() {
+          // FIXME
+          auto peer = this->runtime->getPeer(peerId);
 
-    int rc = uv_interface_addresses(&infos, &count);
+          if (peer == nullptr) {
+            auto json = JSON::Object::Entries {
+              {"source", "bufferSize"},
+              {"err", JSON::Object::Entries {
+                {"id", std::to_string(peerId)},
+                {"code", "NOT_FOUND_ERR"},
+                {"type", "NotFoundError"},
+                {"message", "No peer with specified id"}
+              }}
+            };
 
-    if (rc != 0) {
-      auto json = JSON::Object(JSON::Object::Entries {
-        {"source", "os.networkInterfaces"},
-        {"err", JSON::Object::Entries {
-          {"type", "InternalError"},
-          {"message",
-            String("Unable to get network interfaces: ") + String(uv_strerror(rc))
+            callback(seq, json, Data{});
+            return;
           }
-        }}
-      });
 
-      return cb(seq, json, Post{});
-    }
+          Lock lock(peer->mutex);
+          auto handle = (uv_handle_t*) &peer->handle;
+          auto err = buffer == RECV_BUFFER
+            ? uv_recv_buffer_size(handle, (int *) &size)
+            : uv_send_buffer_size(handle, (int *) &size);
 
-    JSON::Object::Entries ipv4;
-    JSON::Object::Entries ipv6;
-    JSON::Object::Entries data;
+          if (err < 0) {
+            auto json = JSON::Object::Entries {
+              {"source", "bufferSize"},
+              {"err", JSON::Object::Entries {
+                {"id", std::to_string(peerId)},
+                {"code", "NOT_FOUND_ERR"},
+                {"type", "NotFoundError"},
+                {"message", String(uv_strerror(err))}
+              }}
+            };
 
-    for (int i = 0; i < count; ++i) {
-      uv_interface_address_t info = infos[i];
-      struct sockaddr_in *addr = (struct sockaddr_in*) &info.address.address4;
-      char mac[18] = {0};
-      snprintf(mac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
-        (unsigned char) info.phys_addr[0],
-        (unsigned char) info.phys_addr[1],
-        (unsigned char) info.phys_addr[2],
-        (unsigned char) info.phys_addr[3],
-        (unsigned char) info.phys_addr[4],
-        (unsigned char) info.phys_addr[5]
-      );
+            callback(seq, json, Data{});
+            return;
+          }
 
-      if (addr->sin_family == AF_INET) {
-        JSON::Object::Entries entries;
-        entries["internal"] = info.is_internal == 0 ? "false" : "true";
-        entries["address"] = addrToIPv4(addr);
-        entries["mac"] = String(mac, 17);
-        ipv4[String(info.name)] = entries;
+          auto json = JSON::Object::Entries {
+            {"source", "bufferSize"},
+            {"data", JSON::Object::Entries {
+              {"id", std::to_string(peerId)},
+              {"size", (int) size}
+            }}
+          };
+
+          callback(seq, json, Data{});
+        });
       }
 
-      if (addr->sin_family == AF_INET6) {
-        JSON::Object::Entries entries;
-        entries["internal"] = info.is_internal == 0 ? "false" : "true";
-        entries["address"] = addrToIPv6((struct sockaddr_in6*) addr);
-        entries["mac"] = String(mac, 17);
-        ipv6[String(info.name)] = entries;
-      }
-    }
+      void networkInterfaces (const String seq, Callback callback) const {
+        uv_interface_address_t *infos = nullptr;
+        StringStream value;
+        StringStream v4;
+        StringStream v6;
+        int count = 0;
 
-    uv_free_interface_addresses(infos, count);
+        int rc = uv_interface_addresses(&infos, &count);
 
-    data["ipv4"] = ipv4;
-    data["ipv6"] = ipv6;
+        if (rc != 0) {
+          auto json = JSON::Object(JSON::Object::Entries {
+            {"source", "os.networkInterfaces"},
+            {"err", JSON::Object::Entries {
+              {"type", "InternalError"},
+              {"message",
+                String("Unable to get network interfaces: ") + String(uv_strerror(rc))
+              }
+            }}
+          });
 
-    auto json = JSON::Object::Entries {
-      {"source", "os.networkInterfaces"},
-      {"data", data}
-    };
+          return callback(seq, json, Data{});
+        }
 
-    cb(seq, json, Post{});
-  }
+        JSON::Object::Entries ipv4;
+        JSON::Object::Entries ipv6;
+        JSON::Object::Entries data;
 
-  void OS::bufferSize (
-    const String seq,
-    uint64_t peerId,
-    size_t size,
-    int buffer,
-    Context::Callback cb
-  ) {
-    if (buffer < 0) {
-      buffer = SEND_BUFFER;
-    } else if (buffer > 1) {
-      buffer = RECV_BUFFER;
-    }
+        for (int i = 0; i < count; ++i) {
+          uv_interface_address_t info = infos[i];
+          struct sockaddr_in *addr = (struct sockaddr_in*) &info.address.address4;
+          char mac[18] = {0};
+          snprintf(mac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
+            (unsigned char) info.phys_addr[0],
+            (unsigned char) info.phys_addr[1],
+            (unsigned char) info.phys_addr[2],
+            (unsigned char) info.phys_addr[3],
+            (unsigned char) info.phys_addr[4],
+            (unsigned char) info.phys_addr[5]
+          );
 
-    this->runtime->loop.dispatch([=, this]() {
-      auto peer = this->runtime->getPeer(peerId);
+          if (addr->sin_family == AF_INET) {
+            JSON::Object::Entries entries;
+            entries["internal"] = info.is_internal == 0 ? "false" : "true";
+            entries["address"] = addrToIPv4(addr);
+            entries["mac"] = String(mac, 17);
+            ipv4[String(info.name)] = entries;
+          }
 
-      if (peer == nullptr) {
+          if (addr->sin_family == AF_INET6) {
+            JSON::Object::Entries entries;
+            entries["internal"] = info.is_internal == 0 ? "false" : "true";
+            entries["address"] = addrToIPv6((struct sockaddr_in6*) addr);
+            entries["mac"] = String(mac, 17);
+            ipv6[String(info.name)] = entries;
+          }
+        }
+
+        uv_free_interface_addresses(infos, count);
+
+        data["ipv4"] = ipv4;
+        data["ipv6"] = ipv6;
+
         auto json = JSON::Object::Entries {
-          {"source", "bufferSize"},
-          {"err", JSON::Object::Entries {
-            {"id", std::to_string(peerId)},
-            {"code", "NOT_FOUND_ERR"},
-            {"type", "NotFoundError"},
-            {"message", "No peer with specified id"}
-          }}
+          {"source", "os.networkInterfaces"},
+          {"data", data}
         };
 
-        cb(seq, json, Post{});
-        return;
+        callback(seq, json, Data{});
       }
-
-      Lock lock(peer->mutex);
-      auto handle = (uv_handle_t*) &peer->handle;
-      auto err = buffer == RECV_BUFFER
-       ? uv_recv_buffer_size(handle, (int *) &size)
-       : uv_send_buffer_size(handle, (int *) &size);
-
-      if (err < 0) {
-        auto json = JSON::Object::Entries {
-          {"source", "bufferSize"},
-          {"err", JSON::Object::Entries {
-            {"id", std::to_string(peerId)},
-            {"code", "NOT_FOUND_ERR"},
-            {"type", "NotFoundError"},
-            {"message", String(uv_strerror(err))}
-          }}
-        };
-
-        cb(seq, json, Post{});
-        return;
-      }
-
-      auto json = JSON::Object::Entries {
-        {"source", "bufferSize"},
-        {"data", JSON::Object::Entries {
-          {"id", std::to_string(peerId)},
-          {"size", (int) size}
-        }}
-      };
-
-      cb(seq, json, Post{});
-    });
-  }
+  };
 }

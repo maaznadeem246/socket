@@ -43,6 +43,7 @@
   #endif
 #endif
 
+#include <exception>
 #include <string>
 #include "common.hh"
 

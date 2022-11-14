@@ -3,15 +3,17 @@
 
 #include <socket/platform.hh>
 #include "application.hh"
-#include "codec.hh"
+#include "config.hh"
 #include "data.hh"
 #include "string.hh"
 #include "types.hh"
+#include "utils.hh"
 #include "webview.hh"
 
 namespace ssc::core::window {
   using application::CoreApplication;
-  using codec::encodeURIComponent;
+  using utils::encodeURIComponent;
+  using config::Config;
   using data::CoreDataManager;
   using string::String;
   using string::trim;
@@ -65,7 +67,7 @@ namespace ssc::core::window {
     String argv = "";
     String preload = "";
     String env;
-    Map appData;
+    Config config;
     MessageCallback onMessage = [](const String) {};
     ExitCallback onExit = nullptr;
     CoreDataManager* dataManager = nullptr;
@@ -253,7 +255,7 @@ namespace ssc::core::window {
         "}                                                              \n";
     }
 
-    for (auto const &tuple : opts.appData) {
+    for (auto const &tuple : opts.config.entries) {
       auto key = trim(tuple.first);
       auto value = trim(tuple.second);
 

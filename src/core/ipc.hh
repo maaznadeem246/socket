@@ -1,14 +1,16 @@
-#ifndef SSC_CORE_IPC_MESSAGE_HH
-#define SSC_CORE_IPC_MESSAGE_HH
+#ifndef SSC_CORE_IPC_HH
+#define SSC_CORE_IPC_HH
 
 #include <socket/platform.hh>
-#include "../codec.hh"
-#include "../string.hh"
-#include "../types.hh"
+#include "data.hh"
+#include "utils.hh"
+#include "string.hh"
+#include "types.hh"
 
-namespace ssc::core::ipc::message {
+namespace ssc::core::ipc {
   using namespace types;
-  using codec::decodeURIComponent;
+  using data::CoreData;
+  using utils::decodeURIComponent;
   using string::split;
 
   struct MessageBuffer {
@@ -118,6 +120,104 @@ namespace ssc::core::ipc::message {
 
       const char * c_str () const {
         return this->uri.c_str();
+      }
+  };
+
+  struct Value {
+    data::CoreData data;
+    struct {
+      JSON::Any data;
+      JSON::Any err;
+      JSON::Any raw;
+    } json;
+  };
+
+  class Result {
+    public:
+      class Err {
+        public:
+          Message message;
+          Message::Seq seq;
+          JSON::Any json;
+          Err () = default;
+          Err (const Message& message, const JSON::Any& json) {
+            this->seq = message.seq;
+            this->message = message;
+            this->json = json;
+          }
+      };
+
+      class Data {
+        public:
+          Message message;
+          Message::Seq seq;
+          JSON::Any json;
+
+          Data () = default;
+          Data (const Message& message, const JSON::Any& json) {
+            this->seq = message.seq;
+            this->message = message;
+            this->json = json;
+          }
+      };
+
+      Message message;
+      Message::Seq seq;
+      String source = "";
+      Value value;
+
+      Result () = default;
+      Result (const Err& error) {
+        this->value.json.err = error.json;
+      }
+
+      Result (const Data& data) {
+        this->value.json.data = data.json;
+      }
+
+      Result (const Message::Seq& seq, const Message& message) {
+        this->message = message;
+        this->source = message.name;
+        this->seq = seq;
+      }
+
+      Result (
+        const Message::Seq& seq,
+        const Message& message,
+        JSON::Any json
+      ) : Result(seq, message, json, data::CoreData{}) {
+        // noop
+      }
+
+      Result (
+        const Message::Seq& seq,
+        const Message& message,
+        JSON::Any json,
+        CoreData data
+      ) : Result(seq, message) {
+        this->value.data = data;
+        if (json.type != JSON::Type::Any) {
+          this->value.json.raw = json;
+        }
+      }
+
+      auto str () const {
+        return this->json().str();
+      }
+
+      JSON::Any json () const {
+        // return result value if set explicitly
+        if (this->value.json.raw.type != JSON::Type::Null) {
+          return this->value.json.raw;
+        }
+
+        auto entries = JSON::Object::Entries {
+          {"source", this->source},
+          {"data", this->value.json.data},
+          {"err", this->value.json.err}
+        };
+
+        return JSON::Object(entries);
       }
   };
 }

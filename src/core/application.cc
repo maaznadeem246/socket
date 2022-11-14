@@ -8,6 +8,7 @@
 #endif
 
 #include "application.hh"
+#include "env.hh"
 #include "private.hh"
 #include "window/global.hh"
 
@@ -44,9 +45,7 @@ static inline void alert (const char* s) {
 
 namespace ssc::core::application {
   CoreApplication::CoreApplication () {
-  #if defined(__linux__)
-    gtk_init_check(0, nullptr);
-  #endif
+    this->wasStartedFromCli = env::has("SSC_CLI");
   }
 
 #if !defined(_WIN32)
@@ -56,10 +55,6 @@ namespace ssc::core::application {
 #else
   CoreApplication::CoreApplication (void *hInstance) : CoreApplication() {
     this->hInstance = hInstance; // HINSTANCE
-  #if DEBUG == 1
-    AllocConsole();
-    freopen_s(&console, "CONOUT$", "w", stdout);
-  #endif
 
     HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 

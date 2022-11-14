@@ -5,7 +5,7 @@
 
 #include "data.hh"
 #include "headers.hh"
-#include "ipc/message.hh"
+#include "ipc.hh"
 #include "string.hh"
 #include "types.hh"
 
@@ -23,7 +23,7 @@ namespace ssc::core::webview {
   using namespace headers;
   using namespace string;
   using namespace types;
-  using namespace ipc::message;
+  using namespace ipc;
   using namespace data;
 
   using CoreSchemeResponseStatusCode = unsigned int;
@@ -56,16 +56,19 @@ namespace ssc::core::webview {
     }
   };
 
-  struct CoreSchemeRequest {
-    String method;
-    String url;
-    CoreSchemeRequestBody body;
-    void *internal = nullptr;
+  class CoreSchemeRequest {
+    public:
+      String method;
+      String url;
+      String id;
+      CoreSchemeRequestBody body;
+      CoreSchemeResponse response;
+      void *internal = nullptr;
 
-    CoreSchemeRequest (const String url)
-      : CoreSchemeRequest("GET", url) { }
-    CoreSchemeRequest (const String method, const String url)
-      : CoreSchemeRequest(method, url, { nullptr, 0 }) { }
+      CoreSchemeRequest (const String url)
+        : CoreSchemeRequest("GET", url) { }
+      CoreSchemeRequest (const String method, const String url)
+        : CoreSchemeRequest(method, url, { nullptr, 0 }) { }
 
     CoreSchemeRequest (
       const String method,
@@ -75,15 +78,35 @@ namespace ssc::core::webview {
       this->method = method;
       this->url = url;
       this->body = body;
+      this->response.request = this;
     }
 
-    void end (const CoreSchemeResponse& response) const;
+    void end (
+      const CoreSchemeResponseStatusCode statusCode,
+      const CoreSchemeResponseHeaders headers,
+      const JSON::Any json
+    );
+
     void end (
       const CoreSchemeResponseStatusCode statusCode,
       const CoreSchemeResponseHeaders headers,
       const char* bytes,
       size_t size
-    ) const;
+    );
+
+    void end (
+      const CoreSchemeResponseStatusCode statusCode,
+      const CoreSchemeResponseHeaders headers,
+      const CoreSchemeResponseBody body
+    );
+
+    void end (
+      const CoreSchemeResponseStatusCode statusCode,
+      const CoreSchemeResponseHeaders headers,
+      const JSON::Any json,
+      const char* bytes,
+      size_t size
+    );
   };
 
   using CoreSchemeRequestCallback = Function<void(const CoreSchemeRequest&)>;
@@ -102,21 +125,26 @@ namespace ssc::core::webview {
       );
 
       ~CoreSchemeHandler();
-      void onSchemeRequest (const CoreSchemeRequest request);
+      void onSchemeRequest (CoreSchemeRequest& request);
+      void resolve (
+        const String& id,
+        const CoreSchemeResponseBody body
+      );
   };
 
-  struct CoreIPCSchemeRequest : public CoreSchemeRequest {
-    Message message;
-    CoreIPCSchemeRequest (const String url)
-      : CoreIPCSchemeRequest("GET", url) { }
-    CoreIPCSchemeRequest (const String method, const String url)
-      : CoreIPCSchemeRequest(method, url, { nullptr, 0 }) { }
-    CoreIPCSchemeRequest (
-      const String method,
-      const String url,
-      CoreSchemeRequestBody body
-    ) : CoreSchemeRequest(method, url, body), message(url) {
-    }
+  class CoreIPCSchemeRequest : public CoreSchemeRequest {
+    public:
+      Message message;
+      CoreIPCSchemeRequest (const String url)
+        : CoreIPCSchemeRequest("GET", url) {}
+      CoreIPCSchemeRequest (const String method, const String url)
+        : CoreIPCSchemeRequest(method, url, { nullptr, 0 }) {}
+
+      CoreIPCSchemeRequest (
+        const String method,
+        const String url,
+        CoreSchemeRequestBody body
+      ) : CoreSchemeRequest(method, url, body), message(url) {}
   };
 
   using CoreIPCSchemeRequestRouteCallback = Function<bool(const CoreIPCSchemeRequest&)>;
@@ -129,7 +157,7 @@ namespace ssc::core::webview {
         CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
       );
 
-      void onSchemeRequest (const CoreIPCSchemeRequest request);
+      void onSchemeRequest (CoreIPCSchemeRequest& request);
   };
 
   template <class CoreSchemeTask> class CoreSchemeTaskManager {
@@ -174,12 +202,11 @@ namespace ssc::core::webview {
       CoreWebView (
         CoreWindow* coreWindow,
         CoreDataManager* coreDataManager,
-        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
+        const javascript::Script preloadScript
       );
 
       ~CoreWebView ();
-
-      bool addPreloadScript (const javascript::Script script);
   };
 }
 #endif

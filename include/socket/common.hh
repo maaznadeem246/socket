@@ -8,8 +8,8 @@
 #define DEBUG 0
 #endif
 
-#ifndef SSC_SETTINGS
-#define SSC_SETTINGS ""
+#ifndef SSC_CONFIG
+#define SSC_CONFIG ""
 #endif
 
 #ifndef SSC_VERSION

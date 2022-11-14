@@ -60,21 +60,21 @@ namespace ssc::core::window {
                       defer: NO
     ];
 
-    [this->window setDelegate: this->delegate];
-
     // Position window in center of screen
-    [window center];
-    [window setOpaque: YES];
+    [this->window center];
+    [this->window setOpaque: YES];
     // Minimum window size
-    [window setContentMinSize: NSMakeSize(opts.width, opts.height)];
-    [window setBackgroundColor: [NSColor controlBackgroundColor]];
-    [window registerForDraggedTypes: draggableTypes];
-    // [window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
-    // [window setMovableByWindowBackground: true];
+    [this->window setContentMinSize: NSMakeSize(opts.width, opts.height)];
+    [this->window setBackgroundColor: [NSColor controlBackgroundColor]];
+    [this->window registerForDraggedTypes: draggableTypes];
+    // [this->window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
+    // [this->window setMovableByWindowBackground: true];
 
     if (opts.frameless) {
-      [window setTitlebarAppearsTransparent: true];
+      [this->window setTitlebarAppearsTransparent: true];
     }
+
+    [this->window setDelegate: this->delegate];
   }
 
   void CoreWindow::initialize ()  {
@@ -125,12 +125,6 @@ namespace ssc::core::window {
 
     bool exiting = false;
 
-    // Set delegate to window
-    [this->webview->internals->controller
-      addScriptMessageHandler: this->internals->delegate
-                         name: @"external"
-    ];
-
     if (!isDelegateSet) {
       isDelegateSet = true;
 
@@ -170,6 +164,7 @@ namespace ssc::core::window {
               }
 
               String msg = [body UTF8String];
+              printf("%s\n", msg.c_str());
 
               // if (bridge->route(msg, nullptr, 0)) return; // FIXME
               window->onMessage(msg);
@@ -219,7 +214,7 @@ namespace ssc::core::window {
     // Add webview to window
     [this->internals->window setContentView: this->webview->internals->webview];
 
-    navigate("0", opts.url);
+    navigate("", opts.url);
   }
 
   ScreenSize CoreWindow::getScreenSize () {
@@ -297,6 +292,7 @@ namespace ssc::core::window {
         ]
       ]
     ];
+    printf("navigate (%s) %s\n", seq.c_str(), value.c_str());
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);

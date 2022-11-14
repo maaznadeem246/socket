@@ -1,3 +1,4 @@
+#include <socket/config.hh>
 #include <wrl.h>
 #include <shellapi.h>
 #include "window.hh"
@@ -719,11 +720,12 @@ namespace SSC {
                   Settings->put_IsStatusBarEnabled(FALSE);
 
                   Settings->put_AreDefaultContextMenusEnabled(TRUE);
-                  #if DEBUG == 1
+
+                  if (ssc::config::isDebugEnabled()) {
                     Settings->put_AreDevToolsEnabled(TRUE);
-                  #else
+                  } else {
                     Settings->put_AreDevToolsEnabled(FALSE);
-                  #endif
+                  }
 
                   Settings->put_IsBuiltInErrorPageEnabled(FALSE);
                   Settings->put_IsZoomControlEnabled(FALSE);
@@ -1707,12 +1709,12 @@ namespace SSC {
       }
 
       case WM_CLOSE: {
-        #if DEBUG == 1
+        if (ssc::config::isDebugEnabled()) {
           if (w->opts.canExit) {
             fclose(console);
             FreeConsole();
           }
-        #endif
+        }
 
         w->close(0);
 

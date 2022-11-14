@@ -1,4 +1,5 @@
 module;
+#include "../core/application.hh"
 #include "../core/window.hh"
 
 /**
@@ -6,38 +7,41 @@ module;
  * @description Core platform agnostic Window APIs
  */
 export module ssc.window;
-import ssc.application;
-import ssc.webview;
-import ssc.string;
-import ssc.codec;
+import ssc.config;
 import ssc.data;
-import ssc.types;
 import ssc.env;
 import ssc.ipc;
+import ssc.log;
+import ssc.string;
+import ssc.types;
+import ssc.webview;
+import ssc.utils;
 
 using namespace ssc::types;
-using ssc::application::Application;
-using ssc::codec::encodeURIComponent;
+using namespace ssc::utils;
+using namespace ssc::string;
+
+using ssc::config::Config;
 using ssc::data::DataManager;
-using ssc::string::split;
-using ssc::string::String;
-using ssc::string::trim;
+
+using ssc::core::application::CoreApplication;
 
 export namespace ssc::window {
-  using ssc::core::window::CoreWindow; // NOLINT
-  using ssc::core::window::CoreWindowOptions; // NOLINT
+  using core::window::CoreWindow; // NOLINT
+  using core::window::CoreWindowOptions; // NOLINT
 
   constexpr auto& MAX_WINDOWS = ssc::core::window::MAX_WINDOWS;
 
   using WindowOptions = ssc::core::window::CoreWindowOptions;
 
   bool onIPCSchemeRequestRouteCallback (const webview::IPCSchemeRequest& request) {
+    // @TODO(jwerle) insert router
     return false;
   }
 
   class Window : public CoreWindow {
     public:
-      Window (Application& app, const WindowOptions opts)
+      Window (CoreApplication& app, const WindowOptions opts)
         : CoreWindow(app, opts, onIPCSchemeRequestRouteCallback) {
       }
   };
@@ -51,7 +55,7 @@ export namespace ssc::window {
     bool isTest;
     String argv = "";
     String cwd = "";
-    Map appData;
+    Config config;
     MessageCallback onMessage = [](const String) {};
     ExitCallback onExit = nullptr;
     DataManager* dataManager = nullptr;
@@ -83,7 +87,7 @@ export namespace ssc::window {
 
           WindowWithMetadata (
             WindowFactory &factory,
-            Application &app,
+            CoreApplication &app,
             WindowOptions opts
           ) : Window(app, opts) , factory(factory) { }
 
@@ -148,26 +152,24 @@ export namespace ssc::window {
           }
       };
 
-    #if DEBUG
       std::chrono::system_clock::time_point lastDebugLogLine;
-    #endif
 
-      Application &app;
+      CoreApplication &app;
       bool destroyed = false;
       std::vector<bool> inits;
       std::vector<WindowWithMetadata*> windows;
       std::recursive_mutex mutex;
       WindowFactoryOptions options;
 
-      WindowFactory (Application &app) :
+      WindowFactory (CoreApplication &app) :
         app(app),
         inits(MAX_WINDOWS),
         windows(MAX_WINDOWS)
     {
-    #if DEBUG
+      if (ssc::config::isDebugEnabled()) {
         lastDebugLogLine = std::chrono::system_clock::now();
-    #endif
       }
+    }
 
       ~WindowFactory () {
         destroy();
@@ -192,7 +194,7 @@ export namespace ssc::window {
         this->options.isHeightInPercent = configuration.isHeightInPercent;
         this->options.isWidthInPercent = configuration.isWidthInPercent;
         this->options.onMessage = configuration.onMessage;
-        this->options.appData = configuration.appData;
+        this->options.config = configuration.config;
         this->options.onExit = configuration.onExit;
         this->options.headless = configuration.headless;
         this->options.isTest = configuration.isTest;
@@ -202,8 +204,7 @@ export namespace ssc::window {
       }
 
       void inline log (const String line) {
-      #if DEBUG
-        if (destroyed) return;
+        if (!ssc::config::isDebugEnabled() || destroyed) return;
         using namespace std::chrono;
         #ifdef _WIN32 // unicode console support
           // SetConsoleOutputCP(CP_UTF8);
@@ -212,13 +213,16 @@ export namespace ssc::window {
 
         auto now = system_clock::now();
         auto delta = duration_cast<milliseconds>(now - lastDebugLogLine).count();
+        StringStream stream;
 
-        std::cout << "• " << line;
-        std::cout << " \033[0;32m+" << delta << "ms\033[0m";
-        std::cout << std::endl;
+        stream << "• " << line;
+        stream << " \033[0;32m+";
+        stream << delta;
+        stream << "ms\033[0m";
+
+        log::info(stream);
 
         lastDebugLogLine = now;
-      #endif
       }
 
       Window* getWindow (int index, WindowStatus status) {
@@ -308,8 +312,8 @@ export namespace ssc::window {
           return reinterpret_cast<Window*>(windows[opts.index]);
         }
 
-        if (opts.appData.size() > 0) {
-          for (auto const &envKey : split(opts.appData["env"], ',')) {
+        if (opts.config.size() > 0) {
+          for (auto const &envKey : split(opts.config["env"], ',')) {
             auto cleanKey = trim(envKey);
             auto envValue = env::get(cleanKey);
 
@@ -318,7 +322,7 @@ export namespace ssc::window {
             );
           }
         } else {
-          for (auto const &envKey : split(this->options.appData["env"], ',')) {
+          for (auto const &envKey : split(this->options.config["env"], ',')) {
             auto cleanKey = trim(envKey);
             auto envValue = env::get(cleanKey);
 
@@ -343,31 +347,28 @@ export namespace ssc::window {
           .isHeightInPercent = isHeightInPercent,
           .isWidthInPercent = isWidthInPercent,
           .index = opts.index,
-        #if DEBUG
-          .debug = DEBUG || opts.debug,
-        #else
-          .debug = opts.debug,
-        #endif
+          .debug = ssc::config::isDebugEnabled() || opts.debug,
           .port = opts.port,
           .isTest = this->options.isTest,
-          .headless = this->options.headless || opts.headless || opts.appData["headless"] == "true",
-          .forwardConsole = opts.appData["linux_forward_console_to_stdout"] == "true",
+          .headless = this->options.headless || opts.headless || opts.config["headless"] == "true",
+          .forwardConsole = opts.config["linux_forward_console_to_stdout"] == "true",
 
           .cwd = this->options.cwd,
-          .executable = opts.appData["executable"],
-          .title = opts.title.size() > 0 ? opts.title : opts.appData["title"],
+          .executable = opts.config["executable"],
+          .title = opts.title.size() > 0 ? opts.title : opts.config["title"],
           .url = opts.url.size() > 0 ? opts.url : "data:text/html,<html>",
-          .version = "v" + opts.appData["version"],
+          .version = "v" + opts.config["version"],
           .argv = this->options.argv,
           .preload = opts.preload.size() > 0 ? opts.preload : "",
           .env = env.str(),
-          .appData = opts.appData.size() > 0 ? opts.appData : this->options.appData,
+          .config = opts.config.size() > 0 ? opts.config : this->options.config,
           .dataManager = opts.dataManager != nullptr ? opts.dataManager : this->options.dataManager
         };
 
-      #if DEBUG
-        this->log("Creating Window#" + std::to_string(opts.index));
-      #endif
+        if (ssc::config::isDebugEnabled()) {
+          this->log("Creating Window#" + std::to_string(opts.index));
+        }
+
         auto window = new WindowWithMetadata(*this, app, windowOptions);
 
         window->status = WindowStatus::WINDOW_CREATED;
@@ -388,10 +389,8 @@ export namespace ssc::window {
           .height = opts.height,
           .width = opts.width,
           .index = 0,
-        #ifdef PORT
-          .port = PORT,
-        #endif
-          .appData = opts.appData,
+          .port = ssc::config::getServerPort(),
+          .config = opts.config,
           .dataManager = opts.dataManager
         });
       }

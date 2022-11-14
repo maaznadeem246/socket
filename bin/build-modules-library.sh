@@ -14,27 +14,20 @@ declare modules=(
   env
   uv
   loop
-  ip
-  codec
   data
-  context
   dns
   headers
   platform
   templates
   network
   version
-  ipc/message
-  ipc/result
   ipc
-  router
   runtime
   webview
   log
   process
-  application
   window
-  #ipc/bridge
+  application
 )
 
 declare paths=()

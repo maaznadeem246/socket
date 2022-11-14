@@ -19,16 +19,17 @@ namespace ssc::core::window {
     const CoreWindowOptions opts,
     webview::CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
   ) : app(app), opts(opts)  {
+    // preload script for normalizing the interface to be cross-platform.
+    auto preloadScript = javascript::Script("preload.js", ToString(createPreload(opts)));
     this->internals = new CoreWindowInternals(opts);
     this->webview = new CoreWebView(
       this,
       opts.dataManager,
-      onIPCSchemeRequestRouteCallback
+      onIPCSchemeRequestRouteCallback,
+      preloadScript
     );
 
-    // Add preload script, normalizing the interface to be cross-platform.
-    auto preloadScript = javascript::Script("preload.js", ToString(createPreload(opts)));
-    this->webview->addPreloadScript(preloadScript);
+    this->initialize();
   }
 
   void CoreWindow::resolvePromise (

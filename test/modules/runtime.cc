@@ -1,5 +1,5 @@
+#include <socket/socket.hh>
 #include <assert.h>
-#include <new> // @TODO(jwerle): move this to `platform.hh` or similar
 
 import ssc.runtime;
 import ssc.json;
@@ -17,12 +17,21 @@ int main () {
   auto options = DNS::LookupOptions { "sockets.sh" };
   auto& dns = runtime.dns;
   dns.lookup(options, [&](auto seq, JSON::Any json, auto post) {
-    auto data = json.as<JSON::Object>().get("data").as<JSON::Object>();
-    auto family = data["family"].as<JSON::Number>();
-    auto address = data["address"].as<JSON::String>();
+    auto result = json.as<JSON::Object>();
 
-    assert(family.value() == 4 || family.value() == 6);;
-    assert(address.size() > 0);
+    if (result.has("data")) {
+      auto data = result.get("data").as<JSON::Object>();
+      auto family = data["family"].as<JSON::Number>();
+      auto address = data["address"].as<JSON::String>();
+
+      assert(family.value() == 4 || family.value() == 6);;
+      assert(address.size() > 0);
+    } else if (result.has("err")) {
+      auto err = result.get("err").as<JSON::Object>();
+      auto message = err.get("message");
+      log::error(message);
+    }
+
     lookupCalled = true;
     runtime.stop();
   });

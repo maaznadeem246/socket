@@ -5,7 +5,6 @@
 #include <new>
 
 import ssc.application;
-import ssc.codec;
 import ssc.config;
 import ssc.env;
 import ssc.ipc;
@@ -13,26 +12,25 @@ import ssc.javascript;
 import ssc.log;
 import ssc.process;
 import ssc.string;
+import ssc.utils;
 import ssc.window;
 
-using namespace ssc::string;
-using namespace ssc::codec;
+using namespace ssc::application;
+using namespace ssc::config;
 using namespace ssc::javascript;
+using namespace ssc::ipc;
 using namespace ssc::platform;
 using namespace ssc::process;
-
-using ssc::application::Application;
-using ssc::ipc::Message;
-using ssc::window::Window;
-using ssc::window::WindowFactory;
-using ssc::window::WindowFactoryOptions;
-using ssc::window::WindowOptions;
+using namespace ssc::string;
+using namespace ssc::utils;
+using namespace ssc::window;
 
 namespace env = ssc::env;
 namespace fs = std::filesystem;
 namespace log = ssc::log;
 
 const PlatformInfo platform;
+GlobalConfig config;
 
 //
 // A cross platform MAIN macro that
@@ -56,10 +54,6 @@ const PlatformInfo platform;
 #define InvalidWindowIndexError(index) \
   String("Invalid index given for window: ") + std::to_string(index)
 
-#ifndef PORT
-#define PORT 0
-#endif
-
 std::function<void(int)> shutdownHandler;
 void signalHandler (int signal) {
   if (shutdownHandler != nullptr) {
@@ -73,28 +67,16 @@ void signalHandler (int signal) {
 // which on windows is hInstance, on mac and linux this is just an int.
 //
 MAIN {
-  ssc::settings::init();
+  ssc::init(config);
 
   Application app(instanceId);
-  WindowFactory windowFactory(app);
 
-  app.setWindowFactory(&windowFactory);
-
-  //
-  // SSC_SETTINGS and DEBUG are compile time variables provided by the compiler.
-  //
-  //constexpr auto _settings = STR_VALUE(SSC_SETTINGS);
-  const auto _settings = ssc::settings::getSourceString();
-  constexpr auto _debug = DEBUG;
-  constexpr auto _port = PORT;
-
-  printf("%s\n", _settings);
   const String OK_STATE = "0";
   const String ERROR_STATE = "1";
   const String EMPTY_SEQ = String("");
 
   auto cwd = app.getCwd();
-  app.appData = decodeURIComponent(_settings);
+  app.config = config;
 
   String suffix = "";
 
@@ -110,7 +92,6 @@ MAIN {
 
   bool wantsVersion = false;
   bool wantsHelp = false;
-  bool fromSSC = false; // launched from the `ssc` cli
 
   // TODO right now we forward a json parsable string as the args but this
   // isn't the most robust way of doing this. possible a URI-encoded query
@@ -148,11 +129,6 @@ MAIN {
       isHeadless = true;
     }
 
-    if (s.find("--from-ssc") == 0) {
-      fromSSC = true;
-      app.wasStartedFromCli = true;
-    }
-
     if (s.find("--test") == 0) {
       suffix = "-test";
       isTest = true;
@@ -173,23 +149,23 @@ MAIN {
     }
   }
 
-  #if DEBUG == 1
-    app.appData["name"] += "-dev";
-    app.appData["title"] += "-dev";
-  #endif
+  if (ssc::config::isDebugEnabled()) {
+    app.config["name"] += "-dev";
+    app.config["title"] += "-dev";
+  }
 
-  app.appData["name"] += suffix;
-  app.appData["title"] += suffix;
+  app.config["name"] += suffix;
+  app.config["title"] += suffix;
 
-  argvForward << " --version=v" << app.appData["version"];
-  argvForward << " --name=" << app.appData["name"];
+  argvForward << " --version=v" << app.config["version"];
+  argvForward << " --name=" << app.config["name"];
 
-  #if DEBUG == 1
+  if (ssc::config::isDebugEnabled()) {
     argvForward << " --debug=1";
-  #endif
+  }
 
   StringStream env;
-  for (auto const &envKey : split(app.appData["env"], ',')) {
+  for (auto const &envKey : split(app.config["env"], ',')) {
     auto cleanKey = trim(envKey);
     auto envValue = env::get(cleanKey.c_str());
 
@@ -200,9 +176,9 @@ MAIN {
 
   String cmd;
   if (platform.os == "win32") {
-    cmd = app.appData["win_cmd"];
+    cmd = app.config["win_cmd"];
   } else {
-    cmd = app.appData[platform.os + "_cmd"];
+    cmd = app.config[platform.os + "_cmd"];
   }
 
   if (cmd[0] == '.') {
@@ -278,8 +254,8 @@ MAIN {
     return exitCode;
   }
 
-  String initialHeight = app.appData["height"].size() > 0 ? app.appData["height"] : "100%";
-  String initialWidth = app.appData["width"].size() > 0 ? app.appData["width"] : "100%";
+  String initialHeight = app.config["height"].size() > 0 ? app.config["height"] : "100%";
+  String initialWidth = app.config["width"].size() > 0 ? app.config["width"] : "100%";
 
   bool isHeightInPercent = initialHeight.back() == '%';
   bool isWidthInPercent = initialWidth.back() == '%';
@@ -294,7 +270,7 @@ MAIN {
   if (width < 0) width = 0;
 
   auto onStdErr = [&](auto err) {
-    for (auto& window : windowFactory.windows) {
+    for (auto window : app.windowFactory.windows) {
       if (window != nullptr) {
         window->eval(getEmitToRenderProcessJavaScript("process-error", err));
       }
@@ -341,8 +317,8 @@ MAIN {
       if (message.name == "show") {
         auto index = message.index < 0 ? 0 : message.index;
         auto options = WindowOptions {};
-        auto status = windowFactory.getWindowStatus(index);
-        auto window = windowFactory.getWindow(index);
+        auto status = app.windowFactory.getWindowStatus(index);
+        auto window = app.windowFactory.getWindow(index);
 
         options.title = message.get("title");
         options.url = message.get("url");
@@ -363,7 +339,7 @@ MAIN {
           options.debug = message.get("debug") == "true" ? true : false;
           options.index = index;
 
-          window = windowFactory.createWindow(options);
+          window = app.windowFactory.createWindow(options);
           window->show(seq);
         } else {
           window->show(seq);
@@ -386,10 +362,10 @@ MAIN {
         return;
       }
 
-      auto window = windowFactory.getOrCreateWindow(message.index);
+      auto window = app.windowFactory.getOrCreateWindow(message.index);
 
       if (!window) {
-        auto defaultWindow = windowFactory.getWindow(0);
+        auto defaultWindow = app.windowFactory.getWindow(0);
 
         if (defaultWindow) {
           window = defaultWindow;
@@ -511,7 +487,7 @@ MAIN {
       }
 
       if (message.name == "getConfig") {
-        window->resolvePromise(seq, OK_STATE, _settings);
+        window->resolvePromise(seq, OK_STATE, config.str());
         return;
       }
     });
@@ -524,7 +500,7 @@ MAIN {
     onStdOut,
     onStdErr,
     [&](String const &code) {
-      for (auto& window : windowFactory.windows) {
+      for (auto window : app.windowFactory.windows) {
         window->eval(getEmitToRenderProcessJavaScript("main-exit", code));
       }
     }
@@ -545,12 +521,12 @@ MAIN {
   auto onMessage = [&](auto out) {
     Message message(out);
 
-    auto window = windowFactory.getWindow(message.index);
+    auto window = app.windowFactory.getWindow(message.index);
     auto value = message.get("value");
 
     // the window must exist
     if (!window && message.index >= 0) {
-      auto defaultWindow = windowFactory.getWindow(0);
+      auto defaultWindow = app.windowFactory.getWindow(0);
 
       if (defaultWindow) {
         window = defaultWindow;
@@ -709,7 +685,7 @@ MAIN {
 
     if (message.name == "getConfig") {
       const auto seq = message.get("seq");
-      auto wrapped = ("\"" + String(_settings) + "\"");
+      auto wrapped = ("\"" + config.str() + "\"");
       window->resolvePromise(seq, OK_STATE, encodeURIComponent(wrapped));
       return;
     }
@@ -734,7 +710,8 @@ MAIN {
       auto pid = process->getPID();
       process->kill(pid);
     }
-    windowFactory.destroy();
+
+    app.windowFactory.destroy();
     app.kill();
 
     exit(code);
@@ -742,7 +719,7 @@ MAIN {
 
   app.callbacks.onExit = shutdownHandler;
 
-  windowFactory.configure(WindowFactoryOptions {
+  app.windowFactory.configure(WindowFactoryOptions {
     .defaultHeight = height,
     .defaultWidth = width,
     .isHeightInPercent = isHeightInPercent,
@@ -751,20 +728,21 @@ MAIN {
     .isTest = isTest,
     .argv = argvArray.str(),
     .cwd = cwd,
-    .appData = app.appData.entries,
+    .config = app.config,
     .onMessage = onMessage,
     .onExit = shutdownHandler
   });
 
-  Window* defaultWindow = windowFactory.createDefaultWindow(WindowOptions { });
+  Window* defaultWindow = app.windowFactory.createDefaultWindow(WindowOptions { });
 
-  // windowFactory.getOrCreateWindow(0);
-  windowFactory.getOrCreateWindow(1);
+  // app.windowFactory.getOrCreateWindow(0);
+  app.windowFactory.getOrCreateWindow(1);
 
   defaultWindow->show(EMPTY_SEQ);
 
-  if (_port > 0) {
-    defaultWindow->navigate(EMPTY_SEQ, "http://localhost:" + std::to_string(_port));
+  if (ssc::config::getServerPort() > 0) {
+    auto port = ssc::config::getServerPort();
+    defaultWindow->navigate(EMPTY_SEQ, "http://localhost:" + std::to_string(port));
     defaultWindow->setSystemMenu(EMPTY_SEQ, String(
       "Developer Mode: \n"
       "  Reload: r + CommandOrControl\n"

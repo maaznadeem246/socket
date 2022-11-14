@@ -1,22 +1,12 @@
-/*
-#include <string>
+#include "platform.hh"
+#include "private.hh"
 
-#if defined(__APPLE__)
-  #import <Foundation/Foundation.h>
-  #import <UserNotifications/UserNotifications.h>
-  #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-    #import <UIKit/UIKit.h>
-  #else
-    #import <Cocoa/Cocoa.h>
-  #endif
-#endif
-
-namespace ssc::icore::platform {
-  void notify (
+namespace ssc::core::platform {
+  void CorePlatform::notify (
     const String& title,
     const String& body,
-    NotifyCallback cb
-  ) {
+    NotifyCallback callback
+  ) const {
     #if defined(__APPLE__)
     auto center = [UNUserNotificationCenter currentNotificationCenter];
     auto content = [[UNMutableNotificationContent alloc] init];
@@ -50,7 +40,7 @@ namespace ssc::icore::platform {
       #endif
 
       if (granted) {
-        cb(nullptr);
+        callback(nullptr);
       } else if (error) {
         [center addNotificationRequest: request withCompletionHandler: ^(NSError* error) {
           #if !__has_feature(objc_arc)
@@ -58,14 +48,14 @@ namespace ssc::icore::platform {
           #endif
 
           if (error) {
-            cb([error.debugDescription UTF8String]);
+            callback([error.debugDescription UTF8String]);
             // debug("Unable to create notification: %@", error.debugDescription);
           } else {
-            cb(nullptr);
+            callback(nullptr);
           }
         }];
       } else {
-        cb("Failed to create notification");
+        callback("Failed to create notification");
       }
 
       if (!error || granted) {
@@ -77,11 +67,10 @@ namespace ssc::icore::platform {
     #endif
   }
 
-  void openExternal (
-    Platform*,
-    const std::string& value,
-    OpenExternalCallback cb
-  ) {
+  void CorePlatform::openExternal (
+    const String& value,
+    OpenExternalCallback callback
+  ) const {
     #if defined(__APPLE__)
       auto string = [NSString stringWithUTF8String: value.c_str()];
       auto url = [NSURL URLWithString: string];
@@ -90,9 +79,9 @@ namespace ssc::icore::platform {
         auto app = [UIApplication sharedApplication];
         [app openURL: url options: @{} completionHandler: ^(BOOL success) {
           if (!success) {
-            cb("Failed to open external URL");
+            callback("Failed to open external URL");
           } else {
-            cb(nullptr);
+            callback(nullptr);
           }
         }];
       #else
@@ -102,9 +91,9 @@ namespace ssc::icore::platform {
              configuration: configuration
          completionHandler: ^(NSRunningApplication *app, NSError *error) {
           if (error) {
-             cb([error.debugDescription UTF8String]);
+             callback([error.debugDescription UTF8String]);
            } else {
-             cb(nullptr);
+             callback(nullptr);
            }
           [configuration release];
         }];
@@ -112,4 +101,3 @@ namespace ssc::icore::platform {
     #endif
   }
 }
-*/

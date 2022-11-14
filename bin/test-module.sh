@@ -27,7 +27,7 @@ function main () {
 
     if ! test -f "$output" || (( $(stat "$source" -c %Y) > $(stat "$output" -c %Y) )); then
       "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output.o" || continue
-      "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$output.o" -o "$output" || continue
+      "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$root"/src/*.cc "$output.o" -o "$output" || continue
       echo "ok - built $(basename "$output") test"
     fi
 

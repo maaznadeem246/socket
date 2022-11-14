@@ -51,16 +51,14 @@ namespace ssc::core::webview {
       CoreIPCSchemeHandler* coreIPCSchemeHandler = nullptr;
     #if defined(__APPLE__)
       CoreWKWebView* webview = nullptr; // aka WKWebView
-      WKUserContentController* controller = nullptr;
-      WKWebViewConfiguration* configuration = nullptr;
-      WKPreferences* preferences = nullptr;
       CoreNavigationDelegate* navigationDelegate = nullptr;
     #endif
       CoreWebViewInternals (
         CoreWebView* coreWebView,
         CoreWindow* coreWindow,
         CoreDataManager* coreDataManager,
-        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
+        const javascript::Script preloadScript
       );
 
       ~CoreWebViewInternals ();

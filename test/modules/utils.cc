@@ -2,11 +2,11 @@
 
 #include <socket/runtime.hh>
 import ssc.string;
-import ssc.codec;
+import ssc.utils;
 
 
 int main () {
-  using namespace ssc::codec;
+  using namespace ssc::utils;
   using namespace ssc::string;
 
   assert(

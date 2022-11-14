@@ -17,22 +17,22 @@ module;
  * TODO
  */
 export module ssc.dns;
-import ssc.context;
 import ssc.string;
 import ssc.types;
 import ssc.json;
 import ssc.loop;
+import ssc.data;
 import ssc.uv;
 
-using ssc::context::Context;
-using ssc::string::String;
-using ssc::types::Post;
-using ssc::loop::Loop;
+using namespace ssc::data;
+using namespace ssc::loop;
+using namespace ssc::string;
+using namespace ssc::types;
 
 export namespace ssc::dns {
-  class DNS : public Context {
+  class DNS {
     public:
-      DNS (Loop& loop) : Context(loop) {}
+      using Callback = std::function<void(String, JSON::Any, Data)>;
 
       struct LookupOptions {
         String hostname;
@@ -43,15 +43,22 @@ export namespace ssc::dns {
         // -verbatim
       };
 
-      struct RequestContext : Context::RequestContext {
+      struct RequestContext {
+        String seq;
+        Callback callback;
         LookupOptions options;
-        RequestContext (const String& seq, Callback cb)
-          : Context::RequestContext(seq, cb) {}
+        RequestContext (const String& seq, Callback callback) {
+          this->seq = seq;
+          this->callback = callback;
+        }
       };
 
-      void lookup (const String seq, LookupOptions options, Callback cb) {
+      Loop& loop;
+      DNS (Loop& loop) : loop(loop) {}
+
+      void lookup (const String seq, LookupOptions options, Callback callback) {
         this->loop.dispatch([=, this]() {
-          auto ctx = new RequestContext(seq, cb);
+          auto ctx = new RequestContext(seq, callback);
           auto loop = this->loop.get();
 
           struct addrinfo hints = {0};
@@ -82,7 +89,7 @@ export namespace ssc::dns {
                 }}
               };
 
-              ctx->cb(ctx->seq, result, Post{});
+              ctx->callback(ctx->seq, result, Data{});
               delete ctx;
               return;
             }
@@ -118,7 +125,7 @@ export namespace ssc::dns {
               }}
             };
 
-            ctx->cb(ctx->seq, result, Post{});
+            ctx->callback(ctx->seq, result, Data{});
             uv_freeaddrinfo(res);
             delete ctx;
 
@@ -133,14 +140,14 @@ export namespace ssc::dns {
               }}
             };
 
-            ctx->cb(seq, result, Post{});
+            ctx->callback(seq, result, Data{});
             delete ctx;
           }
         });
       }
 
-      void lookup (LookupOptions options, Callback cb) {
-        return this->lookup("-1", options, cb);
+      void lookup (LookupOptions options, Callback callback) {
+        return this->lookup("-1", options, callback);
       }
   };
 }

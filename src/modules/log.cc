@@ -28,9 +28,10 @@ import ssc.json;
 import ssc.ipc;
 
 using ssc::config::Config;
-using ssc::string::String;
 using ssc::headers::Headers;
 using ssc::javascript::Script;
+using ssc::string::String;
+using ssc::string::StringStream;
 
 export namespace ssc::log {
   using ssc::string::format;
@@ -112,6 +113,14 @@ export namespace ssc::log {
     info(message.str());
   }
 
+  inline auto info (const StringStream& stream) {
+    info(stream.str());
+  }
+
+  inline auto info (bool boolean) {
+    info(boolean ? "true" : "false");
+  }
+
   template <typename ...Args> auto info (const String& fmt, Args... args) {
     info(format(fmt, args...));
   }
@@ -174,6 +183,14 @@ export namespace ssc::log {
 
   inline auto error (const ipc::Message& message) {
     error(message.str());
+  }
+
+  inline auto error (const StringStream& stream) {
+    info(stream.str());
+  }
+
+  inline auto error (bool boolean) {
+    error(boolean ? "true" : "false");
   }
 
   template <typename ...Args> auto error (const String& fmt, Args... args) {

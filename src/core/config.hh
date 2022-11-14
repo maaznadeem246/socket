@@ -16,20 +16,7 @@ namespace ssc::core::config {
       Map entries;
       Config () = default;
       Config (const String& source) {
-        this->source = source;
-
-        auto entries = split(source, '\n');
-
-        for (auto entry : entries) {
-          auto index = entry.find_first_of(':');
-
-          if (index >= 0 && index <= entry.size()) {
-            auto key = entry.substr(0, index);
-            auto value = entry.substr(index + 1);
-
-            this->entries[trim(key)] = trim(value);
-          }
-        }
+        this->set(source);
       }
 
       bool has (const String& key) const {
@@ -48,7 +35,24 @@ namespace ssc::core::config {
         return this->entries.at(key);
       }
 
-      auto set (const String& key, const String& value) {
+      void set (const String& source) {
+        this->source = source;
+
+        auto entries = split(source, '\n');
+
+        for (auto entry : entries) {
+          auto index = entry.find_first_of(':');
+
+          if (index >= 0 && index <= entry.size()) {
+            auto key = entry.substr(0, index);
+            auto value = entry.substr(index + 1);
+
+            this->entries[trim(key)] = trim(value);
+          }
+        }
+      }
+
+      void set (const String& key, const String& value) {
         this->entries[key] = value;
       }
 

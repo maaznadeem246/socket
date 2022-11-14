@@ -1,10 +1,5 @@
 module libuv [system] [extern_c] {
-  umbrella header "../uv/include/uv.h"
+  umbrella header "../uv/include/uv.h" // relative to build
   link "uv"
-  export *
-}
-
-module algorithm [system] {
-  header "algorithm"
   export *
 }

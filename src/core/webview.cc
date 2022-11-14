@@ -1,4 +1,6 @@
+#include <socket/config.hh>
 #include "internal/webview.hh"
+#include "internal/window.hh"
 #include "private.hh"
 #include "webview.hh"
 #include "window.hh"
@@ -67,14 +69,6 @@ using namespace ssc::core::types;
 class LinuxSchemeTask {
 };
 using SchemeTask = SharedPointer<LinuxSchemeTask>
-class CoreSchemeHandler {
-  public:
-    SharedPointer<SchemeHandler> handler;
-    SharedPointer<SchemeTaskManager<SchemeTask>> taskManager;
-};
-
-class LinuxCoreWebView {
-};
 #endif
 
 namespace ssc::core::webview {
@@ -82,7 +76,8 @@ namespace ssc::core::webview {
     CoreWebView* coreWebView,
     CoreWindow* coreWindow,
     CoreDataManager* coreDataManager,
-    CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+    CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
+    const javascript::Script preloadScript
   ) {
     this->coreWebView = coreWebView;
     this->coreWindow = coreWindow;
@@ -92,35 +87,57 @@ namespace ssc::core::webview {
     );
 
   #if defined(__APPLE__)
-    this->configuration = [WKWebViewConfiguration new];
+    auto configuration = [WKWebViewConfiguration new];
+    auto preferences = [configuration preferences];
+    auto userScript = [WKUserScript alloc];
     // https://webkit.org/blog/10882/app-bound-domains/
     // https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/3585117-limitsnavigationstoappbounddomai
     // configuration.limitsNavigationsToAppBoundDomains = YES;
 
-    this->navigationDelegate = [[CoreNavigationDelegate alloc] init];
-    this->preferences = [configuration preferences];
-    this->controller = [configuration userContentController];
-    [this->preferences setJavaScriptCanOpenWindowsAutomatically: NO];
+    [configuration
+      setURLSchemeHandler: (::CoreSchemeHandler*) this->coreIPCSchemeHandler->internal
+             forURLScheme: @"ipc"
+    ];
+
+    [preferences
+      setJavaScriptCanOpenWindowsAutomatically: NO
+    ];
 
     // Adds "Inspect" option to context menus if debug is enable
-    #if DEBUG == 1
-      [this->preferences setValue: @YES forKey: @"developerExtrasEnabled"];
-    #endif
+    [preferences
+      setValue: ssc::config::isDebugEnabled() ? @YES : @NO
+        forKey: @"developerExtrasEnabled"
+    ];
 
+    [userScript
+        initWithSource: [NSString stringWithUTF8String: preloadScript.str().c_str()]
+         injectionTime: WKUserScriptInjectionTimeAtDocumentStart
+      forMainFrameOnly: NO
+    ];
+
+    [configuration.userContentController
+      addUserScript: userScript
+    ];
+
+    // Set delegate to window
+    [configuration.userContentController
+      addScriptMessageHandler: coreWindow->internals->delegate
+                         name: @"external"
+    ];
+
+    this->navigationDelegate = [[CoreNavigationDelegate alloc] init];
     this->webview = [[CoreWKWebView alloc]
       initWithFrame: NSZeroRect
-      configuration: this->configuration
+      configuration: configuration
+    ];
+
+    [this->webview
+      setNavigationDelegate: this->navigationDelegate
     ];
 
     [this->webview.configuration.preferences
       setValue: @YES
         forKey: @"allowFileAccessFromFileURLs"
-    ];
-
-    [this->webview setNavigationDelegate: this->navigationDelegate];
-    [this->configuration
-      setURLSchemeHandler: (::CoreSchemeHandler*) this->coreIPCSchemeHandler->internal
-             forURLScheme: @"ipc"
     ];
 
     /* FIXME
@@ -157,18 +174,14 @@ namespace ssc::core::webview {
     if (this->coreIPCSchemeHandler != nullptr) {
       delete this->coreIPCSchemeHandler;
     }
-
-    // @TODO(jwerle): determine if/how these are released
-    this->controller = nullptr;
-    this->configuration = nullptr;
-    this->preferences = nullptr;
   #endif
   }
 
   CoreWebView::CoreWebView (
     CoreWindow* coreWindow,
     CoreDataManager* coreDataManager,
-    CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
+    CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
+    const javascript::Script preloadScript
   ) {
     this->coreDataManager = coreDataManager;
     this->coreWindow = coreWindow;
@@ -176,7 +189,8 @@ namespace ssc::core::webview {
       this,
       coreWindow,
       coreDataManager,
-      onIPCSchemeRequestRouteCallback
+      onIPCSchemeRequestRouteCallback,
+      preloadScript
     );
   }
 
@@ -184,21 +198,6 @@ namespace ssc::core::webview {
     if (this->internals != nullptr) {
       delete this->internals;
     }
-  }
-
-  bool CoreWebView::addPreloadScript (const javascript::Script script) {
-  #if defined(__APPLE__)
-    auto userScript = [WKUserScript alloc];
-    [userScript
-      initWithSource: [NSString stringWithUTF8String: script.str().c_str()]
-      injectionTime: WKUserScriptInjectionTimeAtDocumentStart
-      forMainFrameOnly: NO
-    ];
-
-    [this->internals->controller addUserScript: userScript];
-  #endif
-
-    return false;
   }
 
   CoreSchemeHandler::CoreSchemeHandler (
@@ -233,41 +232,91 @@ namespace ssc::core::webview {
     #endif
   }
 
-  void CoreSchemeHandler::onSchemeRequest (const CoreSchemeRequest request) {
+  void CoreSchemeHandler::onSchemeRequest (CoreSchemeRequest& request) {
     if (this->onSchemeRequestCallback != nullptr) {
       this->onSchemeRequestCallback(request);
     }
   }
 
-  void CoreSchemeRequest::end (
-    const CoreSchemeResponseStatusCode statusCode,
-    const Headers headers,
-    const char* bytes,
-    size_t size
-  ) const {
-    return this->end(CoreSchemeResponse {
-      .statusCode = statusCode,
-      .headers = headers,
-      .body = { .bytes = (char*) bytes, .size = size }
-    });
+  void CoreSchemeHandler::resolve (
+    const String& id,
+    const CoreSchemeResponseBody body
+  ) {
+  #if defined(__APPLE__)
+    auto schemeHandler = (::CoreSchemeHandler*) this->internal;
+    auto taskManager = schemeHandler.taskManager;
+    if (id.size() > 0 && id != "-1" && taskManager->has(id)) {
+      auto task = taskManager->get(id);
+      taskManager->remove(id);
+
+    #if !__has_feature(objc_arc)
+      [task retain];
+    #endif
+
+      dispatch_async(dispatch_get_main_queue(), ^{
+        auto request = ssc::core::webview::CoreSchemeRequest {
+          String(task.request.HTTPMethod.UTF8String),
+          String(task.request.URL.absoluteString.UTF8String),
+        };
+
+        //auto response = CoreSchemeResponse
+      });
+    }
+  #endif
   }
 
-  void CoreSchemeRequest::end (const CoreSchemeResponse& response) const {
+  void CoreSchemeRequest::end (
+    const CoreSchemeResponseStatusCode statusCode,
+    const CoreSchemeResponseHeaders headers,
+    const JSON::Any json
+  ) {
+    this->end(statusCode, headers, json, nullptr, 0);
+  }
+
+  void CoreSchemeRequest::end (
+    const CoreSchemeResponseStatusCode statusCode,
+    const CoreSchemeResponseHeaders headers,
+    const CoreSchemeResponseBody body
+  ) {
+    this->end(statusCode, headers, body.json, body.bytes, body.size);
+  }
+
+  void CoreSchemeRequest::end (
+    const CoreSchemeResponseStatusCode statusCode,
+    const CoreSchemeResponseHeaders headers,
+    const char* bytes,
+    size_t size
+  ) {
+    this->end(statusCode, headers, nullptr, bytes, size);
+  }
+
+  void CoreSchemeRequest::end (
+    const CoreSchemeResponseStatusCode statusCode,
+    const CoreSchemeResponseHeaders headers,
+    const JSON::Any json,
+    const char* bytes,
+    size_t size
+  ) {
+    this->response.headers = headers;
+    this->response.body.json = json;
+    this->response.body.size = size;
+    this->response.body.bytes = (char*) bytes;
+
     #if defined(__APPLE__)
-      auto json = response.body.json.str();
+      auto jsonString = this->response.body.json.str();
       auto task = (CoreSchemeTask) this->internal;
       auto headerFields = [NSMutableDictionary dictionary];
 
-      for (const auto& header : response.headers.entries) {
+      for (const auto& header : this->response.headers.entries) {
         auto key = [NSString stringWithUTF8String: trim(header.key).c_str()];
         auto value = [NSString stringWithUTF8String: trim(header.value.str()).c_str()];
         headerFields[key] = value;
       }
 
-      if (json.size() > 0) {
-        headerFields[@"content-length"] = [@(json.size()) stringValue];
-      } else if (response.body.size > 0) {
-        headerFields[@"content-length"] = [@(response.body.size) stringValue];
+      headerFields[@"content-length"] = [@(jsonString.size()) stringValue];
+
+      if (this->response.body.size > 0) {
+        headerFields[@"content-length"] = [@(this->response.body.size) stringValue];
       }
 
       auto taskResponse = [[NSHTTPURLResponse alloc]
@@ -279,15 +328,15 @@ namespace ssc::core::webview {
 
       [task didReceiveResponse: taskResponse];
 
-      if (response.body.bytes) {
+      if (this->response.body.bytes) {
         auto data = [NSData
-          dataWithBytes: response.body.bytes
-                 length: response.body.size
+          dataWithBytes: this->response.body.bytes
+                 length: this->response.body.size
         ];
 
         [task didReceiveData: data];
       } else {
-        auto string = [NSString stringWithUTF8String: json.c_str()];
+        auto string = [NSString stringWithUTF8String: jsonString.c_str()];
         auto data = [string dataUsingEncoding: NSUTF8StringEncoding];
         [task didReceiveData: data];
       }
@@ -306,20 +355,24 @@ namespace ssc::core::webview {
     this->onIPCSchemeRequestRouteCallback = onIPCSchemeRequestRouteCallback;
   }
 
-  void CoreIPCSchemeHandler::onSchemeRequest (const CoreIPCSchemeRequest request) {
-    auto response = CoreSchemeResponse { &request };
+  void CoreIPCSchemeHandler::onSchemeRequest (CoreIPCSchemeRequest& request) {
     auto message = Message(request.url);
+    CoreSchemeResponseStatusCode statusCode = 200;
+    CoreSchemeResponseHeaders headers;
+    CoreSchemeResponseBody body;
+
+    headers["access-control-allow-origin"] = "*";
+    headers["access-control-allow-methods"] = "*";
 
     if (request.method == "OPTIONS") {
-      response.headers["access-control-allow-origin"] = "*";
-      response.headers["access-control-allow-methods"] = "*";
-      return request.end(response);
+      return request.end(statusCode, headers, body);
     }
 
     // handle 'data' requests from the dataManager
     if (message.name == "data") {
       if (!message.has("id")) {
-        response.body.json = JSON::Object::Entries {
+        statusCode = 400;
+        body.json = JSON::Object::Entries {
           {"source", "data"},
           {"err", JSON::Object::Entries {
             {"message", "Missing 'id' in message"}
@@ -329,7 +382,8 @@ namespace ssc::core::webview {
         try {
           auto id = std::stoull(message.get("id"));
           if (!this->coreDataManager->has(id)) {
-            response.body.json = JSON::Object::Entries {
+            statusCode = 404;
+            body.json = JSON::Object::Entries {
               {"source", "data"},
               {"err", JSON::Object::Entries {
                 {"type", "NotFoundError"},
@@ -339,9 +393,9 @@ namespace ssc::core::webview {
           }
 
           auto data = this->coreDataManager->get(id);
-          response.body.bytes = data.body;
-          response.body.size = data.length;
-          response.headers = data.headers;
+          body.bytes = data.body;
+          body.size = data.length;
+          headers = data.headers;
           #if defined(__APPLE__)
             // 16ms timeout before removing data and potentially freeing `data.body`
             NSTimeInterval timeout = 0.16;
@@ -354,7 +408,8 @@ namespace ssc::core::webview {
             [NSTimer timerWithTimeInterval: timeout repeats: NO block: block ];
           #endif
         } catch (...) {
-          response.body.json = JSON::Object::Entries {
+          statusCode = 400;
+          body.json = JSON::Object::Entries {
             {"source", "data"},
             {"err", JSON::Object::Entries {
               {"message", "Invalid 'id' given in message"}
@@ -363,7 +418,7 @@ namespace ssc::core::webview {
         }
       }
 
-      return request.end(response);
+      return request.end(statusCode, headers, body);
     }
 
     if (message.seq.size() > 0 && message.seq != "-1") {
@@ -384,8 +439,8 @@ namespace ssc::core::webview {
       }
     }
 
-    response.statusCode = 404;
-    response.body.json = JSON::Object::Entries {
+    statusCode = 404;
+    body.json = JSON::Object::Entries {
       {"err", JSON::Object::Entries {
         {"message", "Not found"},
         {"type", "NotFoundError"},
@@ -393,7 +448,7 @@ namespace ssc::core::webview {
       }}
     };
 
-    request.end(response);
+    request.end(statusCode, headers, body);
   }
 }
 
@@ -426,12 +481,11 @@ namespace ssc::core::webview {
 @implementation CoreNavigationDelegate
 - (void) webview: (CoreWKWebView*) webview
     decidePolicyForNavigationAction: (WKNavigationAction*) navigationAction
-    decisionHandler: (void (^)(WKNavigationActionPolicy)) decisionHandler {
-
+                    decisionHandler: (void (^)(WKNavigationActionPolicy)) decisionHandler {
   String base = webview.URL.absoluteString.UTF8String;
-  String request = navigationAction.request.URL.absoluteString.UTF8String;
+  String url = navigationAction.request.URL.absoluteString.UTF8String;
 
-  if (request.find("file://") == 0 && request.find("http://localhost") == 0) {
+  if (url.find("file://") == 0 && url.find("http://localhost") == 0) {
     decisionHandler(WKNavigationActionPolicyCancel);
   } else {
     decisionHandler(WKNavigationActionPolicyAllow);

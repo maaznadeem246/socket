@@ -1,4 +1,5 @@
 module;
+#include <socket/config.hh>
 #include "../core/config.hh"
 
 /**
@@ -16,5 +17,7 @@ module;
 export module ssc.config;
 
 export namespace ssc::config {
+  using ssc::config::isDebugEnabled; // NOLINT
+  using ssc::config::getServerPort; // NOLINT
   using Config = ssc::core::config::Config;
 }

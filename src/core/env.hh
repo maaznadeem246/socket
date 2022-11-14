@@ -53,5 +53,21 @@ namespace ssc::core::env {
   inline auto set (const String& key, const String& value) {
     return set(key.c_str(), value.c_str());
   }
+
+  inline auto set (const char* key, const int value) {
+    return set(key, std::to_string(value));
+  }
+
+  inline auto set (const char* key, const bool value) {
+    return set(key, value ? "true" : "false");
+  }
+
+  inline auto has (const String& key) {
+    return get(key).size() != 0;
+  }
+
+  inline auto has (const char*  key) {
+    return get(key).size() != 0;
+  }
 }
 #endif

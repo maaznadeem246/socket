@@ -17,6 +17,34 @@ namespace ssc::core::JSON {
   using ObjectEntries = std::map<std::string, Any>;
   using ArrayEntries = std::vector<Any>;
 
+  inline auto replace (
+    const std::string &source,
+    const std::string &pattern,
+    const std::string &value
+  ) {
+    return std::regex_replace(source, std::regex(pattern), value);
+  }
+
+  class Error : public std::invalid_argument {
+    public:
+      std::string name;
+      std::string message;
+      std::string location;
+      Error (
+        const std::string& name,
+        const std::string& message,
+        const std::string& location
+      ) : std::invalid_argument(name + ": " + message + " (from " + location + ")") {
+        this->name = name;
+        this->message = message;
+        this->location = location;
+      }
+
+      auto str () const {
+        return std::string(name + ": " + message + " (from " + location + ")");
+      }
+  };
+
   enum class Type {
     Any,
     Null,
@@ -53,6 +81,21 @@ namespace ssc::core::JSON {
       auto isObject () const { return this->type == Type::Object; }
       auto isString () const { return this->type == Type::String; }
   };
+
+  class Null : Value<std::nullptr_t, Type::Null> {
+    public:
+      Null () {}
+      Null (std::nullptr_t) : Null() {}
+      std::nullptr_t value () const {
+        return nullptr;
+      }
+
+      std::string str () const {
+        return "null";
+      }
+  };
+
+  const Null null;
 
   class Any : public Value<void *, Type::Any> {
     public:
@@ -97,26 +140,19 @@ namespace ssc::core::JSON {
       std::string str () const;
 
       template <typename T> T& as () const {
-        return *reinterpret_cast<T *>(this->pointer.get());
+        auto ptr = this->pointer.get();
+
+        if (ptr != nullptr && this->type != Type::Null) {
+          return *reinterpret_cast<T *>(ptr);
+        }
+
+        throw Error("BadCastError", "cannot cast to null value", __PRETTY_FUNCTION__);
       }
   };
 
   inline const auto typeof (const Any& any) {
     return any.typeof();
   }
-
-  class Null : Value<std::nullptr_t, Type::Null> {
-    public:
-      Null () = default;
-      Null (std::nullptr_t) : Null() {}
-      std::nullptr_t value () const {
-        return nullptr;
-      }
-
-      std::string str () const {
-        return "null";
-      }
-  };
 
   class Object : Value<ObjectEntries, Type::Object> {
     public:
@@ -148,7 +184,7 @@ namespace ssc::core::JSON {
         stream << std::string("{");
 
         for (const auto& tuple : this->data) {
-          auto key = tuple.first;
+          auto key = replace(tuple.first, "\"","\\\"");
           auto value = tuple.second.str();
 
           stream << std::string("\"");
@@ -174,11 +210,15 @@ namespace ssc::core::JSON {
           return this->data.at(key);
         }
 
-        return nullptr;
+        return null;
       }
 
       void set (const std::string key, Any value) {
         this->data[key] = value;
+      }
+
+      bool has (const std::string& key) const {
+        return this->data.find(key) != this->data.end();
       }
 
       Any operator [] (const std::string& key) const {
@@ -365,14 +405,6 @@ namespace ssc::core::JSON {
   };
 
   class String : Value<std::string, Type::Number> {
-    static inline auto escape (
-      const std::string &source,
-      const std::string &pattern,
-      const std::string &value
-    ) {
-      return std::regex_replace(source, std::regex(pattern), value);
-    }
-
     public:
       String () = default;
       String (const String& data) {
@@ -404,8 +436,8 @@ namespace ssc::core::JSON {
       }
 
       std::string str () const {
-        auto escaped = escape(this->data, "\"", "\\\"");
-        return "\"" + escape(escaped, "\n", "\\n") + "\"";
+        auto escaped = replace(this->data, "\"", "\\\"");
+        return "\"" + replace(escaped, "\n", "\\n") + "\"";
       }
 
       std::string value () const {

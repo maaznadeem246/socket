@@ -7,21 +7,27 @@ module;
  */
 export module ssc.application;
 import ssc.runtime;
+import ssc.window;
 
 using ssc::runtime::Runtime;
+using ssc::window::WindowFactory;
 
 export namespace ssc::application {
   using ssc::core::application::CoreApplication;
   class Application : public CoreApplication {
     public:
+      WindowFactory windowFactory;
       Runtime runtime;
 
       Application (const Application&) = delete;
-      Application () : CoreApplication() {}
+      Application ()
+        : windowFactory(*this), CoreApplication() {}
     #if defined(_WIN32)
-      Application (void* hInstance) : CoreApplication(hInstance) {}
+      Application (void* hInstance)
+        : windowFactory(*this), CoreApplication(hInstance) {}
     #else
-      Application (int unused) : CoreApplication() {}
+      Application (int unused)
+        : windowFactory(*this), CoreApplication() {}
     #endif
   };
 }
