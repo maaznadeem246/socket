@@ -18,14 +18,15 @@ module; // global
  * }
  */
 export module ssc.runtime;
+import ssc.dns;
+import ssc.loop;
+import ssc.platform;
 import ssc.string;
 import ssc.types;
-import ssc.loop;
-import ssc.ipc;
-import ssc.dns;
 
 using ssc::dns::DNS;
 using ssc::loop::Loop;
+using ssc::platform::Platform;
 using ssc::string::String;
 using ssc::types::SharedPointer;
 
@@ -33,12 +34,15 @@ export namespace ssc::runtime {
   class Runtime {
     public:
       Loop loop;
+      Platform platform;
       DNS dns;
 
       Runtime (const Runtime&) = delete;
-      Runtime () : dns(this->loop) {
-      }
       ~Runtime () = default;
+      Runtime ()
+        : dns(this->loop),
+          platform(this->loop)
+      { }
 
       void start () {
         this->loop.init();

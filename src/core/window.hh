@@ -46,13 +46,23 @@ namespace ssc::core::window {
     WINDOW_HINT_FIXED = 3  // Window size can not be changed by a user
   };
 
+  inline String getResolveToMainProcessMessage (
+    const String& seq,
+    const String& state,
+    const String& value
+  ) {
+    return String("ipc://resolve?seq=" + seq + "&state=" + state + "&value=" + value);
+  }
+
   struct CoreWindowOptions {
     bool resizable = true;
     bool frameless = false;
     bool utility = false;
     bool canExit = false;
-    int height = 0;
-    int width = 0;
+    float height = 0;
+    float width = 0;
+    bool isHeightInPercent = false;
+    bool isWidthInPercent = false;
     int index = 0;
     int debug = 0;
     int port = 0;
@@ -223,7 +233,7 @@ namespace ssc::core::window {
       "  arch: '" + platform.arch + "',                               \n"
       "  cwd: () => '" + cwd + "',                                    \n"
       "  debug: " + std::to_string(opts.debug) + ",              \n"
-      "  env: {},                                                     \n"
+      "  config: {},                                                  \n"
       "  executable: '" + opts.executable + "',                       \n"
       "  index: Number('" + std::to_string(opts.index) + "'),    \n"
       "  os: '" + platform.os + "',                                   \n"

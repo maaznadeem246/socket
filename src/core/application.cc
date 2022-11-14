@@ -1,3 +1,4 @@
+#include <socket/socket.hh>
 #include <uv.h>
 
 #if defined(_WIN32)
@@ -44,16 +45,26 @@ static inline void alert (const char* s) {
 #endif
 
 namespace ssc::core::application {
-  CoreApplication::CoreApplication () {
+  CoreApplication::CoreApplication (const int argc, const char** argv)
+  : argc(argc), argv(argv) {
     this->wasStartedFromCli = env::has("SSC_CLI");
+    ssc::init(this->config, argc, argv);
   }
 
 #if !defined(_WIN32)
-  CoreApplication::CoreApplication (int unused) : CoreApplication() {
+  CoreApplication::CoreApplication (
+    int unused,
+    const int argc,
+    const char** argv
+  ) : CoreApplication(argc, argv) {
     // noop
   }
 #else
-  CoreApplication::CoreApplication (void *hInstance) : CoreApplication() {
+  CoreApplication::CoreApplication (
+    void *hInstance,
+    const int argc,
+    const char** argv
+  ) : CoreApplication() {
     this->hInstance = hInstance; // HINSTANCE
 
     HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);

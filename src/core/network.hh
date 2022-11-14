@@ -13,11 +13,10 @@ namespace ssc::core::network {
   )>;
 
   class NetworkStatusObserver {
-    NetworkStatusChangeCallback onNetworkStatusChangeCallback;
     void *internal = nullptr;
     public:
-      NetworkStatusObserver () = default;
-      NetworkStatusObserver (NetworkStatusChangeCallback callback);
+      NetworkStatusChangeCallback onNetworkStatusChangeCallback = nullptr;
+      NetworkStatusObserver ();
       ~NetworkStatusObserver ();
       void onNetworkStatusChange (
         const String& statusName,

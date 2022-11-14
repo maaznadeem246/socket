@@ -17,8 +17,6 @@ namespace ssc::core::application {
   };
 
   class CoreApplication {
-    // an opaque pointer to the configured `WindowFactory<Window, App>`
-    void *windowFactory = nullptr;
     public:
       static inline AtomicBool isReady = false;
 
@@ -27,30 +25,34 @@ namespace ssc::core::application {
       Callbacks callbacks;
       CoreDataManager dataManager;
       Config config;
+      const int argc;
+      const char** argv;
 
-      CoreApplication ();
+      CoreApplication (const int argc, const char** argv);
 
       #if defined(_WIN32)
         void* hInstance;
-        CoreApplication (/* HINSTANCE*/ void* hInstance);
+        CoreApplication (
+          /* HINSTANCE*/ void* hInstance,
+          const int argc,
+          const char** argv
+        );
       #else
-        CoreApplication (int unused);
+        CoreApplication (
+          int unused,
+          const int argc,
+          const char** argv
+        );
       #endif
 
+      void start ();
+      void stop ();
       int run ();
       void kill ();
       void exit (int code);
       void restart ();
       void dispatch (std::function<void()>);
       String getCwd ();
-
-      void setWindowFactory (void *windowFactory) {
-        this->windowFactory = windowFactory;
-
-      }
-      void * getWindowFactory () const {
-        return this->windowFactory;
-      }
   };
 }
 #endif

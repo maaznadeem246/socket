@@ -3,6 +3,13 @@ module; // global
 #include <iostream>
 #include <string>
 
+#include "../core/config.hh"
+#include "../core/headers.hh"
+#include "../core/ipc.hh"
+#include "../core/javascript.hh"
+#include "../core/json.hh"
+#include "../core/string.hh"
+
 /**
  * @module ssc.log
  * @description Logging functions for stdout/stderr
@@ -20,21 +27,17 @@ module; // global
  * }
  */
 export module ssc.log;
-import ssc.javascript;
-import ssc.headers;
-import ssc.string;
-import ssc.config;
-import ssc.json;
-import ssc.ipc;
 
-using ssc::config::Config;
-using ssc::headers::Headers;
-using ssc::javascript::Script;
-using ssc::string::String;
-using ssc::string::StringStream;
+using namespace ssc::core;
+
+using ssc::core::config::Config;
+using ssc::core::headers::Headers;
+using ssc::core::javascript::Script;
+using ssc::core::string::String;
+using ssc::core::string::StringStream;
 
 export namespace ssc::log {
-  using ssc::string::format;
+  using core::string::format;
 
   inline auto write (const String& str, bool isError) {
     #if defined(_WIN32)

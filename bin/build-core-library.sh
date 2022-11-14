@@ -29,16 +29,26 @@ fi
 
 echo "# building core static libary"
 for source in "${sources[@]}"; do
-  object="${source/.cc/.o}"
-  object="${object/$src_directory/$output_directory}"
-  objects+=("$object")
-  if ! test -f "$object" || (( $(stat "$source" -c %Y) > $(stat "$object" -c %Y) )); then
-    mkdir -p "$(dirname "$object")"
-    echo "# compiling object $(basename "$source")"
-    "$clang" "${flags[@]}" -c "$source" -o "$object"
-    echo "ok - built $(basename "$source") -> $(basename "$object")"
-  fi
+    declare object="${source/.cc/.o}"
+    declare object="${object/$src_directory/$output_directory}"
+    objects+=("$object")
 done
+
+for source in "${sources[@]}"; do
+  {
+    declare object="${source/.cc/.o}"
+    declare object="${object/$src_directory/$output_directory}"
+    objects+=("$object")
+    if ! test -f "$object" || (( $(stat "$source" -c %Y) > $(stat "$object" -c %Y) )); then
+      mkdir -p "$(dirname "$object")"
+      echo "# compiling object $(basename "$source")"
+      "$clang" "${flags[@]}" -c "$source" -o "$object"
+      echo "ok - built $(basename "$source") -> $(basename "$object")"
+    fi
+  } &
+done
+
+wait
 
 declare static_library="$root/build/lib/libsocket-core.a"
 mkdir -p "$root/build/lib"

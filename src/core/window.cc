@@ -6,14 +6,6 @@
 using namespace ssc::core::string;
 
 namespace ssc::core::window {
-  inline String getResolveToMainProcessMessage (
-    const String& seq,
-    const String& state,
-    const String& value
-  ) {
-    return String("ipc://resolve?seq=" + seq + "&state=" + state + "&value=" + value);
-  }
-
   CoreWindow::CoreWindow (
     CoreApplication& app,
     const CoreWindowOptions opts,
@@ -21,7 +13,7 @@ namespace ssc::core::window {
   ) : app(app), opts(opts)  {
     // preload script for normalizing the interface to be cross-platform.
     auto preloadScript = javascript::Script("preload.js", ToString(createPreload(opts)));
-    this->internals = new CoreWindowInternals(opts);
+    this->internals = new CoreWindowInternals(this, opts);
     this->webview = new CoreWebView(
       this,
       opts.dataManager,
@@ -43,4 +35,9 @@ namespace ssc::core::window {
 
     this->onMessage(getResolveToMainProcessMessage(seq, state, value));
   }
+
+  void CoreWindow::exit (int code) {
+    if (onExit != nullptr) onExit(code);
+  }
+
 }

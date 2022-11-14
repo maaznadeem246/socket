@@ -654,10 +654,6 @@ namespace SSC {
     // this->webview->inspector.show();
   }
 
-  void Window::exit (int code) {
-    if (onExit != nullptr) onExit(code);
-  }
-
   void Window::kill () {
     // gtk releases objects automatically.
   }

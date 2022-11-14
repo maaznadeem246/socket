@@ -5,29 +5,28 @@ declare build_dir="${BUILD_DIR:-$root/build}"
 declare static_library="$build_dir/lib/libsocket-modules.a"
 
 declare modules=(
+  uv
+  env
   types
   string
+  version
   json
   javascript
   config
   utils
-  env
-  uv
+  log
+  headers
   loop
   data
   dns
-  headers
   platform
   templates
-  network
-  version
-  ipc
   runtime
   webview
-  log
-  process
+  ipc
   window
   application
+  process
 )
 
 declare paths=()

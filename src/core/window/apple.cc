@@ -24,7 +24,10 @@ namespace ssc::core::window {
 
   static bool isDelegateSet = false;
 
-  CoreWindowInternals::CoreWindowInternals (const CoreWindowOptions& opts) {
+  CoreWindowInternals::CoreWindowInternals (
+    CoreWindow* coreWindow,
+    const CoreWindowOptions& opts
+  ) {
     // Window style: titled, closable, minimizable
     uint style = NSWindowStyleMaskTitled;
 
@@ -52,9 +55,13 @@ namespace ssc::core::window {
       nil
 		];
 
+    auto screenSize = coreWindow->getScreenSize();
+    auto height = opts.isHeightInPercent ? screenSize.height * opts.height / 100 : opts.height;
+    auto width = opts.isWidthInPercent ? screenSize.width * opts.width / 100 : opts.width;
+
     this->delegate = [[CoreWindowDelegate alloc] init];
     this->window = [[NSWindow alloc]
-        initWithContentRect: NSMakeRect(0, 0, opts.width, opts.height)
+        initWithContentRect: NSMakeRect(0, 0, width, height)
                   styleMask: style
                     backing: NSBackingStoreBuffered
                       defer: NO
@@ -64,7 +71,7 @@ namespace ssc::core::window {
     [this->window center];
     [this->window setOpaque: YES];
     // Minimum window size
-    [this->window setContentMinSize: NSMakeSize(opts.width, opts.height)];
+    [this->window setContentMinSize: NSMakeSize(width, height)];
     [this->window setBackgroundColor: [NSColor controlBackgroundColor]];
     [this->window registerForDraggedTypes: draggableTypes];
     // [this->window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
@@ -164,7 +171,6 @@ namespace ssc::core::window {
               }
 
               String msg = [body UTF8String];
-              printf("%s\n", msg.c_str());
 
               // if (bridge->route(msg, nullptr, 0)) return; // FIXME
               window->onMessage(msg);
@@ -240,15 +246,12 @@ namespace ssc::core::window {
     }
   }
 
-  void CoreWindow::exit (int code) {
-    if (onExit != nullptr) onExit(code);
-  }
-
   void CoreWindow::kill () {
   }
 
   void CoreWindow::close (int code) {
-    [this->internals->window performClose:nil];
+    [this->internals->window performClose: nil];
+    // `onExit` handled in `windowShouldClose:` selector
   }
 
   void CoreWindow::hide (const String& seq) {
@@ -292,7 +295,6 @@ namespace ssc::core::window {
         ]
       ]
     ];
-    printf("navigate (%s) %s\n", seq.c_str(), value.c_str());
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);

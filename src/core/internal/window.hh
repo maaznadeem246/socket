@@ -24,7 +24,10 @@ namespace ssc::core::window {
       CoreWindowDelegate* delegate = nullptr;
     #endif
 
-      CoreWindowInternals (const CoreWindowOptions& opts);
+      CoreWindowInternals (
+        CoreWindow* coreWindow,
+        const CoreWindowOptions& opts
+      );
   };
 }
 

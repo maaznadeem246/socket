@@ -19,10 +19,7 @@ using namespace ssc::core::network;
 #endif
 
 namespace ssc::core::network {
-  NetworkStatusObserver::NetworkStatusObserver (
-    NetworkStatusChangeCallback onNetworkStatusChangeCallback
-  ) {
-    this->onNetworkStatusChangeCallback = onNetworkStatusChangeCallback;
+  NetworkStatusObserver::NetworkStatusObserver () {
     #if defined(__APPLE__)
       this->internal = (void *) [[NetworkStatusMonitor alloc] initWithObserver: this];
     #endif

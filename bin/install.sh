@@ -227,12 +227,14 @@ function _compile_libuv {
 
   if [ $platform == "desktop" ]; then
     mkdir -p $PREFIX
-    quiet ./configure --prefix=$STAGING_DIR/build
-    die $? "not ok - desktop configure"
+    if ! test -f Makefile; then
+      quiet ./configure --prefix=$STAGING_DIR/build
+      die $? "not ok - desktop configure"
 
-    quiet make clean
-    quiet make -j8
-    quiet make install
+      quiet make clean
+      quiet make -j8
+      quiet make install
+    fi
     return
   fi
 

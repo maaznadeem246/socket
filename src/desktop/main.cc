@@ -48,7 +48,7 @@ GlobalConfig config;
 #else
 #define MAIN                                   \
   const int instanceId = 0;                    \
-  int main (int argc, char** argv)
+  int main (const int argc, const char** argv)
 #endif
 
 #define InvalidWindowIndexError(index) \
@@ -67,16 +67,13 @@ void signalHandler (int signal) {
 // which on windows is hInstance, on mac and linux this is just an int.
 //
 MAIN {
-  ssc::init(config);
-
-  Application app(instanceId);
+  Application app(instanceId, argc, argv);
 
   const String OK_STATE = "0";
   const String ERROR_STATE = "1";
   const String EMPTY_SEQ = String("");
 
   auto cwd = app.getCwd();
-  app.config = config;
 
   String suffix = "";
 
@@ -130,7 +127,6 @@ MAIN {
     }
 
     if (s.find("--test") == 0) {
-      suffix = "-test";
       isTest = true;
     } else if (c >= 2 && s.find("-") != 0) {
       isCommandMode = true;
@@ -148,14 +144,6 @@ MAIN {
       argvForward << " " << String(arg);
     }
   }
-
-  if (ssc::config::isDebugEnabled()) {
-    app.config["name"] += "-dev";
-    app.config["title"] += "-dev";
-  }
-
-  app.config["name"] += suffix;
-  app.config["title"] += suffix;
 
   argvForward << " --version=v" << app.config["version"];
   argvForward << " --name=" << app.config["name"];
@@ -270,7 +258,7 @@ MAIN {
   if (width < 0) width = 0;
 
   auto onStdErr = [&](auto err) {
-    for (auto window : app.windowFactory.windows) {
+    for (auto window : app.windowManager.windows) {
       if (window != nullptr) {
         window->eval(getEmitToRenderProcessJavaScript("process-error", err));
       }
@@ -317,8 +305,8 @@ MAIN {
       if (message.name == "show") {
         auto index = message.index < 0 ? 0 : message.index;
         auto options = WindowOptions {};
-        auto status = app.windowFactory.getWindowStatus(index);
-        auto window = app.windowFactory.getWindow(index);
+        auto status = app.windowManager.getWindowStatus(index);
+        auto window = app.windowManager.getWindow(index);
 
         options.title = message.get("title");
         options.url = message.get("url");
@@ -332,14 +320,14 @@ MAIN {
           options.height = std::stoi(message.get("height"));
         }
 
-        if (!window || status == WindowFactory::WindowStatus::WINDOW_NONE) {
+        if (!window || status == WindowManager::WindowStatus::WINDOW_NONE) {
           options.resizable = message.get("resizable") == "true" ? true : false;
           options.frameless = message.get("frameless") == "true" ? true : false;
           options.utility = message.get("utility") == "true" ? true : false;
           options.debug = message.get("debug") == "true" ? true : false;
           options.index = index;
 
-          window = app.windowFactory.createWindow(options);
+          window = app.windowManager.createWindow(options);
           window->show(seq);
         } else {
           window->show(seq);
@@ -362,10 +350,10 @@ MAIN {
         return;
       }
 
-      auto window = app.windowFactory.getOrCreateWindow(message.index);
+      auto window = app.windowManager.getOrCreateWindow(message.index);
 
       if (!window) {
-        auto defaultWindow = app.windowFactory.getWindow(0);
+        auto defaultWindow = app.windowManager.getWindow(0);
 
         if (defaultWindow) {
           window = defaultWindow;
@@ -487,7 +475,7 @@ MAIN {
       }
 
       if (message.name == "getConfig") {
-        window->resolvePromise(seq, OK_STATE, config.str());
+        window->resolvePromise(seq, OK_STATE, app.config.str());
         return;
       }
     });
@@ -500,7 +488,7 @@ MAIN {
     onStdOut,
     onStdErr,
     [&](String const &code) {
-      for (auto window : app.windowFactory.windows) {
+      for (auto window : app.windowManager.windows) {
         window->eval(getEmitToRenderProcessJavaScript("main-exit", code));
       }
     }
@@ -521,12 +509,12 @@ MAIN {
   auto onMessage = [&](auto out) {
     Message message(out);
 
-    auto window = app.windowFactory.getWindow(message.index);
+    auto window = app.windowManager.getWindow(message.index);
     auto value = message.get("value");
 
     // the window must exist
     if (!window && message.index >= 0) {
-      auto defaultWindow = app.windowFactory.getWindow(0);
+      auto defaultWindow = app.windowManager.getWindow(0);
 
       if (defaultWindow) {
         window = defaultWindow;
@@ -685,7 +673,7 @@ MAIN {
 
     if (message.name == "getConfig") {
       const auto seq = message.get("seq");
-      auto wrapped = ("\"" + config.str() + "\"");
+      auto wrapped = ("\"" + app.config.str() + "\"");
       window->resolvePromise(seq, OK_STATE, encodeURIComponent(wrapped));
       return;
     }
@@ -711,7 +699,7 @@ MAIN {
       process->kill(pid);
     }
 
-    app.windowFactory.destroy();
+    app.windowManager.destroy();
     app.kill();
 
     exit(code);
@@ -719,7 +707,7 @@ MAIN {
 
   app.callbacks.onExit = shutdownHandler;
 
-  app.windowFactory.configure(WindowFactoryOptions {
+  app.windowManager.configure(WindowManagerOptions {
     .defaultHeight = height,
     .defaultWidth = width,
     .isHeightInPercent = isHeightInPercent,
@@ -733,10 +721,12 @@ MAIN {
     .onExit = shutdownHandler
   });
 
-  Window* defaultWindow = app.windowFactory.createDefaultWindow(WindowOptions { });
+  Window* defaultWindow = app.windowManager.createDefaultWindow(WindowOptions {
+    .config = app.config
+  });
 
-  // app.windowFactory.getOrCreateWindow(0);
-  app.windowFactory.getOrCreateWindow(1);
+  // app.windowManager.getOrCreateWindow(0);
+  app.windowManager.getOrCreateWindow(1);
 
   defaultWindow->show(EMPTY_SEQ);
 
@@ -762,12 +752,7 @@ MAIN {
 
   signal(SIGINT, signalHandler);
 
-  //
-  // # Event Loop
-  // start the platform specific event loop for the main
-  // thread and run it until it returns a non-zero int.
-  //
-  while (app.run() == 0);
+  app.start(); // blocks until stopped
 
   exit(exitCode);
 }

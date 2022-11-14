@@ -926,10 +926,6 @@ namespace SSC {
     // TODO: show inspector.
   }
 
-  void Window::exit (int code) {
-    if (this->onExit != nullptr) this->onExit(code);
-  }
-
   void Window::close (int code) {
     if (opts.canExit) {
       this->exit(0);

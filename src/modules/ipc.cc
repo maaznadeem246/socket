@@ -1,5 +1,6 @@
 module;
 #include "../core/ipc.hh"
+#include "../core/network.hh"
 
 /**
  * @module ssc.ipc
@@ -9,18 +10,19 @@ export module ssc.ipc;
 import ssc.data;
 import ssc.javascript;
 import ssc.json;
-import ssc.network;
+import ssc.runtime;
 import ssc.string;
 import ssc.types;
 import ssc.utils;
+import ssc.log;
 
+using namespace ssc::core::network;
+
+using namespace ssc::data;
 using namespace ssc::javascript;
-using namespace ssc::network;
-using namespace ssc::utils;
+using namespace ssc::runtime;
 using namespace ssc::types;
-
-using ssc::data::Data;
-using ssc::data::DataManager;
+using namespace ssc::utils;
 
 export namespace ssc::ipc {
   // forward
@@ -53,25 +55,25 @@ export namespace ssc::ipc {
 
       NetworkStatusObserver networkStatusObserver;
       DataManager dataManager;
+      Runtime& runtime;
       RouteTable table;
       BufferMap buffers;
       Mutex mutex;
 
       Router (const Router &) = delete;
-      Router () {
-        this->networkStatusObserver = {
+      Router (Runtime& runtime) : runtime(runtime) {
+        this->networkStatusObserver.onNetworkStatusChangeCallback =
           [this](const String& statusName, const String& statusMessage) {
             this->onNetworkStatusChange(statusName, statusMessage);
-          }
-        };
+          };
       }
 
       ~Router () {
       }
 
       void onNetworkStatusChange (
-        const String& statusName,
-        const String& statusMessage
+        const String statusName,
+        const String statusMessage
       ) {
         auto json = JSON::Object::Entries {
           {"status", statusName},
@@ -235,6 +237,15 @@ export namespace ssc::ipc {
         }
 
         return false;
+      }
+  };
+
+  class Bridge {
+    public:
+      Router router;
+      Runtime& runtime;
+      Bridge (const Bridge&) = delete;
+      Bridge (Runtime& runtime) : runtime(runtime), router(runtime) {
       }
   };
 }

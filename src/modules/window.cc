@@ -4,7 +4,7 @@ module;
 
 /**
  * @module window
- * @description Core platform agnostic Window APIs
+ * @description Platform agnostic Window APIs
  */
 export module ssc.window;
 import ssc.config;
@@ -12,6 +12,7 @@ import ssc.data;
 import ssc.env;
 import ssc.ipc;
 import ssc.log;
+import ssc.runtime;
 import ssc.string;
 import ssc.types;
 import ssc.webview;
@@ -23,6 +24,8 @@ using namespace ssc::string;
 
 using ssc::config::Config;
 using ssc::data::DataManager;
+using ssc::ipc::Bridge;
+using ssc::runtime::Runtime;
 
 using ssc::core::application::CoreApplication;
 
@@ -30,23 +33,32 @@ export namespace ssc::window {
   using core::window::CoreWindow; // NOLINT
   using core::window::CoreWindowOptions; // NOLINT
 
-  constexpr auto& MAX_WINDOWS = ssc::core::window::MAX_WINDOWS;
-
   using WindowOptions = ssc::core::window::CoreWindowOptions;
 
-  bool onIPCSchemeRequestRouteCallback (const webview::IPCSchemeRequest& request) {
-    // @TODO(jwerle) insert router
-    return false;
-  }
+  constexpr auto& MAX_WINDOWS = ssc::core::window::MAX_WINDOWS;
 
   class Window : public CoreWindow {
     public:
-      Window (CoreApplication& app, const WindowOptions opts)
-        : CoreWindow(app, opts, onIPCSchemeRequestRouteCallback) {
+      Bridge bridge;
+      Window (CoreApplication& app, Runtime& runtime, const WindowOptions opts)
+        : bridge(runtime),
+          CoreWindow(app, opts, [this](auto& request) {
+            return this->onIPCSchemeRequestRouteCallback(request);
+          })
+      {
+        // noop
+      }
+
+      bool onIPCSchemeRequestRouteCallback (
+        const webview::IPCSchemeRequest& request
+      ) {
+        return this->bridge.router.invoke(request.message, [this](auto result) {
+          log::info(result);
+        });
       }
   };
 
-  struct WindowFactoryOptions {
+  struct WindowManagerOptions {
     float defaultHeight = 0;
     float defaultWidth = 0;
     bool isHeightInPercent = false;
@@ -61,7 +73,7 @@ export namespace ssc::window {
     DataManager* dataManager = nullptr;
   };
 
-  class WindowFactory  {
+  class WindowManager  {
     public:
       enum WindowStatus {
         WINDOW_ERROR = -1,
@@ -83,19 +95,20 @@ export namespace ssc::window {
       class WindowWithMetadata : public Window {
         public:
           WindowStatus status;
-          WindowFactory &factory;
+          WindowManager &manager;
 
           WindowWithMetadata (
-            WindowFactory &factory,
-            CoreApplication &app,
-            WindowOptions opts
-          ) : Window(app, opts) , factory(factory) { }
+            WindowManager& manager,
+            CoreApplication& app,
+            Runtime& runtime,
+            CoreWindowOptions opts
+          ) : Window(app, runtime, opts) , manager(manager) { }
 
           ~WindowWithMetadata () {}
 
           void show (const String &seq) {
             auto index = std::to_string(this->opts.index);
-            factory.log("Showing Window#" + index + " (seq=" + seq + ")");
+            manager.log("Showing Window#" + index + " (seq=" + seq + ")");
             status = WindowStatus::WINDOW_SHOWING;
             Window::show(seq);
             status = WindowStatus::WINDOW_SHOWN;
@@ -107,7 +120,7 @@ export namespace ssc::window {
               status < WindowStatus::WINDOW_EXITING
             ) {
               auto index = std::to_string(this->opts.index);
-              factory.log("Hiding Window#" + index + " (seq=" + seq + ")");
+              manager.log("Hiding Window#" + index + " (seq=" + seq + ")");
               status = WindowStatus::WINDOW_HIDING;
               Window::hide(seq);
               status = WindowStatus::WINDOW_HIDDEN;
@@ -117,7 +130,7 @@ export namespace ssc::window {
           void close (int code) {
             if (status < WindowStatus::WINDOW_CLOSING) {
               auto index = std::to_string(this->opts.index);
-              factory.log("Closing Window#" + index + " (code=" + std::to_string(code) + ")");
+              manager.log("Closing Window#" + index + " (code=" + std::to_string(code) + ")");
               status = WindowStatus::WINDOW_CLOSING;
               Window::close(code);
               status = WindowStatus::WINDOW_CLOSED;
@@ -128,7 +141,7 @@ export namespace ssc::window {
           void exit (int code) {
             if (status < WindowStatus::WINDOW_EXITING) {
               auto index = std::to_string(this->opts.index);
-              factory.log("Exiting Window#" + index + " (code=" + std::to_string(code) + ")");
+              manager.log("Exiting Window#" + index + " (code=" + std::to_string(code) + ")");
               status = WindowStatus::WINDOW_EXITING;
               Window::exit(code);
               status = WindowStatus::WINDOW_EXITED;
@@ -139,7 +152,7 @@ export namespace ssc::window {
           void kill () {
             if (status < WindowStatus::WINDOW_KILLING) {
               auto index = std::to_string(this->opts.index);
-              factory.log("Killing Window#" + index);
+              manager.log("Killing Window#" + index);
               status = WindowStatus::WINDOW_KILLING;
               Window::kill();
               status = WindowStatus::WINDOW_KILLED;
@@ -148,7 +161,7 @@ export namespace ssc::window {
           }
 
           void gc () {
-            factory.destroyWindow(reinterpret_cast<Window*>(this));
+            manager.destroyWindow(reinterpret_cast<Window*>(this));
           }
       };
 
@@ -159,10 +172,15 @@ export namespace ssc::window {
       std::vector<bool> inits;
       std::vector<WindowWithMetadata*> windows;
       std::recursive_mutex mutex;
-      WindowFactoryOptions options;
+      WindowManagerOptions options;
+      Runtime& runtime;
 
-      WindowFactory (CoreApplication &app) :
+      WindowManager (
+        CoreApplication& app,
+        Runtime& runtime
+      ) :
         app(app),
+        runtime(runtime),
         inits(MAX_WINDOWS),
         windows(MAX_WINDOWS)
     {
@@ -171,7 +189,7 @@ export namespace ssc::window {
       }
     }
 
-      ~WindowFactory () {
+      ~WindowManager () {
         destroy();
       }
 
@@ -187,7 +205,7 @@ export namespace ssc::window {
         inits.clear();
       }
 
-      void configure (WindowFactoryOptions configuration) {
+      void configure (WindowManagerOptions configuration) {
         if (destroyed) return;
         this->options.defaultHeight = configuration.defaultHeight;
         this->options.defaultWidth = configuration.defaultWidth;
@@ -243,10 +261,10 @@ export namespace ssc::window {
       }
 
       Window* getOrCreateWindow (int index) {
-        return getOrCreateWindow(index, WindowOptions {});
+        return getOrCreateWindow(index, CoreWindowOptions {});
       }
 
-      Window* getOrCreateWindow (int index, WindowOptions opts) {
+      Window* getOrCreateWindow (int index, CoreWindowOptions opts) {
         if (this->destroyed) return nullptr;
         if (index < 0) return nullptr;
         if (getWindowStatus(index) == WindowStatus::WINDOW_NONE) {
@@ -303,7 +321,7 @@ export namespace ssc::window {
         }
       }
 
-      Window* createWindow (WindowOptions opts) {
+      Window* createWindow (CoreWindowOptions opts) {
         std::lock_guard<std::recursive_mutex> guard(this->mutex);
         if (destroyed) return nullptr;
         StringStream env;
@@ -312,24 +330,22 @@ export namespace ssc::window {
           return reinterpret_cast<Window*>(windows[opts.index]);
         }
 
-        if (opts.config.size() > 0) {
-          for (auto const &envKey : split(opts.config["env"], ',')) {
-            auto cleanKey = trim(envKey);
-            auto envValue = env::get(cleanKey);
+        for (auto const &envKey : split(opts.config["env"], ',')) {
+          auto cleanKey = trim(envKey);
+          auto envValue = env::get(cleanKey);
 
-            env << String(
-              cleanKey + "=" + encodeURIComponent(envValue) + "&"
-            );
-          }
-        } else {
-          for (auto const &envKey : split(this->options.config["env"], ',')) {
-            auto cleanKey = trim(envKey);
-            auto envValue = env::get(cleanKey);
+          env << String(
+            cleanKey + "=" + encodeURIComponent(envValue) + "&"
+          );
+        }
 
-            env << String(
-              cleanKey + "=" + encodeURIComponent(envValue) + "&"
-            );
-          }
+        for (auto const &envKey : split(this->options.config["env"], ',')) {
+          auto cleanKey = trim(envKey);
+          auto envValue = env::get(cleanKey);
+
+          env << String(
+            cleanKey + "=" + encodeURIComponent(envValue) + "&"
+          );
         }
 
         auto height = opts.height > 0 ? opts.height : this->options.defaultHeight;
@@ -337,7 +353,7 @@ export namespace ssc::window {
         auto isHeightInPercent = opts.height > 0 ? false : this->options.isHeightInPercent;
         auto isWidthInPercent = opts.width > 0 ? false : this->options.isWidthInPercent;
 
-        WindowOptions windowOptions = {
+        CoreWindowOptions windowOptions = {
           .resizable = opts.resizable,
           .frameless = opts.frameless,
           .utility = opts.utility,
@@ -369,7 +385,7 @@ export namespace ssc::window {
           this->log("Creating Window#" + std::to_string(opts.index));
         }
 
-        auto window = new WindowWithMetadata(*this, app, windowOptions);
+        auto window = new WindowWithMetadata(*this, app, this->runtime, windowOptions);
 
         window->status = WindowStatus::WINDOW_CREATED;
         window->onExit = this->options.onExit;
@@ -381,8 +397,8 @@ export namespace ssc::window {
         return reinterpret_cast<Window*>(window);
       }
 
-      Window* createDefaultWindow (WindowOptions opts) {
-        return createWindow(WindowOptions {
+      Window* createDefaultWindow (CoreWindowOptions opts) {
+        return createWindow(CoreWindowOptions {
           .resizable = true,
           .frameless = false,
           .canExit = true,
