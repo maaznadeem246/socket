@@ -138,7 +138,7 @@ function _prepare {
 
   echo "# preparing directories..."
   rm -rf "$ASSETS_DIR"
-  mkdir -p $ASSETS_DIR/{lib,src,include,build,modules,cache}
+  mkdir -p "$ASSETS_DIR"/{lib,src,include,build,modules,cache}
   mkdir -p $LIB_DIR
 
   if [ ! -d "$BUILD_DIR/uv" ]; then
@@ -154,7 +154,6 @@ function _prepare {
 function _install {
   echo "# copying sources to $ASSETS_DIR/src"
   cp -r "$WORK_DIR"/src/* "$ASSETS_DIR/src"
-  cp -fr "$BUILD_DIR"/desktop "$ASSETS_DIR/src/desktop"
 
   echo "# copying libraries to $ASSETS_DIR/lib"
   rm -rf "$ASSETS_DIR/lib"

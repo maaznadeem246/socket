@@ -1,6 +1,9 @@
 module;
+#include "../core/bluetooth.hh"
 #include "../core/ipc.hh"
 #include "../core/network.hh"
+#include "../core/routing.hh"
+#include <new>
 
 /**
  * @module ssc.ipc
@@ -16,39 +19,43 @@ import ssc.types;
 import ssc.utils;
 import ssc.log;
 
-using namespace ssc::core::network;
+using ssc::core::network::NetworkStatusObserver;
+using ssc::core::bluetooth::CoreBluetooth;
 
 using namespace ssc::data;
 using namespace ssc::javascript;
-using namespace ssc::runtime;
 using namespace ssc::types;
 using namespace ssc::utils;
+
+using ssc::runtime::Runtime;
 
 export namespace ssc::ipc {
   // forward
   class Router;
 
+  using core::ipc::IRouter;
   using core::ipc::Message; // NOLINT(misc-unused-using-decls)
   using core::ipc::MessageBuffer; // NOLINT(misc-unused-using-decls)
   using core::ipc::Result; // NOLINT(misc-unused-using-decls)
   using Seq = Message::Seq; // NOLINT(misc-unused-using-decls)
 
   using EvaluateJavaScriptCallback = Function<void(const String)>;
-  using DispatchFunction = Function<void()>;
-  using DispatchCallback = Function<void(DispatchFunction)>;
-  using ReplyCallback = Function<void(const Result&)>;
-  using ResultCallback = Function<void(Result)>;
-  using MessageCallback = Function<void(const Message, Router*, ReplyCallback)>;
   using BufferMap = std::map<String, MessageBuffer>;
 
-  struct MessageCallbackContext {
+  using DispatchFunction = IRouter::DispatchFunction;
+  using DispatchCallback = IRouter::DispatchCallback;
+  using ResultCallback = IRouter::ResultCallback;
+  using ReplyCallback = IRouter::ReplyCallback;
+  using RouteCallback = IRouter::RouteCallback;
+
+  struct RouteCallbackContext {
     bool async = true;
-    MessageCallback callback;
+    RouteCallback callback;
   };
 
-  using RouteTable = std::map<String, MessageCallbackContext>;
+  using RouteTable = std::map<String, RouteCallbackContext>;
 
-  class Router {
+  class Router : public IRouter {
     public:
       EvaluateJavaScriptCallback evaluateJavaScriptFunction = nullptr;
       DispatchCallback dispatchFunction = nullptr;
@@ -83,13 +90,13 @@ export namespace ssc::ipc {
         this->emit(statusName, json);
       }
 
-      auto hasMappedBuffer (int index, const Message::Seq& seq) {
+      bool hasMappedBuffer (int index, const Message::Seq& seq) {
         Lock lock(this->mutex);
         auto key = std::to_string(index) + seq;
         return this->buffers.find(key) != this->buffers.end();
       }
 
-      auto getMappedBuffer (int index, const Message::Seq& seq) {
+      MessageBuffer getMappedBuffer (int index, const Message::Seq& seq) {
         if (this->hasMappedBuffer(index, seq)) {
           Lock lock(this->mutex);
           auto key = std::to_string(index) + seq;
@@ -99,7 +106,7 @@ export namespace ssc::ipc {
         return MessageBuffer {};
       }
 
-      auto removeMappedBuffer (int index, const Message::Seq& seq) {
+      void removeMappedBuffer (int index, const Message::Seq& seq) {
         Lock lock(this->mutex);
         if (this->hasMappedBuffer(index, seq)) {
           auto key = std::to_string(index) + seq;
@@ -107,7 +114,7 @@ export namespace ssc::ipc {
         }
       }
 
-      auto setMappedBuffer (
+      void setMappedBuffer (
         int index,
         const Message::Seq& seq,
         char* bytes,
@@ -118,13 +125,13 @@ export namespace ssc::ipc {
         this->buffers.insert_or_assign(key, MessageBuffer { bytes, size });
       }
 
-      void map (const String& name, MessageCallback callback) {
+      void map (const String& name, RouteCallback callback) {
         return this->map(name, true, callback);
       }
 
-      void map (const String& name, bool async, MessageCallback callback) {
+      void map (const String& name, bool async, RouteCallback callback) {
         if (callback != nullptr) {
-          table.insert_or_assign(name, MessageCallbackContext { async, callback });
+          table.insert_or_assign(name, RouteCallbackContext { async, callback });
         }
       }
 
@@ -218,7 +225,8 @@ export namespace ssc::ipc {
         return this->invoke(message, callback);
       }
 
-      bool send (const Message::Seq& seq, const JSON::Any& json, Data& data) {
+      bool send (const Message::Seq& seq, const JSON::Any& json, Data data) {
+        // CoreSchemeHandler::resolve(...)
         if (data.body || seq == "-1") {
           auto script = this->dataManager.create(seq, json, data);
           return this->evaluateJavaScript(script);
@@ -244,8 +252,14 @@ export namespace ssc::ipc {
     public:
       Router router;
       Runtime& runtime;
+      CoreBluetooth bluetooth;
       Bridge (const Bridge&) = delete;
-      Bridge (Runtime& runtime) : runtime(runtime), router(runtime) {
+      Bridge (Runtime& runtime)
+        : runtime(runtime),
+          router(runtime),
+          bluetooth(&this->router)
+      {
+        core::routing::init(this->router);
       }
   };
 }

@@ -220,5 +220,40 @@ namespace ssc::core::ipc {
         return JSON::Object(entries);
       }
   };
+
+  class IRouter {
+    public:
+      using DispatchFunction = Function<void()>;
+      using DispatchCallback = Function<void(DispatchFunction)>;
+      using ResultCallback = Function<void(Result)>;
+      using ReplyCallback = Function<void(const Result&)>;
+      using RouteCallback = Function<void(const Message, IRouter*, ReplyCallback)>;
+
+      virtual void map (const String& name, RouteCallback callback) = 0;
+      virtual void map (const String& name, bool async, RouteCallback callback) = 0;
+      virtual void unmap (const String& name) = 0;
+      virtual bool dispatch (DispatchFunction callback) = 0;
+      virtual bool hasMappedBuffer (int index, const Message::Seq& seq) = 0;
+      virtual MessageBuffer getMappedBuffer (int index, const Message::Seq& seq) = 0;
+      virtual void removeMappedBuffer (int index, const Message::Seq& seq) = 0;
+      virtual void setMappedBuffer (int index, const Message::Seq& seq, char* bytes, size_t size) = 0;
+      virtual bool emit (const String& name, const String& data) = 0;
+      virtual bool emit (const String& name, const JSON::Any& data) = 0;
+      virtual bool evaluateJavaScript (const String& js) = 0;
+      virtual bool invoke (const Message& message) = 0;
+      virtual bool invoke (const Message& message, ResultCallback callback) = 0;
+      virtual bool invoke (const String& name, char *bytes, size_t size) = 0;
+      virtual bool invoke (
+        const String& name,
+        char *bytes,
+        size_t size,
+        ResultCallback callback
+      ) = 0;
+      virtual bool send (
+        const Message::Seq& seq,
+        const JSON::Any& json,
+        CoreData data
+      ) = 0;
+  };
 }
 #endif

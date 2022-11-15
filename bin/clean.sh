@@ -6,6 +6,7 @@ declare targets=(
   cache
   cli
   core
+  desktop
   lib/libsocket*
   modules
   tests

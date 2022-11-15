@@ -46,7 +46,6 @@ export namespace ssc::window {
             return this->onIPCSchemeRequestRouteCallback(request);
           })
       {
-        // noop
       }
 
       bool onIPCSchemeRequestRouteCallback (

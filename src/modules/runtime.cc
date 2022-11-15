@@ -1,8 +1,5 @@
 module; // global
-#include <socket/platform.hh>
-
-#include <functional>
-#include <new>
+#include <memory>
 
 /**
  * @module runtime
@@ -37,8 +34,6 @@ export namespace ssc::runtime {
       Platform platform;
       DNS dns;
 
-      Runtime (const Runtime&) = delete;
-      ~Runtime () = default;
       Runtime ()
         : dns(this->loop),
           platform(this->loop)

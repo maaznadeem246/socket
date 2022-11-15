@@ -34,6 +34,7 @@
   #endif
 
   #if defined(__APPLE__)
+    #include <CoreFoundation/CoreFoundation.h>
     #include <TargetConditionals.h>
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
       #include <_types/_uint64_t.h>
