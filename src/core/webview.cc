@@ -301,7 +301,10 @@ namespace ssc::core::webview {
       auto task = (CoreSchemeTask) this->internal;
       auto headerFields = [NSMutableDictionary dictionary];
 
-      for (const auto& header : this->response.headers.entries) {
+      headerFields[@"access-control-allow-methods"] = @"*";
+      headerFields[@"access-control-allow-origin"] = @"*";
+
+      for (const auto& header : headers.entries) {
         auto key = [NSString stringWithUTF8String: trim(header.key).c_str()];
         auto value = [NSString stringWithUTF8String: trim(header.value.str()).c_str()];
         headerFields[key] = value;
@@ -311,6 +314,8 @@ namespace ssc::core::webview {
 
       if (this->response.body.size > 0) {
         headerFields[@"content-length"] = [@(this->response.body.size) stringValue];
+      } else {
+        headerFields[@"content-type"] = @"application/json";
       }
 
       auto taskResponse = [[NSHTTPURLResponse alloc]
@@ -350,14 +355,10 @@ namespace ssc::core::webview {
   }
 
   void CoreIPCSchemeHandler::onSchemeRequest (CoreSchemeRequest& request) {
-  printf("request %s\n", request.url.c_str());
     auto message = Message(request.url);
     CoreSchemeResponseStatusCode statusCode = 200;
     CoreSchemeResponseHeaders headers;
     CoreSchemeResponseBody body;
-
-    headers["access-control-allow-origin"] = "*";
-    headers["access-control-allow-methods"] = "*";
 
     if (request.method == "OPTIONS") {
       return request.end(statusCode, headers, body);

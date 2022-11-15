@@ -1,4 +1,4 @@
-#include <socket/runtime.hh>
+#include <socket/socket.hh>
 #include <assert.h>
 
 import ssc.webview;
@@ -11,6 +11,7 @@ import ssc.log;
 
 #include <new>
 
+using namespace ssc;
 using namespace ssc::data;
 using namespace ssc::types;
 using namespace ssc::webview;

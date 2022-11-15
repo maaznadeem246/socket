@@ -144,34 +144,6 @@ namespace ssc::core::window {
       ExitCallback onExit = nullptr;
       int index = 0;
 
-      /*
-#elif defined(__linux__) && !defined(__ANDROID__)
-      GtkSelectionData *selectionData = nullptr;
-      GtkAccelGroup *accelGroup = nullptr;
-      GtkWidget *webview = nullptr;
-      GtkWidget *window = nullptr;
-      GtkWidget *menubar = nullptr;
-      GtkWidget *vbox = nullptr;
-      GtkWidget *popup = nullptr;
-      std::vector<String> draggablePayload;
-      double dragLastX = 0;
-      double dragLastY = 0;
-      bool isDragInvokedInsideWindow;
-      int popupId;
-#elif defined(_WIN32)
-      static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-      ICoreWebView2Controller *controller = nullptr;
-      ICoreWebView2 *webview = nullptr;
-      HMENU systemMenu;
-      DWORD mainThread = GetCurrentThreadId();
-      POINT m_minsz = POINT {0, 0};
-      POINT m_maxsz = POINT {0, 0};
-      DragDrop* drop;
-      HWND window;
-      std::map<int, std::string> menuMap;
-      void resize (HWND window);
-#endif
-*/
       CoreWindow () = delete;
       CoreWindow (
         CoreApplication&,
@@ -193,11 +165,6 @@ namespace ssc::core::window {
       void setContextMenu (const String&, const String&);
       void closeContextMenu (const String&);
       void closeContextMenu ();
-      /*
-      #if defined(__linux__) && !defined(__ANDROID__)
-      void closeContextMenu (GtkWidget *, const String&);
-      #endif
-      */
       void setBackgroundColor (int r, int g, int b, float a);
       void setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos);
       void setSystemMenu (const String& seq, const String& menu);

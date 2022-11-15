@@ -167,12 +167,18 @@ namespace ssc::core::ipc {
       Value value;
 
       Result () = default;
-      Result (const Err& error) {
-        this->value.json.err = error.json;
+      Result (const Err& err) {
+        this->value.json.err = err.json;
+        this->message = err.message;
+        this->source = err.message.name;
+        this->seq = err.seq;
       }
 
       Result (const Data& data) {
         this->value.json.data = data.json;
+        this->message = data.message;
+        this->source = data.message.name;
+        this->seq = data.seq;
       }
 
       Result (const Message::Seq& seq, const Message& message) {

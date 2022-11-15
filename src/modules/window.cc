@@ -26,7 +26,6 @@ using namespace ssc::string;
 using ssc::config::Config;
 using ssc::data::DataManager;
 using ssc::bridge::Bridge;
-using ssc::bridge::routing;
 using ssc::runtime::Runtime;
 
 using ssc::core::application::CoreApplication;
@@ -51,11 +50,16 @@ export namespace ssc::window {
       }
 
       bool onIPCSchemeRequestRouteCallback (
-        const webview::IPCSchemeRequest& request
+        webview::IPCSchemeRequest& request
       ) {
-        log::info(request.message);
-        return this->bridge.router.invoke(request.message, [this](auto result) {
-          log::info(result);
+        return this->bridge.router.invoke(request.message, [=](auto result) mutable {
+          request.end(
+            200,
+            result.value.data.headers,
+            result.json(),
+            result.value.data.body,
+            result.value.data.length
+          );
         });
       }
 

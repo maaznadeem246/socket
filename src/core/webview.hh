@@ -31,14 +31,14 @@ namespace ssc::core::webview {
   using CoreSchemeRequestHeaders = Headers;
 
   struct CoreSchemeResponseBody {
-    JSON::Any json;
-    char* bytes;
-    size_t size;
+    JSON::Any json = nullptr;
+    char* bytes = nullptr;
+    size_t size = 0;
   };
 
   struct CoreSchemeRequestBody {
-    char* bytes;
-    size_t size;
+    char* bytes = nullptr;
+    size_t size = 0;
   };
 
   struct CoreSchemeResponse {
@@ -75,7 +75,7 @@ namespace ssc::core::webview {
       const String method,
       const String url,
       CoreSchemeRequestBody body
-    ) {
+    ) : message(url) {
       this->method = method;
       this->url = url;
       this->body = body;
@@ -85,7 +85,7 @@ namespace ssc::core::webview {
     void end (
       const CoreSchemeResponseStatusCode statusCode,
       const CoreSchemeResponseHeaders headers,
-      const JSON::Any json
+      JSON::Any json
     );
 
     void end (
@@ -104,13 +104,13 @@ namespace ssc::core::webview {
     void end (
       const CoreSchemeResponseStatusCode statusCode,
       const CoreSchemeResponseHeaders headers,
-      const JSON::Any json,
+      JSON::Any json,
       const char* bytes,
       size_t size
     );
   };
 
-  using CoreSchemeRequestCallback = Function<void(const CoreSchemeRequest&)>;
+  using CoreSchemeRequestCallback = Function<void(CoreSchemeRequest&)>;
   class CoreSchemeHandler {
     public:
       String scheme;
@@ -133,7 +133,7 @@ namespace ssc::core::webview {
       );
   };
 
-  using CoreIPCSchemeRequestRouteCallback = Function<bool(const CoreSchemeRequest&)>;
+  using CoreIPCSchemeRequestRouteCallback = Function<bool(CoreSchemeRequest&)>;
   class CoreIPCSchemeHandler : public CoreSchemeHandler {
     public:
       CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback;
