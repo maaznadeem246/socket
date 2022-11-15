@@ -163,18 +163,15 @@ namespace ssc::core::window {
         imp_implementationWithBlock(
           [=](id self, SEL cmd, WKScriptMessage* scriptMessage) {
             auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
-            if (window->onMessage != nullptr) {
-              id body = [scriptMessage body];
+            id body = [scriptMessage body];
 
-              if (![body isKindOfClass:[NSString class]]) {
-                return;
-              }
-
-              String msg = [body UTF8String];
-
-              // if (bridge->route(msg, nullptr, 0)) return; // FIXME
-              window->onMessage(msg);
+            if (![body isKindOfClass:[NSString class]]) {
+              return;
             }
+
+            String msg = [body UTF8String];
+
+            window->onScriptMessage(String([body UTF8String]));
           }),
         "v@:@"
       );

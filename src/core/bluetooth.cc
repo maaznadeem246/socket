@@ -31,9 +31,10 @@ namespace ssc::core::bluetooth {
     #endif
   }
 
-  CoreBluetooth::CoreBluetooth (ipc::IRouter* router) {
+  CoreBluetooth::CoreBluetooth (ipc::IRouter& router)
+    : router(router)
+  {
     this->internals = new CoreBluetoothInternals(this);
-    this->router = router;
   }
 
   CoreBluetooth::~CoreBluetooth () {
@@ -42,19 +43,18 @@ namespace ssc::core::bluetooth {
     }
 
     this->internals = nullptr;
-    this->router = nullptr;
   }
 
   bool CoreBluetooth::send (const String& seq, JSON::Any json, CoreData data) {
-    return this->router->send(seq, json, data);
+    return this->router.send(seq, json, data);
   }
 
   bool CoreBluetooth::send (const String& seq, JSON::Any json) {
-    return this->router->send(seq, json, CoreData{});
+    return this->router.send(seq, json, CoreData{});
   }
 
   bool CoreBluetooth::emit (const String& seq, JSON::Any json) {
-    return this->router->emit(seq, json);
+    return this->router.emit(seq, json);
   }
 
   void CoreBluetooth::startScanning () {

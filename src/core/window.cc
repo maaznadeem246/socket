@@ -39,5 +39,4 @@ namespace ssc::core::window {
   void CoreWindow::exit (int code) {
     if (onExit != nullptr) onExit(code);
   }
-
 }

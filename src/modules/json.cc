@@ -30,6 +30,7 @@ module; // global
 export module ssc.json;
 
 export namespace ssc::JSON {
+  using Type = ssc::core::JSON::Type;
   using Any = ssc::core::JSON::Any;
   using Null = ssc::core::JSON::Null;
   using Object = ssc::core::JSON::Object;

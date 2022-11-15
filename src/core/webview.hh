@@ -63,6 +63,7 @@ namespace ssc::core::webview {
       String id;
       CoreSchemeRequestBody body;
       CoreSchemeResponse response;
+      Message message;
       void *internal = nullptr;
 
       CoreSchemeRequest (const String url)
@@ -125,29 +126,14 @@ namespace ssc::core::webview {
       );
 
       ~CoreSchemeHandler();
-      void onSchemeRequest (CoreSchemeRequest& request);
+      virtual void onSchemeRequest (CoreSchemeRequest& request) = 0;
       void resolve (
         const String& id,
         const CoreSchemeResponseBody body
       );
   };
 
-  class CoreIPCSchemeRequest : public CoreSchemeRequest {
-    public:
-      Message message;
-      CoreIPCSchemeRequest (const String url)
-        : CoreIPCSchemeRequest("GET", url) {}
-      CoreIPCSchemeRequest (const String method, const String url)
-        : CoreIPCSchemeRequest(method, url, { nullptr, 0 }) {}
-
-      CoreIPCSchemeRequest (
-        const String method,
-        const String url,
-        CoreSchemeRequestBody body
-      ) : CoreSchemeRequest(method, url, body), message(url) {}
-  };
-
-  using CoreIPCSchemeRequestRouteCallback = Function<bool(const CoreIPCSchemeRequest&)>;
+  using CoreIPCSchemeRequestRouteCallback = Function<bool(const CoreSchemeRequest&)>;
   class CoreIPCSchemeHandler : public CoreSchemeHandler {
     public:
       CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback;
@@ -157,7 +143,7 @@ namespace ssc::core::webview {
         CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
       );
 
-      void onSchemeRequest (CoreIPCSchemeRequest& request);
+      void onSchemeRequest (CoreSchemeRequest& request);
   };
 
   template <class CoreSchemeTask> class CoreSchemeTaskManager {

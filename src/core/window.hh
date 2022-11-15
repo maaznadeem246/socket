@@ -220,6 +220,8 @@ namespace ssc::core::window {
         const String& state,
         const String& value
       );
+
+      virtual bool onScriptMessage (const String& string) = 0;
   };
 
   inline String createPreload (CoreWindowOptions opts) {

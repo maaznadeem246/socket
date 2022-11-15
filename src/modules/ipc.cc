@@ -1,8 +1,6 @@
 module;
-#include "../core/bluetooth.hh"
 #include "../core/ipc.hh"
 #include "../core/network.hh"
-#include "../core/routing.hh"
 #include <new>
 
 /**
@@ -20,7 +18,6 @@ import ssc.utils;
 import ssc.log;
 
 using ssc::core::network::NetworkStatusObserver;
-using ssc::core::bluetooth::CoreBluetooth;
 
 using namespace ssc::data;
 using namespace ssc::javascript;
@@ -42,7 +39,6 @@ export namespace ssc::ipc {
   using EvaluateJavaScriptCallback = Function<void(const String)>;
   using BufferMap = std::map<String, MessageBuffer>;
 
-  using DispatchFunction = IRouter::DispatchFunction;
   using DispatchCallback = IRouter::DispatchCallback;
   using ResultCallback = IRouter::ResultCallback;
   using ReplyCallback = IRouter::ReplyCallback;
@@ -58,7 +54,6 @@ export namespace ssc::ipc {
   class Router : public IRouter {
     public:
       EvaluateJavaScriptCallback evaluateJavaScriptFunction = nullptr;
-      DispatchCallback dispatchFunction = nullptr;
 
       NetworkStatusObserver networkStatusObserver;
       DataManager dataManager;
@@ -70,7 +65,7 @@ export namespace ssc::ipc {
       Router (const Router &) = delete;
       Router (Runtime& runtime) : runtime(runtime) {
         this->networkStatusObserver.onNetworkStatusChangeCallback =
-          [this](const String& statusName, const String& statusMessage) {
+          [&](const String& statusName, const String& statusMessage) {
             this->onNetworkStatusChange(statusName, statusMessage);
           };
       }
@@ -142,12 +137,8 @@ export namespace ssc::ipc {
       }
 
       bool dispatch (DispatchFunction callback) {
-        if (this->dispatchFunction != nullptr) {
-          this->dispatchFunction(callback);
-          return true;
-        }
-
-        return false;
+        this->runtime.loop.dispatch(callback);
+        return true;
       }
 
       bool emit (
@@ -207,6 +198,7 @@ export namespace ssc::ipc {
           }
         }
 
+          printf("fail 2\n");
         return false;
       }
 
@@ -245,21 +237,6 @@ export namespace ssc::ipc {
         }
 
         return false;
-      }
-  };
-
-  class Bridge {
-    public:
-      Router router;
-      Runtime& runtime;
-      CoreBluetooth bluetooth;
-      Bridge (const Bridge&) = delete;
-      Bridge (Runtime& runtime)
-        : runtime(runtime),
-          router(runtime),
-          bluetooth(&this->router)
-      {
-        core::routing::init(this->router);
       }
   };
 }

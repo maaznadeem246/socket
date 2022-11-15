@@ -16,9 +16,9 @@ namespace ssc::core::bluetooth {
   class CoreBluetooth {
     public:
       CoreBluetoothInternals* internals = nullptr;
-      ipc::IRouter* router = nullptr;
+      ipc::IRouter& router;
 
-      CoreBluetooth (ipc::IRouter*);
+      CoreBluetooth (ipc::IRouter&);
       ~CoreBluetooth ();
       bool send (const String& seq, JSON::Any json, CoreData data);
       bool send (const String& seq, JSON::Any json);

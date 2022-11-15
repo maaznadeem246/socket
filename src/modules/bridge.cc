@@ -1,8 +1,20 @@
-#include "routing.hh"
-#include "ipc.hh"
+module;
+#include "../core/bluetooth.hh"
 
-using namespace ssc::core::ipc;
-using namespace ssc::core::routing;
+export module ssc.bridge;
+import ssc.ipc;
+import ssc.json;
+import ssc.runtime;
+import ssc.string;
+import ssc.types;
+import ssc.utils;
+import ssc.log;
+
+using namespace ssc::core::bluetooth;
+using namespace ssc::ipc;
+using ssc::runtime::Runtime;
+
+#define IPC_CONTENT_TYPE "application/octet-stream"
 
 #define resultCallback(message, reply)                                         \
   [=](auto seq, auto json, auto post) {                                        \
@@ -26,12 +38,14 @@ using namespace ssc::core::routing;
   );
 
   static dispatch_queue_t queue = dispatch_queue_create(
-    "co.socketsupply.queue.routing",
+    "co.socketsupply.queue.bridge",
     qos
   );
 #endif
 
-namespace ssc::core::routing {
+export namespace ssc::bridge {
+  // forward
+
   JSON::Any validateMessageParameters (
     const Message& message,
     const Vector<String> names
@@ -47,22 +61,24 @@ namespace ssc::core::routing {
     return nullptr;
   }
 
-  void init (ipc::IRouter& router) {
+  inline void routing (Router& router) {
+    CoreBluetooth bluetooth(router);
+
     /**
      * Starts a bluetooth service
      * @param serviceId
      */
-    router.map("bluetooth.start", [](auto message, auto router, auto reply) {
+    router.map("bluetooth.start", [&](auto message, auto router, auto reply) {
       auto err = validateMessageParameters(message, {"serviceId"});
 
       if (err.type != JSON::Type::Null) {
         return reply(Result::Err { message, err });
       }
 
-      //router.bridge->bluetooth.startService(
-        //message.seq,
-        //message.get("serviceId")
-      //);
+      bluetooth.startService(
+        message.seq,
+        message.get("serviceId")
+      );
     });
 
     /**
@@ -70,7 +86,7 @@ namespace ssc::core::routing {
      * @param serviceId
      * @param characteristicId
      */
-    router.map("bluetooth.subscribe", [](auto message, auto router, auto reply) {
+    router.map("bluetooth.subscribe", [&](auto message, auto router, auto reply) {
       auto err = validateMessageParameters(message, {
         "characteristicId",
         "serviceId"
@@ -80,11 +96,11 @@ namespace ssc::core::routing {
         return reply(Result::Err { message, err });
       }
 
-      //router.bridge->bluetooth.subscribeCharacteristic(
-        //message.seq,
-        //message.get("serviceId"),
-        //message.get("characteristicId")
-      //);
+      bluetooth.subscribeCharacteristic(
+        message.seq,
+        message.get("serviceId"),
+        message.get("characteristicId")
+      );
     });
 
     /**
@@ -92,7 +108,7 @@ namespace ssc::core::routing {
      * @param serviceId
      * @param characteristicId
      */
-    router.map("bluetooth.publish", [](auto message, auto router, auto reply) {
+    router.map("bluetooth.publish", [&](auto message, auto router, auto reply) {
       auto err = validateMessageParameters(message, {
         "characteristicId",
         "serviceId"
@@ -110,13 +126,26 @@ namespace ssc::core::routing {
         size = message.value.size();
       }
 
-      //router.bridge->bluetooth.publishCharacteristic(
-        //message.seq,
-        //bytes,
-        //size,
-        //message.get("serviceId"),
-        //message.get("characteristicId")
-      //);
+      bluetooth.publishCharacteristic(
+        message.seq,
+        bytes,
+        size,
+        message.get("serviceId"),
+        message.get("characteristicId")
+      );
     });
   }
+
+  class Bridge {
+    public:
+      Router router;
+      Runtime& runtime;
+      Bridge (const Bridge&) = delete;
+      Bridge (Runtime& runtime)
+        : runtime(runtime),
+          router(runtime)
+      {
+        routing(this->router);
+      }
+  };
 }

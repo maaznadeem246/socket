@@ -11,6 +11,7 @@ import ssc.config;
 import ssc.data;
 import ssc.env;
 import ssc.ipc;
+import ssc.bridge;
 import ssc.log;
 import ssc.runtime;
 import ssc.string;
@@ -24,7 +25,8 @@ using namespace ssc::string;
 
 using ssc::config::Config;
 using ssc::data::DataManager;
-using ssc::ipc::Bridge;
+using ssc::bridge::Bridge;
+using ssc::bridge::routing;
 using ssc::runtime::Runtime;
 
 using ssc::core::application::CoreApplication;
@@ -51,9 +53,27 @@ export namespace ssc::window {
       bool onIPCSchemeRequestRouteCallback (
         const webview::IPCSchemeRequest& request
       ) {
+        log::info(request.message);
         return this->bridge.router.invoke(request.message, [this](auto result) {
           log::info(result);
         });
+      }
+
+      bool onScriptMessage (const String& string) {
+        auto message = ipc::Message(string);
+
+        if (this->bridge.router.invoke(message)) {
+        log::info("onScriptMessage");
+        log::info(message);
+          return true;
+        }
+
+        if (this->onMessage != nullptr) {
+          this->onMessage(string);
+          return true;
+        }
+
+        return false;
       }
   };
 

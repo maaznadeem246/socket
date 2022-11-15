@@ -20,7 +20,7 @@ export namespace ssc::webview {
   using SchemeRequestCallback = core::webview::CoreSchemeRequestCallback;
 
   using IPCSchemeHandler = core::webview::CoreIPCSchemeHandler;
-  using IPCSchemeRequest = core::webview::CoreIPCSchemeRequest;
+  using IPCSchemeRequest = core::webview::CoreSchemeRequest;
   using IPCSchemeRequestRouteCallback = core::webview::CoreIPCSchemeRequestRouteCallback;
 
   using WebView = core::webview::CoreWebView;

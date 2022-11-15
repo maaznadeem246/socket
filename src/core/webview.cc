@@ -232,12 +232,6 @@ namespace ssc::core::webview {
     #endif
   }
 
-  void CoreSchemeHandler::onSchemeRequest (CoreSchemeRequest& request) {
-    if (this->onSchemeRequestCallback != nullptr) {
-      this->onSchemeRequestCallback(request);
-    }
-  }
-
   void CoreSchemeHandler::resolve (
     const String& id,
     const CoreSchemeResponseBody body
@@ -355,7 +349,8 @@ namespace ssc::core::webview {
     this->onIPCSchemeRequestRouteCallback = onIPCSchemeRequestRouteCallback;
   }
 
-  void CoreIPCSchemeHandler::onSchemeRequest (CoreIPCSchemeRequest& request) {
+  void CoreIPCSchemeHandler::onSchemeRequest (CoreSchemeRequest& request) {
+  printf("request %s\n", request.url.c_str());
     auto message = Message(request.url);
     CoreSchemeResponseStatusCode statusCode = 200;
     CoreSchemeResponseHeaders headers;

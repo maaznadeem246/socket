@@ -24,6 +24,7 @@ declare modules=(
   runtime
   webview
   ipc
+  bridge
   window
   application
   process
