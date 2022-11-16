@@ -48,7 +48,6 @@ namespace ssc::core::webview {
     public:
       CoreWebView* coreWebView = nullptr;
       CoreWindow* coreWindow = nullptr;
-      CoreIPCSchemeHandler* coreIPCSchemeHandler = nullptr;
     #if defined(__APPLE__)
       CoreWKWebView* webview = nullptr; // aka WKWebView
       CoreNavigationDelegate* navigationDelegate = nullptr;
@@ -57,7 +56,7 @@ namespace ssc::core::webview {
         CoreWebView* coreWebView,
         CoreWindow* coreWindow,
         CoreDataManager* coreDataManager,
-        CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
+        CoreIPCSchemeHandler* coreIPCSchemeHandler,
         const javascript::Script preloadScript
       );
 

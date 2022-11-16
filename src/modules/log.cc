@@ -47,41 +47,47 @@ export namespace ssc::log {
 
       auto handle = isError ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE;
       WriteConsoleA(GetStdHandle(handle), lineStr.c_str(), lineStr.size(), NULL, NULL);
+    #elif defined(__ANDROID__)
+      if (isError) {
+        __android_log_print(ANDROID_LOG_ERROR, "", "%s", str.c_str());
+      } else {
+        __android_log_print(ANDROID_LOG_INFO, "", "%s", str.c_str());
+      }
     #else
-      (isError ? std::cerr : std::cout) << str << std::endl;
+      (isError ? std::cerr : std::cout) << str;
     #endif
   }
 
   inline auto info (const String& string) {
-    write(string, false);
+    write(string + "\n", false);
   }
 
   inline auto info (std::nullptr_t _) {
-    write(String("null"), false);
+    info(String("null"));
   }
 
   inline auto info (const uint64_t u64) {
-    write(std::to_string(u64), false);
+    info(std::to_string(u64));
   }
 
   inline auto info (const int64_t i64) {
-    write(std::to_string(i64), false);
+    info(std::to_string(i64));
   }
 
   inline auto info (const int32_t i32) {
-    write(std::to_string(i32), false);
+    info(std::to_string(i32));
   }
 
   inline auto info (const double f64) {
-    write(std::to_string(f64), false);
+    info(std::to_string(f64));
   }
 
   inline auto info (const float f32) {
-    write(JSON::Number(f32).str(), false);
+    info(JSON::Number(f32).str());
   }
 
   inline auto info (const char* string) {
-    write(String(string), false);
+    info(String(string));
   }
 
   inline auto info (const JSON::Any& json) {
@@ -129,31 +135,31 @@ export namespace ssc::log {
   }
 
   inline auto error (const String& string) {
-    write(string, true);
+    write(string + "\n", true);
   }
 
   inline auto error (std::nullptr_t) {
-    write(String("null"), true);
+    error(String("null"));
   }
 
   inline auto error (const int64_t i64) {
-    write(std::to_string(i64), true);
+    error(std::to_string(i64));
   }
 
   inline auto error (const int32_t i32) {
-    write(std::to_string(i32), true);
+    error(std::to_string(i32));
   }
 
   inline auto error (const double f64) {
-    write(JSON::Number(f64).str(), true);
+    error(JSON::Number(f64).str());
   }
 
   inline auto error (const float f32) {
-    write(JSON::Number(f32).str(), true);
+    error(JSON::Number(f32).str());
   }
 
   inline auto error (const char* string) {
-    write(String(string), true);
+    error(String(string));
   }
 
   inline auto error (const JSON::Any& json) {
@@ -189,7 +195,7 @@ export namespace ssc::log {
   }
 
   inline auto error (const StringStream& stream) {
-    info(stream.str());
+    error(stream.str());
   }
 
   inline auto error (bool boolean) {
@@ -197,6 +203,6 @@ export namespace ssc::log {
   }
 
   template <typename ...Args> auto error (const String& fmt, Args... args) {
-    info(format(fmt, args...));
+    error(format(fmt, args...));
   }
 }

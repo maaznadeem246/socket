@@ -10,7 +10,6 @@ namespace ssc::core::application {
   using namespace string;
   using namespace types;
   using config::Config;
-  using data::CoreDataManager;
 
   struct Callbacks {
     ExitCallback onExit = nullptr;
@@ -23,7 +22,6 @@ namespace ssc::core::application {
       AtomicBool exitWasRequested = false;
       AtomicBool wasStartedFromCli = false;
       Callbacks callbacks;
-      CoreDataManager dataManager;
       Config config;
       const int argc;
       const char** argv;
@@ -51,7 +49,7 @@ namespace ssc::core::application {
       void kill ();
       void exit (int code);
       void restart ();
-      void dispatch (std::function<void()>);
+      void dispatch (Function<void()>);
       String getCwd ();
   };
 }

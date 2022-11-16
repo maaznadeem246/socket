@@ -1,4 +1,4 @@
-module; // global
+module;
 #include <socket/platform.hh>
 
 /**
@@ -13,6 +13,7 @@ module; // global
  */
 export module ssc.os;
 import ssc.string;
+import ssc.peer;
 import ssc.types;
 import ssc.json;
 import ssc.loop;
@@ -22,6 +23,7 @@ import ssc.uv;
 
 using namespace ssc::data;
 using namespace ssc::loop;
+using namespace ssc::peer;
 using namespace ssc::string;
 using namespace ssc::types;
 using namespace ssc::utils;
@@ -34,8 +36,13 @@ export namespace ssc::os {
     public:
       using Callback = std::function<void(String, JSON::Any, Data)>;
 
+      PeerManager& peerManager;
       Loop& loop;
-      OS (Loop& loop) : loop(loop) {}
+
+      OS (Loop& loop, PeerManager& peerManager)
+        : peerManager(peerManager),
+          loop(loop) {}
+
       void bufferSize (
         const String seq,
         uint64_t peerId,
@@ -50,8 +57,7 @@ export namespace ssc::os {
         }
 
         this->loop.dispatch([=, this]() {
-          // FIXME
-          auto peer = this->runtime->getPeer(peerId);
+          auto peer = this->peerManager.getPeer(peerId); // inject peers in constructor
 
           if (peer == nullptr) {
             auto json = JSON::Object::Entries {
@@ -143,7 +149,7 @@ export namespace ssc::os {
 
           if (addr->sin_family == AF_INET) {
             JSON::Object::Entries entries;
-            entries["internal"] = info.is_internal == 0 ? "false" : "true";
+            entries["internal"] = info.is_internal == 0 ? false : true;
             entries["address"] = addrToIPv4(addr);
             entries["mac"] = String(mac, 17);
             ipv4[String(info.name)] = entries;
@@ -151,7 +157,7 @@ export namespace ssc::os {
 
           if (addr->sin_family == AF_INET6) {
             JSON::Object::Entries entries;
-            entries["internal"] = info.is_internal == 0 ? "false" : "true";
+            entries["internal"] = info.is_internal == 0 ? false : true;
             entries["address"] = addrToIPv6((struct sockaddr_in6*) addr);
             entries["mac"] = String(mac, 17);
             ipv6[String(info.name)] = entries;

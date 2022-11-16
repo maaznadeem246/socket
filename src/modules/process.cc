@@ -26,6 +26,7 @@ using ssc::string::String;
 using ssc::string::splitc;
 
 export namespace ssc::process {
+  using MessageCallback = std::function<void(const std::string)>;
   MessageCallback exitCallback;
 
   struct ExecOutput {

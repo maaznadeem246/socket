@@ -7,11 +7,13 @@ module;
  * @description Platform agnostic Window APIs
  */
 export module ssc.window;
+import ssc.bridge;
 import ssc.config;
 import ssc.data;
 import ssc.env;
+import ssc.headers;
 import ssc.ipc;
-import ssc.bridge;
+import ssc.json;
 import ssc.log;
 import ssc.runtime;
 import ssc.string;
@@ -23,9 +25,10 @@ using namespace ssc::types;
 using namespace ssc::utils;
 using namespace ssc::string;
 
+using ssc::bridge::Bridge;
 using ssc::config::Config;
 using ssc::data::DataManager;
-using ssc::bridge::Bridge;
+using ssc::headers::Headers;
 using ssc::runtime::Runtime;
 
 using ssc::core::application::CoreApplication;
@@ -47,37 +50,78 @@ export namespace ssc::window {
             return this->onIPCSchemeRequestRouteCallback(request);
           })
       {
+        this->init();
+      }
+
+      inline void init () {
+        bridge.router.evaluateJavaScriptFunction = [&](auto script) {
+          this->eval(script);
+        };
       }
 
       bool onIPCSchemeRequestRouteCallback (
         webview::IPCSchemeRequest& request
       ) {
-        return this->bridge.router.invoke(request.message, [=](auto result) mutable {
-          request.end(
-            200,
-            result.value.data.headers,
-            result.json(),
-            result.value.data.body,
-            result.value.data.length
-          );
+        auto invoked = this->bridge.router.invoke(request.message, [=](auto result) mutable {
+          JSON::Any json = result.json();
+          auto data = result.data();
+          auto seq = result.seq;
+
+          if (seq == "-1") {
+            this->bridge.router.send(seq, json, data);
+          } else {
+            auto headers = data.headers;
+            auto hasError = (
+              json.isObject() &&
+              json.as<JSON::Object>().has("err") &&
+              json.as<JSON::Object>().get("err").isObject()
+            );
+
+            auto statusCode = hasError ? 500 : 200;
+
+            request.end(statusCode, headers, json, data.body, data.length);
+          }
         });
+
+        if (!invoked && this->onMessage != nullptr) {
+          invoked = this->onMessage(request.message.str());
+
+          if (invoked) {
+            auto json = JSON::Object::Entries {
+              {"source", request.message.name},
+              {"data", JSON::Object::Entries { }}
+            };
+
+            request.end(200, Headers {}, json, nullptr, 0);
+            return true;
+          }
+        }
+
+        if (!invoked) {
+          auto json = JSON::Object::Entries {
+            {"source", request.message.name},
+            {"err", JSON::Object::Entries {
+              {"message", "Not found"},
+              {"type", "NotFoundError"},
+              {"url", request.url}
+            }}
+          };
+
+          request.end(404, Headers {}, json, nullptr, 0);
+        }
+
+        return true; // request handled
       }
 
       bool onScriptMessage (const String& string) {
         auto message = ipc::Message(string);
+        auto invoked = this->bridge.router.invoke(message);
 
-        if (this->bridge.router.invoke(message)) {
-        log::info("onScriptMessage");
-        log::info(message);
-          return true;
+        if (!invoked && this->onMessage != nullptr) {
+          return this->onMessage(string);
         }
 
-        if (this->onMessage != nullptr) {
-          this->onMessage(string);
-          return true;
-        }
-
-        return false;
+        return invoked;
       }
   };
 
@@ -91,7 +135,7 @@ export namespace ssc::window {
     String argv = "";
     String cwd = "";
     Config config;
-    MessageCallback onMessage = [](const String) {};
+    MessageCallback onMessage = [](const String) { return false; };
     ExitCallback onExit = nullptr;
     DataManager* dataManager = nullptr;
   };
@@ -207,6 +251,7 @@ export namespace ssc::window {
         inits(MAX_WINDOWS),
         windows(MAX_WINDOWS)
     {
+      this->options.dataManager = &this->runtime.dataManager;
       if (ssc::config::isDebugEnabled()) {
         lastDebugLogLine = std::chrono::system_clock::now();
       }
@@ -241,7 +286,9 @@ export namespace ssc::window {
         this->options.isTest = configuration.isTest;
         this->options.argv = configuration.argv;
         this->options.cwd = configuration.cwd;
-        this->options.dataManager = configuration.dataManager;
+        if (configuration.dataManager != nullptr) {
+          this->options.dataManager = configuration.dataManager;
+        }
       }
 
       void inline log (const String line) {

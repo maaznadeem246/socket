@@ -127,10 +127,6 @@ namespace ssc::core::webview {
 
       ~CoreSchemeHandler();
       virtual void onSchemeRequest (CoreSchemeRequest& request) = 0;
-      void resolve (
-        const String& id,
-        const CoreSchemeResponseBody body
-      );
   };
 
   using CoreIPCSchemeRequestRouteCallback = Function<bool(CoreSchemeRequest&)>;
@@ -184,6 +180,7 @@ namespace ssc::core::webview {
       CoreWebViewInternals* internals = nullptr;
       CoreWindow* coreWindow = nullptr;
       CoreDataManager* coreDataManager = nullptr;
+      CoreIPCSchemeHandler* ipcSchemeHandler = nullptr;
 
       CoreWebView (
         CoreWindow* coreWindow,

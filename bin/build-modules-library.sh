@@ -19,6 +19,9 @@ declare modules=(
   loop
   data
   dns
+  peer
+  os
+  udp
   platform
   templates
   runtime

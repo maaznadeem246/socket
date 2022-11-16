@@ -76,15 +76,11 @@ namespace ssc::core::webview {
     CoreWebView* coreWebView,
     CoreWindow* coreWindow,
     CoreDataManager* coreDataManager,
-    CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
+    CoreIPCSchemeHandler* coreIPCSchemeHandler,
     const javascript::Script preloadScript
   ) {
     this->coreWebView = coreWebView;
     this->coreWindow = coreWindow;
-    this->coreIPCSchemeHandler = new CoreIPCSchemeHandler(
-      coreDataManager,
-      onIPCSchemeRequestRouteCallback
-    );
 
   #if defined(__APPLE__)
     auto configuration = [WKWebViewConfiguration new];
@@ -95,7 +91,7 @@ namespace ssc::core::webview {
     // configuration.limitsNavigationsToAppBoundDomains = YES;
 
     [configuration
-      setURLSchemeHandler: (::CoreSchemeHandler*) this->coreIPCSchemeHandler->internal
+      setURLSchemeHandler: (::CoreSchemeHandler*) coreIPCSchemeHandler->internal
              forURLScheme: @"ipc"
     ];
 
@@ -170,10 +166,6 @@ namespace ssc::core::webview {
       [this->webview release];
       this->webview = nullptr;
     }
-
-    if (this->coreIPCSchemeHandler != nullptr) {
-      delete this->coreIPCSchemeHandler;
-    }
   #endif
   }
 
@@ -183,13 +175,17 @@ namespace ssc::core::webview {
     CoreIPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
     const javascript::Script preloadScript
   ) {
+    this->ipcSchemeHandler = new CoreIPCSchemeHandler(
+      coreDataManager,
+      onIPCSchemeRequestRouteCallback
+    );
     this->coreDataManager = coreDataManager;
     this->coreWindow = coreWindow;
     this->internals = new CoreWebViewInternals(
       this,
       coreWindow,
       coreDataManager,
-      onIPCSchemeRequestRouteCallback,
+      this->ipcSchemeHandler,
       preloadScript
     );
   }
@@ -197,6 +193,10 @@ namespace ssc::core::webview {
   CoreWebView::~CoreWebView () {
     if (this->internals != nullptr) {
       delete this->internals;
+    }
+
+    if (this->ipcSchemeHandler != nullptr) {
+      delete this->ipcSchemeHandler;
     }
   }
 
@@ -232,33 +232,6 @@ namespace ssc::core::webview {
     #endif
   }
 
-  void CoreSchemeHandler::resolve (
-    const String& id,
-    const CoreSchemeResponseBody body
-  ) {
-  #if defined(__APPLE__)
-    auto schemeHandler = (::CoreSchemeHandler*) this->internal;
-    auto taskManager = schemeHandler.taskManager;
-    if (id.size() > 0 && id != "-1" && taskManager->has(id)) {
-      auto task = taskManager->get(id);
-      taskManager->remove(id);
-
-    #if !__has_feature(objc_arc)
-      [task retain];
-    #endif
-
-      dispatch_async(dispatch_get_main_queue(), ^{
-        auto request = ssc::core::webview::CoreSchemeRequest {
-          String(task.request.HTTPMethod.UTF8String),
-          String(task.request.URL.absoluteString.UTF8String),
-        };
-
-        //auto response = CoreSchemeResponse
-      });
-    }
-  #endif
-  }
-
   void CoreSchemeRequest::end (
     const CoreSchemeResponseStatusCode statusCode,
     const CoreSchemeResponseHeaders headers,
@@ -291,12 +264,17 @@ namespace ssc::core::webview {
     const char* bytes,
     size_t size
   ) {
+    this->response.statusCode = statusCode;
     this->response.headers = headers;
     this->response.body.json = json;
     this->response.body.size = size;
     this->response.body.bytes = (char*) bytes;
 
     #if defined(__APPLE__)
+      if (this->internal == nullptr) {
+        return;
+      }
+
       auto jsonString = this->response.body.json.str();
       auto task = (CoreSchemeTask) this->internal;
       auto headerFields = [NSMutableDictionary dictionary];
@@ -304,18 +282,18 @@ namespace ssc::core::webview {
       headerFields[@"access-control-allow-methods"] = @"*";
       headerFields[@"access-control-allow-origin"] = @"*";
 
-      for (const auto& header : headers.entries) {
+      if (this->response.body.size > 0) {
+        headerFields[@"content-length"] = [@(this->response.body.size) stringValue];
+        headerFields[@"content-type"] = @"application/octet-stream";
+      } else {
+        headerFields[@"content-length"] = [@(jsonString.size()) stringValue];
+        headerFields[@"content-type"] = @"application/json";
+      }
+
+      for (const auto& header : this->response.headers.entries) {
         auto key = [NSString stringWithUTF8String: trim(header.key).c_str()];
         auto value = [NSString stringWithUTF8String: trim(header.value.str()).c_str()];
         headerFields[key] = value;
-      }
-
-      headerFields[@"content-length"] = [@(jsonString.size()) stringValue];
-
-      if (this->response.body.size > 0) {
-        headerFields[@"content-length"] = [@(this->response.body.size) stringValue];
-      } else {
-        headerFields[@"content-type"] = @"application/json";
       }
 
       auto taskResponse = [[NSHTTPURLResponse alloc]
@@ -343,8 +321,11 @@ namespace ssc::core::webview {
       [task didFinish];
       #if !__has_feature(objc_arc)
         [taskResponse release];
+        [task release];
       #endif
     #endif
+
+    this->internal = nullptr;
   }
 
   CoreIPCSchemeHandler::CoreIPCSchemeHandler (
@@ -374,9 +355,11 @@ namespace ssc::core::webview {
             {"message", "Missing 'id' in message"}
           }}
         };
+
+        return request.end(statusCode, headers, body);
       } else {
         try {
-          auto id = std::stoull(message.get("id"));
+          auto id = std::stoull(message.get("id", "0"));
           if (!this->coreDataManager->has(id)) {
             statusCode = 404;
             body.json = JSON::Object::Entries {
@@ -388,10 +371,6 @@ namespace ssc::core::webview {
             };
           }
 
-          auto data = this->coreDataManager->get(id);
-          body.bytes = data.body;
-          body.size = data.length;
-          headers = data.headers;
           #if defined(__APPLE__)
             // 16ms timeout before removing data and potentially freeing `data.body`
             NSTimeInterval timeout = 0.16;
@@ -411,10 +390,10 @@ namespace ssc::core::webview {
               {"message", "Invalid 'id' given in message"}
             }}
           };
+
+          return request.end(statusCode, headers, body);
         }
       }
-
-      return request.end(statusCode, headers, body);
     }
 
     if (message.seq.size() > 0 && message.seq != "-1") {
@@ -437,6 +416,7 @@ namespace ssc::core::webview {
 
     statusCode = 404;
     body.json = JSON::Object::Entries {
+      {"source", message.name},
       {"err", JSON::Object::Entries {
         {"message", "Not found"},
         {"type", "NotFoundError"},
@@ -463,6 +443,8 @@ namespace ssc::core::webview {
   if (body) {
     request.body.bytes = (char*) [body bytes];
     request.body.size = [body length];
+    request.message.buffer.bytes = request.body.bytes;
+    request.message.buffer.size = request.body.size;
   }
 
   request.internal = (void *) task;

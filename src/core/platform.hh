@@ -9,6 +9,7 @@ namespace ssc::core::platform {
 
   using NotifyCallback = Function<void(String)>;
   using OpenExternalCallback = Function<void(String)>;
+  using CWDCallback = Function<void(String)>;
 
   class CorePlatform {
     public:
@@ -22,6 +23,8 @@ namespace ssc::core::platform {
         const String& value,
         OpenExternalCallback callback
       ) const;
+
+      void cwd (CWDCallback calback) const;
   };
 }
 #endif

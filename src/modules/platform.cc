@@ -51,7 +51,6 @@ export namespace ssc::platform {
                 this->runtime->fs.descriptors.erase(tuple.first);
               }
             }
-          }
 
           auto json = JSON::Object::Entries {
             {"source", "event"},
@@ -69,7 +68,7 @@ export namespace ssc::platform {
         const String body,
         Callback callback
       ) {
-        CorePlatform::notify(title, body, [&](auto error) {
+        CorePlatform::notify(title, body, [=](auto error) {
           auto json = JSON::Object();
           json["source"] = "platform.notify";
 
@@ -88,13 +87,35 @@ export namespace ssc::platform {
         const String value,
         Callback callback
       ) {
-        CorePlatform::openExternal(value, [&](auto error) {
+        CorePlatform::openExternal(value, [=](auto error) {
           auto json = JSON::Object();
           json["source"] = "platform.openExternal";
 
           if (error.size() > 0) {
             json["err"] = JSON::Object::Entries {
               {"message", error}
+            };
+          }
+
+          callback(seq, json, Data{});
+        });
+      }
+
+      void cwd (const String seq, Callback callback) {
+        CorePlatform::cwd([=](auto cwd) {
+          JSON::Object json;
+
+          if (cwd.size() == 0) {
+            json = JSON::Object::Entries {
+              {"source", "process.cwd"},
+              {"err", JSON::Object::Entries {
+                {"message", "Could not determine current working directory"}
+              }}
+            };
+          } else {
+            json = JSON::Object::Entries {
+              {"source", "process.cwd"},
+              {"data", cwd}
             };
           }
 

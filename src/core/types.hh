@@ -22,7 +22,7 @@ namespace ssc::core::types {
   using ExitCallback = std::function<void(int code)>;
   using Map = std::map<std::string, std::string>;
   using Lock = std::lock_guard<std::recursive_mutex>;
-  using MessageCallback = std::function<void(const std::string)>;
+  using MessageCallback = std::function<bool(const std::string)>;
   using Mutex = std::recursive_mutex;
 
   using String = std::string;

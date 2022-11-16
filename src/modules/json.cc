@@ -40,4 +40,5 @@ export namespace ssc::JSON {
   using String = ssc::core::JSON::String;
 
   const auto& typeof = ssc::core::JSON::typeof;
+  const auto& null = ssc::core::JSON::null;
 }

@@ -1,17 +1,25 @@
-module; // global
-#include "../platform.hh"
+module;
+#include <map>
 
 export module ssc.peer;
-import ssc.runtime;
+import ssc.loop;
+import ssc.types;
 import ssc.json;
+import ssc.utils;
 import ssc.uv;
 
-using Runtime = ssc::runtime::Runtime;
+using namespace ssc::types;
+using namespace ssc::utils;
+using ssc::loop::Loop;
 
-export namespace ssc {
+export namespace ssc::peer {
+  // forward
+  class Peer;
+  class PeerManager;
+
   typedef enum {
     PEER_TYPE_NONE = 0,
-    PeerTypeCP = 1 << 1,
+    PeerTypeTCP = 1 << 1,
     PEER_TYPE_UDP = 1 << 2,
     PEER_TYPE_MAX = 0xF
   } PeerType;
@@ -71,13 +79,13 @@ export namespace ssc {
   class Peer {
     public:
       struct RequestContext {
-        using Callback = std::function<void(int, Post)>;
+        using Callback = Function<void(int, Post)>;
         Callback cb;
         Peer *peer = nullptr;
         RequestContext (Callback cb) { this->cb = cb; }
       };
 
-      using UDPReceiveCallback = std::function<void(
+      using UDPReceiveCallback = Function<void(
         ssize_t,
         const uv_buf_t*,
         const struct sockaddr*
@@ -94,11 +102,11 @@ export namespace ssc {
 
       // callbacks
       UDPReceiveCallback receiveCallback;
-      std::vector<std::function<void()>> onclose;
+      Vector<Function<void()>> onclose;
 
       // instance state
       uint64_t id = 0;
-      std::recursive_mutex mutex;
+      Mutex mutex;
 
       struct {
         struct {
@@ -114,10 +122,17 @@ export namespace ssc {
       PeerFlag flags = PEER_FLAG_NONE;
       PeerState state = PEER_STATE_NONE;
 
+      PeerManager* peerManager = nullptr;
+
       /**
       * Private `Peer` class constructor
       */
-      Peer (Runtime* runtime, PeerType peerType, uint64_t peerId, bool isEphemeral);
+      Peer (
+        PeerManager* peerManager,
+        PeerType peerType,
+        uint64_t peerId,
+        bool isEphemeral
+      );
       ~Peer ();
 
       int init ();
@@ -153,15 +168,40 @@ export namespace ssc {
       int recvstart ();
       int recvstart (UDPReceiveCallback onrecv);
       int recvstop ();
-      int resume ();
       int pause ();
+      int resume ();
       void close ();
-      void close (std::function<void()> onclose);
+      void close (Function<void()> onclose);
   };
 
-  void resumeAllPeers (Runtime* runtime) {
-    runtime->loop.dispatch([=, this]() {
-      Lock lock(this->peersMutex);
+  class PeerManager {
+    public:
+      using Peers = std::map<uint64_t, Peer*>;
+      Loop& loop;
+      Mutex mutex;
+      Peers peers;
+      PeerManager () = delete;
+      PeerManager (Loop& loop) : loop(loop) {}
+      ~PeerManager () {
+        for (auto tuple : this->peers) {
+          if (tuple.second != nullptr) {
+            this->removePeer(tuple.second->id, true);
+          }
+        }
+      }
+      void resumeAllPeers ();
+      void pauseAllPeers ();
+      bool hasPeer (uint64_t peerId);
+      void removePeer (uint64_t peerId);
+      void removePeer (uint64_t peerId, bool autoClose);
+      Peer* getPeer (uint64_t peerId);
+      Peer* createPeer (PeerType peerType, uint64_t peerId);
+      Peer* createPeer (PeerType peerType, uint64_t peerId, bool isEphemeral);
+  };
+
+  void PeerManager::resumeAllPeers () {
+    loop.dispatch([=, this]() {
+      Lock lock(this->mutex);
       for (auto const &tuple : this->peers) {
         auto peer = tuple.second;
         if (peer != nullptr && (peer->isBound() || peer->isConnected())) {
@@ -171,9 +211,9 @@ export namespace ssc {
     });
   }
 
-  void Runtime::pauseAllPeers () {
-    dispatchEventLoop([=, this]() {
-      Lock lock(this->peersMutex);
+  void PeerManager::pauseAllPeers () {
+    loop.dispatch([=, this]() {
+      Lock lock(this->mutex);
       for (auto const &tuple : this->peers) {
         auto peer = tuple.second;
         if (peer != nullptr && (peer->isBound() || peer->isConnected())) {
@@ -183,16 +223,16 @@ export namespace ssc {
     });
   }
 
-  bool Runtime::hasPeer (uint64_t peerId) {
-    Lock lock(this->peersMutex);
+  bool PeerManager::hasPeer (uint64_t peerId) {
+    Lock lock(this->mutex);
     return this->peers.find(peerId) != this->peers.end();
   }
 
-  void Runtime::removePeer (uint64_t peerId) {
+  void PeerManager::removePeer (uint64_t peerId) {
     return this->removePeer(peerId, false);
   }
 
-  void Runtime::removePeer (uint64_t peerId, bool autoClose) {
+  void PeerManager::removePeer (uint64_t peerId, bool autoClose) {
     if (this->hasPeer(peerId)) {
       if (autoClose) {
         auto peer = this->getPeer(peerId);
@@ -201,22 +241,22 @@ export namespace ssc {
         }
       }
 
-      Lock lock(this->peersMutex);
+      Lock lock(this->mutex);
       this->peers.erase(peerId);
     }
   }
 
-  Peer* Runtime::getPeer (uint64_t peerId) {
+  Peer* PeerManager::getPeer (uint64_t peerId) {
     if (!this->hasPeer(peerId)) return nullptr;
-    Lock lock(this->peersMutex);
+    Lock lock(this->mutex);
     return this->peers.at(peerId);
   }
 
-  Peer* Runtime::createPeer (PeerType peerType, uint64_t peerId) {
+  Peer* PeerManager::createPeer (PeerType peerType, uint64_t peerId) {
     return this->createPeer(peerType, peerId, false);
   }
 
-  Peer* Runtime::createPeer (
+  Peer* PeerManager::createPeer (
     PeerType peerType,
     uint64_t peerId,
     bool isEphemeral
@@ -234,7 +274,7 @@ export namespace ssc {
     }
 
     auto peer = new Peer(this, peerType, peerId, isEphemeral);
-    Lock lock(this->peersMutex);
+    Lock lock(this->mutex);
     this->peers[peer->id] = peer;
     return peer;
   }
@@ -332,14 +372,14 @@ export namespace ssc {
   }
 
   Peer::Peer (
-    Runtime *runtime,
+    PeerManager* peerManager,
     PeerType peerType,
     uint64_t peerId,
     bool isEphemeral
   ) {
     this->id = peerId;
     this->type = peerType;
-    this->runtime = runtime;
+    this->peerManager = peerManager;
 
     if (isEphemeral) {
       this->flags = (PeerFlag) (this->flags | PEER_FLAG_EPHEMERAL);
@@ -349,23 +389,22 @@ export namespace ssc {
   }
 
   Peer::~Peer () {
-    this->runtime->removePeer(this->id, true); // auto close
+    this->peerManager->removePeer(this->id, true); // auto close
   }
 
   int Peer::init () {
     Lock lock(this->mutex);
-    auto loop = this->runtime->getEventLoop();
     int err = 0;
 
     memset(&this->handle, 0, sizeof(this->handle));
 
     if (this->type == PEER_TYPE_UDP) {
-      if ((err = uv_udp_init(loop, (uv_udp_t *) &this->handle))) {
+      if ((err = uv_udp_init(this->peerManager->loop.get(), (uv_udp_t *) &this->handle))) {
         return err;
       }
       this->handle.udp.data = (void *) this;
-    } else if (this->type == PeerTypeCP) {
-      if ((err = uv_tcp_init(loop, (uv_tcp_t *) &this->handle))) {
+    } else if (this->type == PeerTypeTCP) {
+      if ((err = uv_tcp_init(this->peerManager->loop.get(), (uv_tcp_t *) &this->handle))) {
         return err;
       }
       this->handle.tcp.data = (void *) this;
@@ -378,7 +417,7 @@ export namespace ssc {
     Lock lock(this->mutex);
     if (this->type == PEER_TYPE_UDP) {
       this->remote.init((uv_udp_t *) &this->handle);
-    } else if (this->type == PeerTypeCP) {
+    } else if (this->type == PeerTypeTCP) {
       this->remote.init((uv_tcp_t *) &this->handle);
     }
     return this->remote.err;
@@ -388,7 +427,7 @@ export namespace ssc {
     Lock lock(this->mutex);
     if (this->type == PEER_TYPE_UDP) {
       this->local.init((uv_udp_t *) &this->handle);
-    } else if (this->type == PeerTypeCP) {
+    } else if (this->type == PeerTypeTCP) {
       this->local.init((uv_tcp_t *) &this->handle);
     }
     return this->local.err;
@@ -426,7 +465,7 @@ export namespace ssc {
 
   bool Peer::isTCP () {
     Lock lock(this->mutex);
-    return this->type == PeerTypeCP;
+    return this->type == PeerTypeTCP;
   }
 
   bool Peer::isEphemeral () {
@@ -666,6 +705,7 @@ export namespace ssc {
       const struct sockaddr *addr,
       unsigned flags
     ) {
+      printf("receive: %zu\n", nread);
       auto peer = (Peer *) handle->data;
 
       if (nread <= 0) {
@@ -690,7 +730,7 @@ export namespace ssc {
 
     if (this->hasState(PEER_STATE_UDP_RECV_STARTED)) {
       this->removeState(PEER_STATE_UDP_RECV_STARTED);
-      Lock lock(this->runtime->loopMutex);
+      Lock lock(this->peerManager->loop.mutex);
       err = uv_udp_recv_stop((uv_udp_t *) &this->handle);
     }
 
@@ -743,9 +783,9 @@ export namespace ssc {
     return this->close(nullptr);
   }
 
-  void Peer::close (std::function<void()> onclose) {
+  void Peer::close (Function<void()> onclose) {
     if (this->isClosed()) {
-      this->runtime->removePeer(this->id);
+      this->peerManager->removePeer(this->id);
       onclose();
       return;
     }

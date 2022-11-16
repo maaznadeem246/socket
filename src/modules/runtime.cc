@@ -15,28 +15,46 @@ module; // global
  * }
  */
 export module ssc.runtime;
+import ssc.data;
 import ssc.dns;
 import ssc.loop;
+import ssc.os;
+import ssc.peer;
 import ssc.platform;
 import ssc.string;
 import ssc.types;
+import ssc.udp;
 
+using ssc::data::DataManager;
 using ssc::dns::DNS;
 using ssc::loop::Loop;
+using ssc::os::OS;
+using ssc::peer::PeerManager;
 using ssc::platform::Platform;
 using ssc::string::String;
 using ssc::types::SharedPointer;
+using ssc::udp::UDP;
 
 export namespace ssc::runtime {
   class Runtime {
     public:
+      DataManager dataManager;
+      PeerManager peerManager;
       Loop loop;
-      Platform platform;
+
       DNS dns;
+      OS os;
+      Platform platform;
+      UDP udp;
+
+      Runtime (const Runtime&) = delete;
 
       Runtime ()
-        : dns(this->loop),
-          platform(this->loop)
+        : peerManager(this->loop),
+          dns(this->loop),
+          os(this->loop, peerManager),
+          platform(this->loop),
+          udp(this->loop, peerManager)
       { }
 
       void start () {

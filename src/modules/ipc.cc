@@ -56,7 +56,6 @@ export namespace ssc::ipc {
       EvaluateJavaScriptCallback evaluateJavaScriptFunction = nullptr;
 
       NetworkStatusObserver networkStatusObserver;
-      DataManager dataManager;
       Runtime& runtime;
       RouteTable table;
       BufferMap buffers;
@@ -198,7 +197,6 @@ export namespace ssc::ipc {
           }
         }
 
-          printf("fail 2\n");
         return false;
       }
 
@@ -218,9 +216,8 @@ export namespace ssc::ipc {
       }
 
       bool send (const Message::Seq& seq, const JSON::Any& json, Data data) {
-        // CoreSchemeHandler::resolve(...)
         if (data.body || seq == "-1") {
-          auto script = this->dataManager.create(seq, json, data);
+          auto script = this->runtime.dataManager.create(seq, json, data);
           return this->evaluateJavaScript(script);
         }
 

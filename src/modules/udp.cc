@@ -1,22 +1,32 @@
 module;
+#include <socket/platform.hh>
 
-#include "../platform.hh"
-#include <uv.h>
+export module ssc.udp;
+import ssc.data;
+import ssc.headers;
+import ssc.json;
+import ssc.loop;
+import ssc.peer;
+import ssc.types;
+import ssc.utils;
+import ssc.uv;
 
-export module udp;
-import context;
-import json;
-import peer;
+using namespace ssc::data;
+using namespace ssc::headers;
+using namespace ssc::loop;
+using namespace ssc::peer;
+using namespace ssc::types;
+using namespace ssc::utils;
 
-export namespace ssc {
-  class Runtime;
+export namespace ssc::udp {
+
   void parseAddress (struct sockaddr *name, int* port, char* address) {
     struct sockaddr_in *name_in = (struct sockaddr_in *) name;
     *port = ntohs(name_in->sin_port);
     uv_ip4_name(name_in, address, 17);
   }
 
-  static JSON::Object::Entries ERR_SOCKET_ALREADY_BOUND (
+  JSON::Object::Entries ERR_SOCKET_ALREADY_BOUND (
     const String& source,
     uint64_t id
   ) {
@@ -31,7 +41,7 @@ export namespace ssc {
     };
   }
 
-  static JSON::Object::Entries ERR_SOCKET_DGRAM_IS_CONNECTED (
+  JSON::Object::Entries ERR_SOCKET_DGRAM_IS_CONNECTED (
     const String &source,
     uint64_t id
   ) {
@@ -46,7 +56,7 @@ export namespace ssc {
     };
   }
 
-  static JSON::Object::Entries ERR_SOCKET_DGRAM_NOT_CONNECTED (
+  JSON::Object::Entries ERR_SOCKET_DGRAM_NOT_CONNECTED (
     const String &source,
     uint64_t id
   ) {
@@ -61,7 +71,7 @@ export namespace ssc {
     };
   }
 
-  static JSON::Object::Entries ERR_SOCKET_DGRAM_CLOSED (
+  JSON::Object::Entries ERR_SOCKET_DGRAM_CLOSED (
     const String& source,
     uint64_t id
   ) {
@@ -76,7 +86,7 @@ export namespace ssc {
     };
   }
 
-  static JSON::Object::Entries ERR_SOCKET_DGRAM_CLOSING (
+  JSON::Object::Entries ERR_SOCKET_DGRAM_CLOSING (
     const String& source,
     uint64_t id
   ) {
@@ -91,7 +101,7 @@ export namespace ssc {
     };
   }
 
-  static JSON::Object::Entries ERR_SOCKET_DGRAM_NOT_RUNNING (
+  JSON::Object::Entries ERR_SOCKET_DGRAM_NOT_RUNNING (
     const String& source,
     uint64_t id
   ) {
@@ -106,9 +116,17 @@ export namespace ssc {
     };
   }
 
-  class UDP : public Context {
+  class UDP {
     public:
-      UDP (auto core) : Context(core) {}
+      using Callback = std::function<void(String, JSON::Any, Data)>;
+
+      PeerManager& peerManager;
+      Loop& loop;
+
+      UDP (Loop& loop, PeerManager& peerManager)
+        : peerManager(peerManager),
+          loop(loop)
+      {}
 
       struct BindOptions {
         String address;
@@ -133,26 +151,26 @@ export namespace ssc {
         const String seq,
         uint64_t id,
         BindOptions options,
-        Context::Callback cb
+        Callback callback
       );
-      void close (const String seq, uint64_t id, Context::Callback cb);
+      void close (const String seq, uint64_t id, Callback callback);
       void connect (
         const String seq,
         uint64_t id,
         ConnectOptions options,
-        Context::Callback cb
+        Callback callback
       );
-      void disconnect (const String seq, uint64_t id, Context::Callback cb);
-      void getPeerName (const String seq, uint64_t id, Context::Callback cb);
-      void getSockName (const String seq, uint64_t id, Context::Callback cb);
-      void getState (const String seq, uint64_t id,  Context::Callback cb);
-      void readStart (const String seq, uint64_t id, Context::Callback cb);
-      void readStop (const String seq, uint64_t id, Context::Callback cb);
+      void disconnect (const String seq, uint64_t id, Callback callback);
+      void getPeerName (const String seq, uint64_t id, Callback callback);
+      void getSockName (const String seq, uint64_t id, Callback callback);
+      void getState (const String seq, uint64_t id,  Callback callback);
+      void readStart (const String seq, uint64_t id, Callback callback);
+      void readStop (const String seq, uint64_t id, Callback callback);
       void send (
         const String seq,
         uint64_t id,
         SendOptions options,
-        Context::Callback cb
+        Callback callback
       );
   };
 
@@ -160,17 +178,17 @@ export namespace ssc {
     const String seq,
     uint64_t peerId,
     UDP::BindOptions options,
-    Context::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      if (this->runtime->hasPeer(peerId)) {
-        if (this->runtime->getPeer(peerId)->isBound()) {
+    this->loop.dispatch([=, this]() {
+      if (this->peerManager.hasPeer(peerId)) {
+        if (this->peerManager.getPeer(peerId)->isBound()) {
           auto json = ERR_SOCKET_ALREADY_BOUND("udp.bind", peerId);
-          return cb(seq, json, Post{});
+          return callback(seq, json, Data{});
         }
       }
 
-      auto peer = this->runtime->createPeer(PEER_TYPE_UDP, peerId);
+      auto peer = this->peerManager.createPeer(PEER_TYPE_UDP, peerId);
       auto err = peer->bind(options.address, options.port, options.reuseAddr);
 
       if (err < 0) {
@@ -182,7 +200,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto info = peer->getLocalPeerInfo();
@@ -196,7 +214,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto json = JSON::Object::Entries {
@@ -210,7 +228,7 @@ export namespace ssc {
         }}
       };
 
-      cb(seq, json, Post{});
+      callback(seq, json, Data{});
     });
   }
 
@@ -218,14 +236,14 @@ export namespace ssc {
     const String seq,
     uint64_t peerId,
     UDP::ConnectOptions options,
-    Context::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto peer = this->runtime->createPeer(PEER_TYPE_UDP, peerId);
+    this->loop.dispatch([=, this]() {
+      auto peer = this->peerManager.createPeer(PEER_TYPE_UDP, peerId);
 
       if (peer->isConnected()) {
         auto json = ERR_SOCKET_DGRAM_IS_CONNECTED("udp.connect", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto err = peer->connect(options.address, options.port);
@@ -239,7 +257,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto info = peer->getRemotePeerInfo();
@@ -253,7 +271,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto json = JSON::Object::Entries {
@@ -266,22 +284,22 @@ export namespace ssc {
         }}
       };
 
-      cb(seq, json, Post{});
+      callback(seq, json, Data{});
     });
   }
 
   void UDP::disconnect (
     const String seq,
     uint64_t peerId,
-    Context::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      if (!this->runtime->hasPeer(peerId)) {
+    this->loop.dispatch([=, this]() {
+      if (!this->peerManager.hasPeer(peerId)) {
         auto json = ERR_SOCKET_DGRAM_NOT_CONNECTED("udp.disconnect", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto peer = this->runtime->getPeer(peerId);
+      auto peer = this->peerManager.getPeer(peerId);
       auto err = peer->disconnect();
 
       if (err < 0) {
@@ -293,7 +311,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto json = JSON::Object::Entries {
@@ -303,17 +321,17 @@ export namespace ssc {
         }}
       };
 
-      cb(seq, json, Post{});
+      callback(seq, json, Data{});
     });
   }
 
-  void UDP::getPeerName (String seq, uint64_t peerId, Context::Callback cb) {
-    if (!this->runtime->hasPeer(peerId)) {
+  void UDP::getPeerName (String seq, uint64_t peerId, Callback callback) {
+    if (!this->peerManager.hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_CONNECTED("udp.getPeerName", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
-    auto peer = this->runtime->getPeer(peerId);
+    auto peer = this->peerManager.getPeer(peerId);
     auto info = peer->getRemotePeerInfo();
 
     if (info->err < 0) {
@@ -325,7 +343,7 @@ export namespace ssc {
         }}
       };
 
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     auto json = JSON::Object::Entries {
@@ -338,16 +356,16 @@ export namespace ssc {
       }}
     };
 
-    cb(seq, json, Post{});
+    callback(seq, json, Data{});
   }
 
-  void UDP::getSockName (String seq, uint64_t peerId, Callback cb) {
-    if (!this->runtime->hasPeer(peerId)) {
+  void UDP::getSockName (String seq, uint64_t peerId, Callback callback) {
+    if (!this->peerManager.hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.getSockName", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
-    auto peer = this->runtime->getPeer(peerId);
+    auto peer = this->peerManager.getPeer(peerId);
     auto info = peer->getLocalPeerInfo();
 
     if (info->err < 0) {
@@ -359,7 +377,7 @@ export namespace ssc {
         }}
       };
 
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     auto json = JSON::Object::Entries {
@@ -372,24 +390,24 @@ export namespace ssc {
       }}
     };
 
-    cb(seq, json, Post{});
+    callback(seq, json, Data{});
   }
 
   void UDP::getState (
     const String seq,
     uint64_t peerId,
-    Context::Callback cb
+    Callback callback
   ) {
-    if (!this->runtime->hasPeer(peerId)) {
+    if (!this->peerManager.hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.getState", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
-    auto peer = this->runtime->getPeer(peerId);
+    auto peer = this->peerManager.getPeer(peerId);
 
     if (!peer->isUDP()) {
       auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.getState", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     auto json = JSON::Object::Entries {
@@ -406,17 +424,17 @@ export namespace ssc {
       }}
     };
 
-    cb(seq, json, Post{});
+    callback(seq, json, Data{});
   }
 
   void UDP::send (
     String seq,
     uint64_t peerId,
     UDP::SendOptions options,
-    Context::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this] {
-      auto peer = this->runtime->createPeer(PEER_TYPE_UDP, peerId, options.ephemeral);
+    this->loop.dispatch([=, this] {
+      auto peer = this->peerManager.createPeer(PEER_TYPE_UDP, peerId, options.ephemeral);
       auto size = options.size; // @TODO(jwerle): validate MTU
       auto port = options.port;
       auto bytes = options.bytes;
@@ -431,7 +449,7 @@ export namespace ssc {
             }}
           };
 
-          return cb(seq, json, Post{});
+          return callback(seq, json, Data{});
         }
 
         auto json = JSON::Object::Entries {
@@ -442,27 +460,27 @@ export namespace ssc {
           }}
         };
 
-        cb(seq, json, Post{});
+        callback(seq, json, Data{});
       });
     });
   }
 
-  void UDP::readStart (String seq, uint64_t peerId, Context::Callback cb) {
-    if (!this->runtime->hasPeer(peerId)) {
+  void UDP::readStart (String seq, uint64_t peerId, Callback callback) {
+    if (!this->peerManager.hasPeer(peerId)) {
       auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.readStart", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
-    auto peer = this->runtime->getPeer(peerId);
+    auto peer = this->peerManager.getPeer(peerId);
 
     if (peer->isClosed()) {
       auto json = ERR_SOCKET_DGRAM_CLOSED("udp.readStart", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     if (peer->isClosing()) {
       auto json = ERR_SOCKET_DGRAM_CLOSING("udp.readStart", peerId);
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     if (peer->hasState(PEER_STATE_UDP_RECV_STARTED)) {
@@ -474,7 +492,7 @@ export namespace ssc {
         }}
       };
 
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     if (peer->isActive()) {
@@ -485,7 +503,7 @@ export namespace ssc {
         }}
       };
 
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     auto err = peer->recvstart([=](auto nread, auto buf, auto addr) {
@@ -498,12 +516,12 @@ export namespace ssc {
           }}
         };
 
-        return cb("-1", json, Post{});
+        return callback("-1", json, Data{});
       }
 
       if (nread > 0) {
         char address[17];
-        Post post;
+        Data post;
         int port;
 
         parseAddress((struct sockaddr *) addr, &port, address);
@@ -529,7 +547,7 @@ export namespace ssc {
           }}
         };
 
-        return cb("-1", json, post);
+        return callback("-1", json, post);
       }
     });
 
@@ -544,7 +562,7 @@ export namespace ssc {
         }}
       };
 
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     auto json = JSON::Object::Entries {
@@ -554,30 +572,30 @@ export namespace ssc {
       }}
     };
 
-    cb(seq, json, Post {});
+    callback(seq, json, Data {});
   }
 
   void UDP::readStop (
     const String seq,
     uint64_t peerId,
-    Context::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this] {
-      if (!this->runtime->hasPeer(peerId)) {
+    this->loop.dispatch([=, this] {
+      if (!this->peerManager.hasPeer(peerId)) {
         auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.readStop", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto peer = this->runtime->getPeer(peerId);
+      auto peer = this->peerManager.getPeer(peerId);
 
       if (peer->isClosed()) {
         auto json = ERR_SOCKET_DGRAM_CLOSED("udp.readStop", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       if (peer->isClosing()) {
         auto json = ERR_SOCKET_DGRAM_CLOSING("udp.readStop", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       if (!peer->hasState(PEER_STATE_UDP_RECV_STARTED)) {
@@ -589,7 +607,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto err = peer->recvstop();
@@ -603,7 +621,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       auto json = JSON::Object::Entries {
@@ -613,36 +631,36 @@ export namespace ssc {
         }}
       };
 
-      cb(seq, json, Post {});
+      callback(seq, json, Data {});
     });
   }
 
   void UDP::close (
     const String seq,
     uint64_t peerId,
-    Context::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      if (!this->runtime->hasPeer(peerId)) {
+    this->loop.dispatch([=, this]() {
+      if (!this->peerManager.hasPeer(peerId)) {
         auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.close", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto peer = this->runtime->getPeer(peerId);
+      auto peer = this->peerManager.getPeer(peerId);
 
       if (!peer->isUDP()) {
         auto json = ERR_SOCKET_DGRAM_NOT_RUNNING("udp.close", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       if (peer->isClosed()) {
         auto json = ERR_SOCKET_DGRAM_CLOSED("udp.close", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       if (peer->isClosing()) {
         auto json = ERR_SOCKET_DGRAM_CLOSING("udp.close", peerId);
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       peer->close([=, this]() {
@@ -653,7 +671,7 @@ export namespace ssc {
           }}
         };
 
-        cb(seq, json, Post{});
+        callback(seq, json, Data{});
       });
     });
   }

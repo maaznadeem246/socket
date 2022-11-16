@@ -31,17 +31,19 @@ namespace ssc::core::platform {
       UNAuthorizationOptionSound
     );
 
-    [center requestAuthorizationWithOptions: options
-                          completionHandler: ^(BOOL granted, NSError* error)
-    {
+    [center
+      requestAuthorizationWithOptions: options
+                    completionHandler: ^(BOOL granted, NSError* error) {
       #if !__has_feature(objc_arc)
       [content release];
       [trigger release];
       #endif
 
       if (granted) {
-        callback(nullptr);
-      } else if (error) {
+        callback("");
+      } else if (!error) {
+        callback("Failed to create notification");
+      } else {
         [center addNotificationRequest: request withCompletionHandler: ^(NSError* error) {
           #if !__has_feature(objc_arc)
           [request release];
@@ -51,11 +53,9 @@ namespace ssc::core::platform {
             callback([error.debugDescription UTF8String]);
             // debug("Unable to create notification: %@", error.debugDescription);
           } else {
-            callback(nullptr);
+            callback("");
           }
         }];
-      } else {
-        callback("Failed to create notification");
       }
 
       if (!error || granted) {
@@ -81,7 +81,7 @@ namespace ssc::core::platform {
           if (!success) {
             callback("Failed to open external URL");
           } else {
-            callback(nullptr);
+            callback("");
           }
         }];
       #else
@@ -89,15 +89,38 @@ namespace ssc::core::platform {
         auto configuration = [NSWorkspaceOpenConfiguration configuration];
         [workspace openURL: url
              configuration: configuration
-         completionHandler: ^(NSRunningApplication *app, NSError *error) {
+         completionHandler: ^(NSRunningApplication *app, NSError *error)
+         {
           if (error) {
              callback([error.debugDescription UTF8String]);
            } else {
-             callback(nullptr);
+             callback("");
            }
-          [configuration release];
+          #if !__has_feature(objc_arc)
+            [configuration release];
+          #endif
         }];
       #endif
     #endif
+  }
+
+  void CorePlatform::cwd (CWDCallback callback) const {
+    String cwd = "";
+  #if defined(__linux__)
+    auto canonical = fs::canonical("/proc/self/exe");
+    cwd = fs::path(canonical).parent_path().string();
+  #elif defined(__APPLE__)
+    auto fileManager = [NSFileManager defaultManager];
+    auto currentDirectoryPath = [fileManager currentDirectoryPath];
+    auto currentDirectory = [NSHomeDirectory() stringByAppendingPathComponent: currentDirectoryPath];
+    cwd = String([currentDirectory UTF8String]);
+  #elif defined(_WIN32)
+    wchar_t filename[MAX_PATH];
+    GetModuleFileNameW(NULL, filename, MAX_PATH);
+    auto path = fs::path { filename }.remove_filename();
+    cwd = path.string();
+  #endif
+
+    callback(cwd);
   }
 }

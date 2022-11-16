@@ -30,7 +30,6 @@ namespace fs = std::filesystem;
 namespace log = ssc::log;
 
 const PlatformInfo platform;
-GlobalConfig config;
 
 //
 // A cross platform MAIN macro that
@@ -526,15 +525,15 @@ MAIN {
         auto force = message.get("force") == "true" ? true : false;
         createProcess(force);
         process->open();
+        return true;
       }
-      return;
     }
 
     if (message.name == "process.kill") {
       if (cmd.size() > 0 && process != nullptr) {
         killProcess(process);
+        return true;
       }
-      return;
     }
 
     if (message.name == "title") {
@@ -542,17 +541,17 @@ MAIN {
         message.seq,
         decodeURIComponent(value)
       );
-      return;
+      return true;
     }
 
     if (message.name == "log" || message.name == "stdout") {
       log::write(decodeURIComponent(value), false);
-      return;
+      return true;
     }
 
     if (message.name == "stderr") {
       log::write(decodeURIComponent(value), true);
-      return;
+      return true;
     }
 
     if (message.name == "exit") {
@@ -562,39 +561,39 @@ MAIN {
       }
 
       window->exit(exitCode);
-      return;
+      return true;
     }
 
     if (message.name == "hide") {
       window->hide(EMPTY_SEQ);
-      return;
+      return true;
     }
 
     if (message.name == "navigate") {
       if (!value.starts_with("file://")) {
         debug("Navigation error: only file:// protocol is allowed. Got path %s", value.c_str());
-        return;
+        return false;
       }
       if (!value.substr(7).starts_with(cwd)) {
         debug("Navigation error: only files in the current directory are allowed. Got path %s", value.c_str());
-        return;
+        return false;
       }
       if (!value.ends_with(".html")) {
         debug("Navigation error: only .html files are allowed. Got path %s", value.c_str());
-        return;
+        return false;
       }
       if (value.find("/../") != std::string::npos) {
         debug("Navigation error: relative paths are not allowed. Got path %s", value.c_str());
-        return;
+        return false;
       }
       const auto seq = message.get("seq");
       window->navigate(seq, decodeURIComponent(value));
-      return;
+      return true;
     }
 
     if (message.name == "inspect") {
       window->showInspector();
-      return;
+      return true;
     }
 
     if (message.name == "background") {
@@ -612,25 +611,25 @@ MAIN {
       }
 
       window->setBackgroundColor(red, green, blue, alpha);
-      return;
+      return true;
     }
 
     if (message.name == "size") {
       int width = std::stoi(message.get("width"));
       int height = std::stoi(message.get("height"));
       window->setSize(EMPTY_SEQ, width, height, 0);
-      return;
+      return true;
     }
 
     if (message.name == "external") {
       window->openExternal(decodeURIComponent(value));
-      return;
+      return true;
     }
 
     if (message.name == "menu") {
       const auto seq = message.get("seq");
       window->setSystemMenu(seq, decodeURIComponent(value));
-      return;
+      return true;
     }
 
     if (message.name == "menuItemEnabled") {
@@ -644,12 +643,12 @@ MAIN {
         indexSub = std::stoi(message.get("indexSub"));
       } catch (...) {
         window->resolvePromise(seq, OK_STATE, "");
-        return;
+        return true;
       }
 
       window->setSystemMenuItemEnabled(enabled, indexMain, indexSub);
       window->resolvePromise(seq, OK_STATE, "");
-      return;
+      return true;
     }
 
     if (message.name == "dialog") {
@@ -662,20 +661,20 @@ MAIN {
       String title = decodeURIComponent(message.get("title"));
 
       window->openDialog(message.get("seq"), bSave, bDirs, bFiles, bMulti, defaultPath, title, defaultName);
-      return;
+      return true;
     }
 
     if (message.name == "context") {
       auto seq = message.get("seq");
       window->setContextMenu(seq, decodeURIComponent(value));
-      return;
+      return true;
     }
 
     if (message.name == "getConfig") {
       const auto seq = message.get("seq");
       auto wrapped = ("\"" + app.config.str() + "\"");
       window->resolvePromise(seq, OK_STATE, encodeURIComponent(wrapped));
-      return;
+      return true;
     }
 
     //
@@ -685,6 +684,8 @@ MAIN {
     if (process != nullptr) {
       process->write(out);
     }
+
+    return false;
   };
 
   //

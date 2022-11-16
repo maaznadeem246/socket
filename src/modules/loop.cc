@@ -49,8 +49,8 @@ export namespace ssc::loop {
 
   class Loop {
     public:
-      static constexpr int POLL_TIMEOUT = 32; // in milliseconds
       using DispatchCallback = std::function<void()>;
+      static constexpr int POLL_TIMEOUT = 32; // in milliseconds
 
       /**
        * An extened `GSource` container with a pointer to a tag created with

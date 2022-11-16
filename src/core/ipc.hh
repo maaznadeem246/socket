@@ -211,6 +211,10 @@ namespace ssc::core::ipc {
         return this->json().str();
       }
 
+      CoreData data () const {
+        return this->value.data;
+      }
+
       JSON::Any json () const {
         // return result value if set explicitly
         if (this->value.json.raw.type != JSON::Type::Null) {

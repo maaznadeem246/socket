@@ -50,6 +50,7 @@ while (( $# > 0 )); do
   module="${module/.pcm/}"
 
   declare output="modules/ssc.$module.pcm"
+  objects+=("modules/ssc.$module.o")
 
   if test -f "$output"; then
     if (( $(stat "$source" -c %Y) < $(stat "$output" -c %Y) )); then
@@ -68,7 +69,6 @@ while (( $# > 0 )); do
   "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "$source" -o "$output" || exit $?
   printf " -> $(basename "$output")"
   echo
-  objects+=("${output/.pcm/.o}")
   echo "ok - built module $(basename "${output/.pcm/}")"
 
   (( built_modules++ ))
@@ -78,7 +78,7 @@ if (( ${#objects[@]} > 0 )); then
   echo "# compiling objects..."
   for object in "${objects[@]}"; do
     {
-      "$clang" -c "${object/.o/.pcm}" -o "$object" || exit $?
+      "$clang" -c "$(echo "$object" | sed 's/\.o$/.pcm/g')" -o "$object" || exit $?
       echo "ok - built object $(basename "$object")"
     } &
   done

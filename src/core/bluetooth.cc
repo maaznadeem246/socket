@@ -75,7 +75,6 @@ namespace ssc::core::bluetooth {
     const String &serviceId,
     const String &characteristicId
   ) {
-    #if defined(__APPLE__)
       if (serviceId.size() != 36) {
         this->send(seq, JSON::Object::Entries {
           {"source", "bluetooth.publish"},
@@ -106,6 +105,7 @@ namespace ssc::core::bluetooth {
         return;
       }
 
+    #if defined(__APPLE__)
       auto ssid = [NSString stringWithUTF8String: serviceId.c_str()];
       auto scid = [NSString stringWithUTF8String: characteristicId.c_str()];
 

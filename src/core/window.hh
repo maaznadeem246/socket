@@ -78,7 +78,7 @@ namespace ssc::core::window {
     String preload = "";
     String env;
     Config config;
-    MessageCallback onMessage = [](const String) {};
+    MessageCallback onMessage = [](const String) { return false; };
     ExitCallback onExit = nullptr;
     CoreDataManager* dataManager = nullptr;
   };
@@ -140,7 +140,7 @@ namespace ssc::core::window {
       CoreWebView* webview = nullptr;
       CoreDataManager* dataManager = nullptr;
 
-      MessageCallback onMessage = [](const String) {};
+      MessageCallback onMessage = [](const String) { return false; };
       ExitCallback onExit = nullptr;
       int index = 0;
 
