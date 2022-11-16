@@ -262,9 +262,9 @@ export namespace ssc::loop {
       }
 
       Loop& signal () {
-        this->semaphores.signal.acquire();
+        //this->semaphores.signal.acquire();
         uv_async_send(&this->async);
-        this->semaphores.signal.release();
+        //this->semaphores.signal.release();
         return *this;
       }
 

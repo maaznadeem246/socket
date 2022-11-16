@@ -4,6 +4,7 @@ declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare build_dir="${BUILD_DIR:-$root/build}"
 declare static_library="$build_dir/lib/libsocket-modules.a"
 
+#declare modules=($(find "$root/modules")) # FIXME
 declare modules=(
   uv
   env
@@ -18,9 +19,11 @@ declare modules=(
   headers
   loop
   data
+  timers
   dns
   peer
   os
+  fs
   udp
   platform
   templates

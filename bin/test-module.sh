@@ -22,26 +22,31 @@ function main () {
       source="$root/$source"
     fi
 
-    declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
-    declare output="$module_tests_path/$filename"
+    {
+      declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
+      declare output="$module_tests_path/$filename"
 
-    if ! test -f "$output" || (( $(stat "$source" -c %Y) > $(stat "$output" -c %Y) )); then
-      "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output.o" || continue
-      "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$root"/src/*.cc "$output.o" -o "$output" || continue
-      echo "ok - built $(basename "$output") test"
-    fi
+      if ! test -f "$output" || (( $(stat "$source" -c %Y) > $(stat "$output" -c %Y) )); then
+        "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output.o" || continue
+        "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$root"/src/*.cc "$output.o" -o "$output" || continue
+        echo "ok - built $(basename "$output") test"
+      fi
 
-    let local now=$(date +%s)
-    "$output"
-    let local rc=$?
-    let local timing=$(( $(date +%s) - now ))
-    if (( rc != 0 )); then
-      echo "not ok - $(basename "$output") tests failed in ${timing}ms"
-      continue
-    fi
+      let local now=$(date +%s)
+      "$output"
+      let local rc=$?
+      let local timing=$(( $(date +%s) - now ))
+      if (( rc != 0 )); then
+        echo "not ok - $(basename "$output") tests failed in ${timing}ms"
+        continue
+      fi
 
-    echo "ok - $(basename "$output") tests passed in ${timing}ms"
+      echo "ok - $(basename "$output") tests passed in ${timing}ms"
+    } &
   done
+
+  wait
+  return $?
 }
 
 main "$@"

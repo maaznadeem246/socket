@@ -683,6 +683,7 @@ MAIN {
     //
     if (process != nullptr) {
       process->write(out);
+      return true;
     }
 
     return false;

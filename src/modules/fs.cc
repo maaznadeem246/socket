@@ -1,153 +1,247 @@
 module;
 #include <socket/platform.hh>
+#include <map>
 
-import ssc.json;
-
+/**
+ * @TODO
+ */
 export module ssc.fs;
+import ssc.data;
+import ssc.headers;
+import ssc.json;
+import ssc.log;
+import ssc.loop;
+import ssc.peer;
+import ssc.timers;
+import ssc.types;
+import ssc.utils;
+import ssc.uv;
 
-export namespace ssc {
-  #if !TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
-  #endif
-  /*
-  Timer releaseWeakDescriptors = {
-    .timeout = 256, // in milliseconds
-    .invoke = [](uv_timer_t *handle) {
-      auto core = reinterpret_cast<Core *>(handle->data);
-      Vector<uint64_t> ids;
-      String msg = "";
+using namespace ssc::data;
+using namespace ssc::headers;
+using namespace ssc::loop;
+using namespace ssc::peer;
+using namespace ssc::types;
+using namespace ssc::timers;
+using namespace ssc::utils;
 
-      Lock lock(core->fs.mutex);
-      for (auto const &tuple : core->fs.descriptors) {
-        ids.push_back(tuple.first);
-      }
+export namespace ssc::fs {
+  // forward
+  class FS;
+  class Descriptor;
+  class DescriptorManager;
 
-      for (auto const id : ids) {
-        Lock lock(core->fs.mutex);
-        auto desc = core->fs.descriptors.at(id);
+  struct Descriptor {
+    uint64_t id;
+    Mutex mutex;
+    AtomicBool retained = false;
+    AtomicBool stale = false;
+    uv_dir_t *dir = nullptr;
+    uv_file fd = 0;
+    FS* fs = nullptr;
 
-        if (desc == nullptr) {
-          core->fs.descriptors.erase(id);
-          continue;
-        }
+    DescriptorManager* descriptorManager = nullptr;
 
-        if (desc->isRetained() || !desc->isStale()) {
-          continue;
-        }
+    Descriptor (uint64_t id, DescriptorManager* descriptorManager) {
+      this->id = id;
+      this->descriptorManager = descriptorManager;
+    }
 
-        if (desc->isDirectory()) {
-          core->fs.closedir("", id, [](auto seq, auto msg, auto post) {});
-        } else if (desc->isFile()) {
-          core->fs.close("", id, [](auto seq, auto msg, auto post) {});
-        } else {
-          // free
-          core->fs.descriptors.erase(id);
-          delete desc;
-        }
-      }
+    bool isDirectory () {
+      return this->dir != nullptr;
+    }
+
+    bool isFile () {
+      Lock lock(this->mutex);
+      return this->fd > 0 && this->dir == nullptr;
+    }
+
+    bool isRetained () {
+      Lock lock(this->mutex);
+      return this->retained;
+    }
+
+    bool isStale () {
+      Lock lock(this->mutex);
+      return this->stale;
     }
   };
-  */
-  class FS : public Module {
+
+  struct RequestContext {
+    using Callback = std::function<void(String, JSON::Any, Data)>;
+
+    uint64_t id;
+    String seq;
+    Descriptor *desc = nullptr;
+    Callback callback = nullptr;
+    uv_fs_t req;
+    uv_buf_t iov[16];
+    // 256 which corresponds to DirectoryHandle.MAX_BUFFER_SIZE
+    uv_dirent_t dirents[256];
+    int offset = 0;
+    int result = 0;
+    FS* fs = nullptr;
+
+    RequestContext () = default;
+    RequestContext (Descriptor *desc)
+      : RequestContext(desc, "", nullptr) {}
+    RequestContext (String seq, Callback callback)
+      : RequestContext(nullptr, seq, callback) {}
+    RequestContext (Descriptor *desc, String seq, Callback callback) {
+      this->id = rand64();
+      this->callback = callback;
+      this->seq = seq;
+      this->desc = desc;
+      this->req.data = (void *) this;
+      if (desc != nullptr) {
+        this->fs = desc->fs;
+      }
+    }
+
+    ~RequestContext () {
+      uv_fs_req_cleanup(&this->req);
+    }
+
+    void setBuffer (int index, size_t len, char *base) {
+      this->iov[index].base = base;
+      this->iov[index].len = len;
+    }
+
+    void freeBuffer (int index) {
+      if (this->iov[index].base != nullptr) {
+        delete [] (char *) this->iov[index].base;
+        this->iov[index].base = nullptr;
+      }
+
+      this->iov[index].len = 0;
+    }
+
+    char* getBuffer (int index) {
+      return this->iov[index].base;
+    }
+
+    size_t getBufferSize (int index) {
+      return this->iov[index].len;
+    }
+  };
+
+  class DescriptorManager {
     public:
-      FS (auto runtime) : Module(runtime) {}
+      using Callback = RequestContext::Callback;
+      using Descriptors = std::map<uint64_t, Descriptor*>;
 
-      struct Descriptor {
-        uint64_t id;
-        std::atomic<bool> retained = false;
-        std::atomic<bool> stale = false;
-        Mutex mutex;
-        uv_dir_t *dir = nullptr;
-        uv_file fd = 0;
-        Runtime *runtime;
+      Descriptors descriptors;
+      Mutex mutex;
+      Loop& loop;
+      FS* fs = nullptr;
 
-        Descriptor (Runtime *runtime, uint64_t id);
-        bool isDirectory ();
-        bool isFile ();
-        bool isRetained ();
-        bool isStale ();
-      };
+      DescriptorManager () = delete;
+      DescriptorManager (Loop& loop, FS* fs)
+        : loop(loop)
+      {
+        this->fs = fs;
+        this->init();
+      }
 
-      struct RequestContext : Module::RequestContext {
-        uint64_t id;
-        Descriptor *desc = nullptr;
-        uv_fs_t req;
-        uv_buf_t iov[16];
-        // 256 which corresponds to DirectoryHandle.MAX_BUFFER_SIZE
-        uv_dirent_t dirents[256];
-        int offset = 0;
-        int result = 0;
+      void init ();
 
-        RequestContext () = default;
-        RequestContext (Descriptor *desc)
-          : RequestContext(desc, "", nullptr) {}
-        RequestContext (String seq, Callback cb)
-          : RequestContext(nullptr, seq, cb) {}
-        RequestContext (Descriptor *desc, String seq, Callback cb) {
-          this->id = ssc::rand64();
-          this->cb = cb;
-          this->seq = seq;
-          this->desc = desc;
-          this->req.data = (void *) this;
+      Descriptor* create (uint64_t id) {
+        Lock lock(this->mutex);
+
+        if (this->has(id)) {
+          return this->get(id);
         }
 
-        ~RequestContext () {
-          uv_fs_req_cleanup(&this->req);
+        auto descriptor = new Descriptor(id, this);
+        descriptors.insert_or_assign(id, descriptor);
+
+        return descriptor;
+      }
+
+      Descriptor* get (uint64_t id) {
+        Lock lock(this->mutex);
+
+        if (descriptors.find(id) != descriptors.end()) {
+          return descriptors.at(id);
         }
+        return nullptr;
+      }
 
-        void setBuffer (int index, size_t len, char *base);
-        void freeBuffer (int index);
-        char* getBuffer (int index);
-        size_t getBufferSize (int index);
-      };
+      void remove (uint64_t id) {
+        Lock lock(this->mutex);
+        if (descriptors.find(id) != descriptors.end()) {
+          auto descriptor = this->get(id);
+          descriptors.erase(id);
+          if (descriptor != nullptr) {
+            delete descriptor;
+          }
+        }
+      }
 
-      std::map<uint64_t, Descriptor*> descriptors;
-       Mutex mutex;
+      bool has (uint64_t id) {
+        Lock lock(this->mutex);
+        return descriptors.find(id) != descriptors.end();
+      }
 
-      Descriptor * getDescriptor (uint64_t id);
-      void removeDescriptor (uint64_t id);
-      bool hasDescriptor (uint64_t id);
+      auto count () {
+        Lock lock(this->mutex);
+        return this->descriptors.size();
+      }
+  };
 
-      void constants (const String seq, Module::Callback cb);
+  class FS {
+    public:
+      using Callback = RequestContext::Callback;
+
+      DescriptorManager& descriptorManager;
+      Loop& loop;
+
+      FS (Loop& loop, DescriptorManager& descriptorManager)
+        : descriptorManager(descriptorManager),
+          loop(loop)
+      {}
+
+      void constants (const String seq, Callback callback);
       void access (
         const String seq,
         const String path,
         int mode,
-        Module::Callback cb
+        Callback callback
       );
       void chmod (
         const String seq,
         const String path,
         int mode,
-        Module::Callback cb
+        Callback callback
       );
-      void close (const String seq, uint64_t id, Module::Callback cb);
+      void close (const String seq, uint64_t id, Callback callback);
       void copyFile (
         const String seq,
         const String src,
         const String dst,
         int mode,
-        Module::Callback cb
+        Callback callback
       );
-      void closedir (const String seq, uint64_t id, Module::Callback cb);
+      void closedir (const String seq, uint64_t id, Callback callback);
       void closeOpenDescriptor (
         const String seq,
         uint64_t id,
-        Module::Callback cb
+        Callback callback
       );
-      void closeOpenDescriptors (const String seq, Module::Callback cb);
+      void closeOpenDescriptors (const String seq, Callback callback);
       void closeOpenDescriptors (
         const String seq,
         bool preserveRetained,
-        Module::Callback cb
+        Callback callback
       );
-      void fstat (const String seq, uint64_t id, Module::Callback cb);
-      void getOpenDescriptors (const String seq, Module::Callback cb);
-      void lstat (const String seq, const String path, Module::Callback cb);
+      void fstat (const String seq, uint64_t id, Callback callback);
+      void getOpenDescriptors (const String seq, Callback callback);
+      void lstat (const String seq, const String path, Callback callback);
       void mkdir (
         const String seq,
         const String path,
         int mode,
-        Module::Callback cb
+        Callback callback
       );
       void open (
         const String seq,
@@ -155,52 +249,52 @@ export namespace ssc {
         const String path,
         int flags,
         int mode,
-        Module::Callback cb
+        Callback callback
       );
       void opendir (
         const String seq,
         uint64_t id,
         const String path,
-        Module::Callback cb
+        Callback callback
       );
       void read (
         const String seq,
         uint64_t id,
         size_t len,
         size_t offset,
-        Module::Callback cb
+        Callback callback
       );
       void readdir (
         const String seq,
         uint64_t id,
         size_t entries,
-        Module::Callback cb
+        Callback callback
       );
       void retainOpenDescriptor (
         const String seq,
         uint64_t id,
-        Module::Callback cb
+        Callback callback
       );
       void rename (
         const String seq,
         const String src,
         const String dst,
-        Module::Callback cb
+        Callback callback
       );
       void rmdir (
         const String seq,
         const String path,
-        Module::Callback cb
+        Callback callback
       );
       void stat (
         const String seq,
         const String path,
-        Module::Callback cb
+        Callback callback
       );
       void unlink (
         const String seq,
         const String path,
-        Module::Callback cb
+        Callback callback
       );
       void write (
         const String seq,
@@ -208,172 +302,211 @@ export namespace ssc {
         char *bytes,
         size_t size,
         size_t offset,
-        Module::Callback cb
+        Callback callback
       );
   };
+
+  inline void DescriptorManager::init () {
+    Timer releaseWeakDescriptors = {
+      .timeout = 256, // in milliseconds
+      .invoke = [](uv_timer_t *handle) {
+        auto descriptorManager = reinterpret_cast<DescriptorManager*>(handle->data);
+        Vector<uint64_t> ids;
+
+        {
+          Lock lock(descriptorManager->mutex);
+          for (const auto& tuple : descriptorManager->descriptors) {
+            ids.push_back(tuple.first);
+          }
+        }
+
+        for (auto const id : ids) {
+          auto desc = descriptorManager->get(id);
+
+          if (desc == nullptr) {
+            descriptorManager->remove(id);
+            continue;
+          }
+
+          if (desc->isRetained() || !desc->isStale()) {
+            continue;
+          }
+
+          if (desc->isDirectory()) {
+            descriptorManager->fs->closedir("", id, [](auto seq, auto msg, auto data) {});
+          } else if (desc->isFile()) {
+            descriptorManager->fs->close("", id, [](auto seq, auto msg, auto data) {});
+          } else {
+            // free
+            descriptorManager->remove(id);
+          }
+        }
+      }
+    };
+  }
 
   #define SET_CONSTANT(c) constants[#c] = (c);
   std::map<String, int32_t> getFSConstantsMap () {
     std::map<String, int32_t> constants;
 
     #if defined(UV_DIRENT_UNKNOWN)
-    SET_CONSTANT(UV_DIRENT_UNKNOWN)
+      SET_CONSTANT(UV_DIRENT_UNKNOWN)
     #endif
     #if defined(UV_DIRENT_FILE)
-    SET_CONSTANT(UV_DIRENT_FILE)
+      SET_CONSTANT(UV_DIRENT_FILE)
     #endif
     #if defined(UV_DIRENT_DIR)
-    SET_CONSTANT(UV_DIRENT_DIR)
+      SET_CONSTANT(UV_DIRENT_DIR)
     #endif
     #if defined(UV_DIRENT_LINK)
-    SET_CONSTANT(UV_DIRENT_LINK)
+      SET_CONSTANT(UV_DIRENT_LINK)
     #endif
     #if defined(UV_DIRENT_FIFO)
-    SET_CONSTANT(UV_DIRENT_FIFO)
+      SET_CONSTANT(UV_DIRENT_FIFO)
     #endif
     #if defined(UV_DIRENT_SOCKET)
-    SET_CONSTANT(UV_DIRENT_SOCKET)
+      SET_CONSTANT(UV_DIRENT_SOCKET)
     #endif
     #if defined(UV_DIRENT_CHAR)
-    SET_CONSTANT(UV_DIRENT_CHAR)
+      SET_CONSTANT(UV_DIRENT_CHAR)
     #endif
     #if defined(UV_DIRENT_BLOCK)
-    SET_CONSTANT(UV_DIRENT_BLOCK)
+      SET_CONSTANT(UV_DIRENT_BLOCK)
     #endif
     #if defined(O_RDONLY)
-    SET_CONSTANT(O_RDONLY);
+      SET_CONSTANT(O_RDONLY);
     #endif
     #if defined(O_WRONLY)
-    SET_CONSTANT(O_WRONLY);
+      SET_CONSTANT(O_WRONLY);
     #endif
     #if defined(O_RDWR)
-    SET_CONSTANT(O_RDWR);
+      SET_CONSTANT(O_RDWR);
     #endif
     #if defined(O_APPEND)
-    SET_CONSTANT(O_APPEND);
+      SET_CONSTANT(O_APPEND);
     #endif
     #if defined(O_ASYNC)
-    SET_CONSTANT(O_ASYNC);
+      SET_CONSTANT(O_ASYNC);
     #endif
     #if defined(O_CLOEXEC)
-    SET_CONSTANT(O_CLOEXEC);
+      SET_CONSTANT(O_CLOEXEC);
     #endif
     #if defined(O_CREAT)
-    SET_CONSTANT(O_CREAT);
+      SET_CONSTANT(O_CREAT);
     #endif
     #if defined(O_DIRECT)
-    SET_CONSTANT(O_DIRECT);
+      SET_CONSTANT(O_DIRECT);
     #endif
     #if defined(O_DIRECTORY)
-    SET_CONSTANT(O_DIRECTORY);
+      SET_CONSTANT(O_DIRECTORY);
     #endif
     #if defined(O_DSYNC)
-    SET_CONSTANT(O_DSYNC);
+      SET_CONSTANT(O_DSYNC);
     #endif
     #if defined(O_EXCL)
-    SET_CONSTANT(O_EXCL);
+      SET_CONSTANT(O_EXCL);
     #endif
     #if defined(O_LARGEFILE)
-    SET_CONSTANT(O_LARGEFILE);
+      SET_CONSTANT(O_LARGEFILE);
     #endif
     #if defined(O_NOATIME)
-    SET_CONSTANT(O_NOATIME);
+      SET_CONSTANT(O_NOATIME);
     #endif
     #if defined(O_NOCTTY)
-    SET_CONSTANT(O_NOCTTY);
+      SET_CONSTANT(O_NOCTTY);
     #endif
     #if defined(O_NOFOLLOW)
-    SET_CONSTANT(O_NOFOLLOW);
+      SET_CONSTANT(O_NOFOLLOW);
     #endif
     #if defined(O_NONBLOCK)
-    SET_CONSTANT(O_NONBLOCK);
+      SET_CONSTANT(O_NONBLOCK);
     #endif
     #if defined(O_NDELAY)
-    SET_CONSTANT(O_NDELAY);
+      SET_CONSTANT(O_NDELAY);
     #endif
     #if defined(O_PATH)
-    SET_CONSTANT(O_PATH);
+      SET_CONSTANT(O_PATH);
     #endif
     #if defined(O_SYNC)
-    SET_CONSTANT(O_SYNC);
+      SET_CONSTANT(O_SYNC);
     #endif
     #if defined(O_TMPFILE)
-    SET_CONSTANT(O_TMPFILE);
+      SET_CONSTANT(O_TMPFILE);
     #endif
     #if defined(O_TRUNC)
-    SET_CONSTANT(O_TRUNC);
+      SET_CONSTANT(O_TRUNC);
     #endif
     #if defined(S_IFMT)
-    SET_CONSTANT(S_IFMT);
+      SET_CONSTANT(S_IFMT);
     #endif
     #if defined(S_IFREG)
-    SET_CONSTANT(S_IFREG);
+      SET_CONSTANT(S_IFREG);
     #endif
     #if defined(S_IFDIR)
-    SET_CONSTANT(S_IFDIR);
+      SET_CONSTANT(S_IFDIR);
     #endif
     #if defined(S_IFCHR)
-    SET_CONSTANT(S_IFCHR);
+      SET_CONSTANT(S_IFCHR);
     #endif
     #if defined(S_IFBLK)
-    SET_CONSTANT(S_IFBLK);
+      SET_CONSTANT(S_IFBLK);
     #endif
     #if defined(S_IFIFO)
-    SET_CONSTANT(S_IFIFO);
+      SET_CONSTANT(S_IFIFO);
     #endif
     #if defined(S_IFLNK)
-    SET_CONSTANT(S_IFLNK);
+      SET_CONSTANT(S_IFLNK);
     #endif
     #if defined(S_IFSOCK)
-    SET_CONSTANT(S_IFSOCK);
+      SET_CONSTANT(S_IFSOCK);
     #endif
     #if defined(S_IRWXU)
-    SET_CONSTANT(S_IRWXU);
+      SET_CONSTANT(S_IRWXU);
     #endif
     #if defined(S_IRUSR)
-    SET_CONSTANT(S_IRUSR);
+      SET_CONSTANT(S_IRUSR);
     #endif
     #if defined(S_IWUSR)
-    SET_CONSTANT(S_IWUSR);
+      SET_CONSTANT(S_IWUSR);
     #endif
     #if defined(S_IXUSR)
-    SET_CONSTANT(S_IXUSR);
+      SET_CONSTANT(S_IXUSR);
     #endif
     #if defined(S_IRWXG)
-    SET_CONSTANT(S_IRWXG);
+      SET_CONSTANT(S_IRWXG);
     #endif
     #if defined(S_IRGRP)
-    SET_CONSTANT(S_IRGRP);
+      SET_CONSTANT(S_IRGRP);
     #endif
     #if defined(S_IWGRP)
-    SET_CONSTANT(S_IWGRP);
+      SET_CONSTANT(S_IWGRP);
     #endif
     #if defined(S_IXGRP)
-    SET_CONSTANT(S_IXGRP);
+      SET_CONSTANT(S_IXGRP);
     #endif
     #if defined(S_IRWXO)
-    SET_CONSTANT(S_IRWXO);
+      SET_CONSTANT(S_IRWXO);
     #endif
     #if defined(S_IROTH)
-    SET_CONSTANT(S_IROTH);
+      SET_CONSTANT(S_IROTH);
     #endif
     #if defined(S_IWOTH)
-    SET_CONSTANT(S_IWOTH);
+      SET_CONSTANT(S_IWOTH);
     #endif
     #if defined(S_IXOTH)
-    SET_CONSTANT(S_IXOTH);
+      SET_CONSTANT(S_IXOTH);
     #endif
     #if defined(F_OK)
-    SET_CONSTANT(F_OK);
+      SET_CONSTANT(F_OK);
     #endif
     #if defined(R_OK)
-    SET_CONSTANT(R_OK);
+      SET_CONSTANT(R_OK);
     #endif
     #if defined(W_OK)
-    SET_CONSTANT(W_OK);
+      SET_CONSTANT(W_OK);
     #endif
     #if defined(X_OK)
-    SET_CONSTANT(X_OK);
+      SET_CONSTANT(X_OK);
     #endif
 
     return constants;
@@ -416,118 +549,17 @@ export namespace ssc {
     };
   }
 
-  void FS::RequestContext::setBuffer (int index, size_t len, char *base) {
-    this->iov[index].base = base;
-    this->iov[index].len = len;
-  }
-
-  void FS::RequestContext::freeBuffer (int index) {
-    if (this->iov[index].base != nullptr) {
-      delete [] (char *) this->iov[index].base;
-      this->iov[index].base = nullptr;
-    }
-
-    this->iov[index].len = 0;
-  }
-
-  char* FS::RequestContext::getBuffer (int index) {
-    return this->iov[index].base;
-  }
-
-  size_t FS::RequestContext::getBufferSize (int index) {
-    return this->iov[index].len;
-  }
-
-  FS::Descriptor::Descriptor (Runtime *runtime, uint64_t id) {
-    this->runtime = runtime;
-    this->id = id;
-  }
-
-  bool FS::Descriptor::isDirectory () {
-    Lock lock(this->mutex);
-    return this->dir != nullptr;
-  }
-
-  bool FS::Descriptor::isFile () {
-    Lock lock(this->mutex);
-    return this->fd > 0 && this->dir == nullptr;
-  }
-
-  bool FS::Descriptor::isRetained () {
-    Lock lock(this->mutex);
-    return this->retained;
-  }
-
-  bool FS::Descriptor::isStale () {
-    Lock lock(this->mutex);
-    return this->stale;
-  }
-
-  FS::Descriptor * FS::getDescriptor (uint64_t id) {
-    Lock lock(this->mutex);
-    if (descriptors.find(id) != descriptors.end()) {
-      return descriptors.at(id);
-    }
-    return nullptr;
-  }
-
-  void FS::removeDescriptor (uint64_t id) {
-    Lock lock(this->mutex);
-    if (descriptors.find(id) != descriptors.end()) {
-      descriptors.erase(id);
-    }
-  }
-
-  bool FS::hasDescriptor (uint64_t id) {
-    Lock lock(this->mutex);
-    return descriptors.find(id) != descriptors.end();
-  }
-
-  void FS::retainOpenDescriptor (
-    const String seq,
-    uint64_t id,
-    Module::Callback cb
-  ) {
-    auto desc = getDescriptor(id);
-
-    if (desc == nullptr) {
-      auto json = JSON::Object::Entries {
-        {"source", "fs.retainOpenDescriptor"},
-        {"err", JSON::Object::Entries {
-          {"id", std::to_string(id)},
-          {"code", "ENOTOPEN"},
-          {"type", "NotFoundError"},
-          {"message", "No file descriptor found with that id"}
-        }}
-      };
-
-      return cb(seq, json, Post{});
-    }
-
-    Lock lock(desc->mutex);
-    desc->retained = true;
-    auto json = JSON::Object::Entries {
-      {"source", "fs.retainOpenDescriptor"},
-      {"data", JSON::Object::Entries {
-        {"id", std::to_string(desc->id)}
-      }}
-    };
-
-    cb(seq, json, Post{});
-  }
-
   void FS::access (
     const String seq,
     const String path,
     int mode,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_access(loop, req, filename, mode, [](uv_fs_t* req) {
+      auto err = uv_fs_access(loop.get(), req, filename, mode, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -548,7 +580,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post {});
+        ctx->callback(ctx->seq, json, Data {});
         delete ctx;
       });
 
@@ -561,7 +593,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -571,14 +603,13 @@ export namespace ssc {
     const String seq,
     const String path,
     int mode,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_chmod(loop, req, filename, mode, [](uv_fs_t* req) {
+      auto err = uv_fs_chmod(loop.get(), req, filename, mode, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -599,7 +630,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post {});
+        ctx->callback(ctx->seq, json, Data {});
         delete ctx;
       });
 
@@ -612,7 +643,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -621,10 +652,10 @@ export namespace ssc {
   void FS::close (
     const String seq,
     uint64_t id,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto desc = getDescriptor(id);
+    this->loop.dispatch([=, this]() {
+      auto desc = this->descriptorManager.get(id);
 
       if (desc == nullptr) {
         auto json = JSON::Object::Entries {
@@ -637,13 +668,12 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_close(loop, req, desc->fd, [](uv_fs_t* req) {
+      auto err = uv_fs_close(loop.get(), req, desc->fd, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -666,11 +696,10 @@ export namespace ssc {
             }}
           };
 
-          desc->runtime->fs.removeDescriptor(desc->id);
-          delete desc;
+          desc->descriptorManager->remove(desc->id);
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -684,7 +713,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -696,15 +725,14 @@ export namespace ssc {
     const String path,
     int flags,
     int mode,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto desc = new Descriptor(this->runtime, id);
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto desc = this->descriptorManager.create(id);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_open(loop, req, filename, flags, mode, [](uv_fs_t* req) {
+      auto err = uv_fs_open(loop.get(), req, filename, flags, mode, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -719,7 +747,7 @@ export namespace ssc {
             }}
           };
 
-          delete desc;
+          desc->descriptorManager->remove(desc->id);
         } else {
           json = JSON::Object::Entries {
             {"source", "fs.open"},
@@ -731,11 +759,11 @@ export namespace ssc {
 
           desc->fd = (int) req->result;
           // insert into `descriptors` map
-          Lock lock(desc->runtime->fs.mutex);
-          desc->runtime->fs.descriptors.insert_or_assign(desc->id, desc);
+          Lock lock(desc->descriptorManager->mutex);
+          desc->descriptorManager->descriptors.insert_or_assign(desc->id, desc);
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -749,8 +777,8 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
-        delete desc;
+        ctx->callback(ctx->seq, json, Data{});
+        desc->descriptorManager->remove(desc->id);
         delete ctx;
       }
     });
@@ -760,15 +788,14 @@ export namespace ssc {
     const String seq,
     uint64_t id,
     const String path,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto desc =  new Descriptor(this->runtime, id);
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto desc =  new Descriptor(id, &this->descriptorManager);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_opendir(loop, req, filename, [](uv_fs_t *req) {
+      auto err = uv_fs_opendir(loop.get(), req, filename, [](uv_fs_t *req) {
         auto ctx = (RequestContext *) req->data;
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -794,11 +821,11 @@ export namespace ssc {
 
           desc->dir = (uv_dir_t *) req->ptr;
           // insert into `descriptors` map
-          Lock lock(desc->runtime->fs.mutex);
-          desc->runtime->fs.descriptors.insert_or_assign(desc->id, desc);
+          Lock lock(desc->descriptorManager->mutex);
+          desc->descriptorManager->descriptors.insert_or_assign(desc->id, desc);
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -812,7 +839,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete desc;
         delete ctx;
       }
@@ -823,10 +850,10 @@ export namespace ssc {
     const String seq,
     uint64_t id,
     size_t nentries,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto desc = getDescriptor(id);
+    this->loop.dispatch([=, this]() {
+      auto desc = this->descriptorManager.get(id);
 
       if (desc == nullptr) {
         auto json = JSON::Object::Entries {
@@ -839,7 +866,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       if (!desc->isDirectory()) {
@@ -852,18 +879,17 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       Lock lock(desc->mutex);
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
 
       desc->dir->dirents = ctx->dirents;
       desc->dir->nentries = nentries;
 
-      auto err = uv_fs_readdir(loop, req, desc->dir, [](uv_fs_t *req) {
+      auto err = uv_fs_readdir(loop.get(), req, desc->dir, [](uv_fs_t *req) {
         auto ctx = (RequestContext *) req->data;
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -895,7 +921,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -909,7 +935,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -918,10 +944,10 @@ export namespace ssc {
   void FS::closedir (
     const String seq,
     uint64_t id,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto desc = getDescriptor(id);
+    this->loop.dispatch([=, this]() {
+      auto desc = this->descriptorManager.get(id);
 
       if (desc == nullptr) {
         auto json = JSON::Object::Entries {
@@ -934,7 +960,7 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
       if (!desc->isDirectory()) {
@@ -947,13 +973,12 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_closedir(loop, req, desc->dir, [](uv_fs_t* req) {
+      auto err = uv_fs_closedir(loop.get(), req, desc->dir, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -976,11 +1001,11 @@ export namespace ssc {
             }}
           };
 
-          desc->runtime->fs.removeDescriptor(desc->id);
+          desc->descriptorManager->remove(desc->id);
           delete desc;
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -994,7 +1019,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1003,9 +1028,9 @@ export namespace ssc {
   void FS::closeOpenDescriptor (
     const String seq,
     uint64_t id,
-    Module::Callback cb
+    Callback callback
   ) {
-    auto desc = getDescriptor(id);
+    auto desc = this->descriptorManager.get(id);
 
     if (desc == nullptr) {
       auto json = JSON::Object::Entries {
@@ -1018,42 +1043,43 @@ export namespace ssc {
         }}
       };
 
-      return cb(seq, json, Post{});
+      return callback(seq, json, Data{});
     }
 
     if (desc->isDirectory()) {
-      this->closedir(seq, id, cb);
+      this->closedir(seq, id, callback);
     } else if (desc->isFile()) {
-      this->close(seq, id, cb);
+      this->close(seq, id, callback);
     }
   }
 
-  void FS::closeOpenDescriptors (const String seq, Module::Callback cb) {
-    return this->closeOpenDescriptors(seq, false, cb);
+  void FS::closeOpenDescriptors (const String seq, Callback callback) {
+    return this->closeOpenDescriptors(seq, false, callback);
   }
 
   void FS::closeOpenDescriptors (
     const String seq,
     bool preserveRetained,
-    Module::Callback cb
+    Callback callback
   ) {
-    Lock lock(this->mutex);
-
-    auto pending = descriptors.size();
+    auto pending = this->descriptorManager.count();
     int queued = 0;
     auto json = JSON::Object {};
     auto ids = Vector<uint64_t> {};
 
-    for (auto const &tuple : descriptors) {
-      ids.push_back(tuple.first);
+    {
+      Lock lock(this->descriptorManager.mutex);
+      for (auto const &tuple : this->descriptorManager.descriptors) {
+        ids.push_back(tuple.first);
+      }
     }
 
     for (auto const id : ids) {
-      auto desc = descriptors[id];
+      auto desc = this->descriptorManager.get(id);
       pending--;
 
       if (desc == nullptr) {
-        descriptors.erase(id);
+        this->descriptorManager.remove(id);
         continue;
       }
 
@@ -1063,23 +1089,23 @@ export namespace ssc {
 
       if (desc->isDirectory()) {
         queued++;
-        this->closedir(seq, id, [pending, cb](auto seq, auto json, auto post) {
+        this->closedir(seq, id, [pending, callback](auto seq, auto json, auto data) {
           if (pending == 0) {
-            cb(seq, json, post);
+            callback(seq, json, data);
           }
         });
       } else if (desc->isFile()) {
         queued++;
-        this->close(seq, id, [pending, cb](auto seq, auto json, auto post) {
+        this->close(seq, id, [pending, callback](auto seq, auto json, auto data) {
           if (pending == 0) {
-            cb(seq, json, post);
+            callback(seq, json, data);
           }
         });
       }
     }
 
     if (queued == 0) {
-      cb(seq, json, Post{});
+      callback(seq, json, Data{});
     }
   }
 
@@ -1088,10 +1114,10 @@ export namespace ssc {
     uint64_t id,
     size_t size,
     size_t offset,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto desc = getDescriptor(id);
+    this->loop.dispatch([=, this]() {
+      auto desc = this->descriptorManager.get(id);
 
       if (desc == nullptr) {
         auto json = JSON::Object::Entries {
@@ -1104,21 +1130,20 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
       auto bytes = new char[size]{0};
 
       ctx->setBuffer(0, size, bytes);
 
-      auto err = uv_fs_read(loop, req, desc->fd, ctx->iov, 1, offset, [](uv_fs_t* req) {
+      auto err = uv_fs_read(loop.get(), req, desc->fd, ctx->iov, 1, offset, [](uv_fs_t* req) {
         auto ctx = static_cast<RequestContext*>(req->data);
         auto desc = ctx->desc;
         auto json = JSON::Object {};
-        Post post = {0};
+        Data data = {0};
 
         if (req->result < 0) {
           json = JSON::Object::Entries {
@@ -1140,14 +1165,14 @@ export namespace ssc {
             {"content-length", req->result}
           }};
 
-          post.id = SSC::rand64();
-          post.body = ctx->getBuffer(0);
-          post.length = (int) req->result;
-          post.headers = headers.str();
-          post.bodyNeedsFree = true;
+          data.id = rand64();
+          data.body = ctx->getBuffer(0);
+          data.length = (int) req->result;
+          data.headers = headers.str();
+          data.bodyNeedsFree = true;
         }
 
-        ctx->cb(ctx->seq, json, post);
+        ctx->callback(ctx->seq, json, data);
         delete ctx;
       });
 
@@ -1161,7 +1186,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete [] bytes;
         delete ctx;
       }
@@ -1174,10 +1199,10 @@ export namespace ssc {
     char *bytes,
     size_t size,
     size_t offset,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto desc = getDescriptor(id);
+    this->loop.dispatch([=, this]() {
+      auto desc = this->descriptorManager.get(id);
 
       if (desc == nullptr) {
         auto json = JSON::Object::Entries {
@@ -1190,15 +1215,14 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
 
       ctx->setBuffer(0, (int) size, bytes);
-      auto err = uv_fs_write(loop, req, desc->fd, ctx->iov, 1, offset, [](uv_fs_t* req) {
+      auto err = uv_fs_write(loop.get(), req, desc->fd, ctx->iov, 1, offset, [](uv_fs_t* req) {
         auto ctx = static_cast<RequestContext*>(req->data);
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -1222,7 +1246,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1236,7 +1260,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1245,14 +1269,13 @@ export namespace ssc {
   void FS::stat (
     const String seq,
     const String path,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_stat(loop, req, filename, [](uv_fs_t *req) {
+      auto err = uv_fs_stat(loop.get(), req, filename, [](uv_fs_t *req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1268,7 +1291,7 @@ export namespace ssc {
           json = getStatsJSON("fs.stat", uv_fs_get_statbuf(req));
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1281,7 +1304,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1290,10 +1313,10 @@ export namespace ssc {
   void FS::fstat (
     const String seq,
     uint64_t id,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto desc = getDescriptor(id);
+    this->loop.dispatch([=, this]() {
+      auto desc = this->descriptorManager.get(id);
 
       if (desc == nullptr) {
         auto json = JSON::Object::Entries {
@@ -1306,13 +1329,12 @@ export namespace ssc {
           }}
         };
 
-        return cb(seq, json, Post{});
+        return callback(seq, json, Data{});
       }
 
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(desc, seq, cb);
+      auto ctx = new RequestContext(desc, seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_fstat(loop, req, desc->fd, [](uv_fs_t *req) {
+      auto err = uv_fs_fstat(loop.get(), req, desc->fd, [](uv_fs_t *req) {
         auto ctx = (RequestContext *) req->data;
         auto desc = ctx->desc;
         auto json = JSON::Object {};
@@ -1330,7 +1352,7 @@ export namespace ssc {
           json = getStatsJSON("fs.fstat", uv_fs_get_statbuf(req));
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1344,20 +1366,53 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
   }
 
+  void FS::retainOpenDescriptor (
+    const String seq,
+    uint64_t id,
+    Callback callback
+  ) {
+    auto desc = this->descriptorManager.get(id);
+
+    if (desc == nullptr) {
+      auto json = JSON::Object::Entries {
+        {"source", "fs.retainOpenDescriptor"},
+        {"err", JSON::Object::Entries {
+          {"id", std::to_string(id)},
+          {"code", "ENOTOPEN"},
+          {"type", "NotFoundError"},
+          {"message", "No file descriptor found with that id"}
+        }}
+      };
+
+      return callback(seq, json, Data{});
+    }
+
+    Lock lock(desc->mutex);
+    desc->retained = true;
+    auto json = JSON::Object::Entries {
+      {"source", "fs.retainOpenDescriptor"},
+      {"data", JSON::Object::Entries {
+        {"id", std::to_string(desc->id)}
+      }}
+    };
+
+    callback(seq, json, Data{});
+  }
+
   void FS::getOpenDescriptors (
     const String seq,
-    Module::Callback cb
+    Callback callback
   ) {
-    Lock lock(this->mutex);
     auto entries = Vector<JSON::Any> {};
 
-    for (auto const &tuple : descriptors) {
+    Lock lock(this->descriptorManager.mutex);
+    for (auto const &tuple : this->descriptorManager.descriptors) {
       auto desc = tuple.second;
 
       if (!desc || (desc->isStale() && !desc->isRetained())) {
@@ -1378,20 +1433,19 @@ export namespace ssc {
       {"data", entries}
     };
 
-    cb(seq, json, Post{});
+    callback(seq, json, Data{});
   }
 
   void FS::lstat (
     const String seq,
     const String path,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_lstat(loop, req, filename, [](uv_fs_t* req) {
+      auto err = uv_fs_lstat(loop.get(), req, filename, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1407,7 +1461,7 @@ export namespace ssc {
           json = getStatsJSON("fs.lstat", uv_fs_get_statbuf(req));
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1420,7 +1474,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1429,14 +1483,13 @@ export namespace ssc {
   void FS::unlink (
     const String seq,
     const String path,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_unlink(loop, req, filename, [](uv_fs_t* req) {
+      auto err = uv_fs_unlink(loop.get(), req, filename, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1457,7 +1510,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1470,7 +1523,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1480,15 +1533,14 @@ export namespace ssc {
     const String seq,
     const String pathA,
     const String pathB,
-    const Module::Callback cb
+    const Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+    this->loop.dispatch([=, this]() {
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
       auto src = pathA.c_str();
       auto dst = pathB.c_str();
-      auto err = uv_fs_rename(loop, req, src, dst, [](uv_fs_t* req) {
+      auto err = uv_fs_rename(loop.get(), req, src, dst, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1509,7 +1561,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1522,7 +1574,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1533,15 +1585,14 @@ export namespace ssc {
     const String pathA,
     const String pathB,
     int flags,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+    this->loop.dispatch([=, this]() {
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
       auto src = pathA.c_str();
       auto dst = pathB.c_str();
-      auto err = uv_fs_copyfile(loop, req, src, dst, flags, [](uv_fs_t* req) {
+      auto err = uv_fs_copyfile(loop.get(), req, src, dst, flags, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1562,7 +1613,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1575,7 +1626,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1584,14 +1635,13 @@ export namespace ssc {
   void FS::rmdir (
     const String seq,
     const String path,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_rmdir(loop, req, filename, [](uv_fs_t* req) {
+      auto err = uv_fs_rmdir(loop.get(), req, filename, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1612,7 +1662,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1625,7 +1675,7 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
@@ -1635,14 +1685,13 @@ export namespace ssc {
     const String seq,
     const String path,
     int mode,
-    Module::Callback cb
+    Callback callback
   ) {
-    this->runtime->dispatchEventLoop([=, this]() {
+    this->loop.dispatch([=, this]() {
       auto filename = path.c_str();
-      auto loop = &this->runtime->eventLoop;
-      auto ctx = new RequestContext(seq, cb);
+      auto ctx = new RequestContext(seq, callback);
       auto req = &ctx->req;
-      auto err = uv_fs_mkdir(loop, req, filename, mode, [](uv_fs_t* req) {
+      auto err = uv_fs_mkdir(loop.get(), req, filename, mode, [](uv_fs_t* req) {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
@@ -1663,7 +1712,7 @@ export namespace ssc {
           };
         }
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       });
 
@@ -1676,16 +1725,16 @@ export namespace ssc {
           }}
         };
 
-        ctx->cb(ctx->seq, json, Post{});
+        ctx->callback(ctx->seq, json, Data{});
         delete ctx;
       }
     });
   }
 
-  void FS::constants (const String seq, Module::Callback cb) {
+  void FS::constants (const String seq, Callback callback) {
     static auto constants = getFSConstantsMap();
 
-    this->runtime->dispatchEventLoop([=] {
+    this->loop.dispatch([=] {
       JSON::Object::Entries data;
 
       for (auto const &tuple : constants) {
@@ -1699,7 +1748,7 @@ export namespace ssc {
         {"data", data}
       };
 
-      cb(seq, json, Post{});
+      callback(seq, json, Data{});
     });
   }
 }

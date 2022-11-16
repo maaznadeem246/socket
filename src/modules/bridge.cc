@@ -3,15 +3,15 @@ module;
 #include "../core/bluetooth.hh"
 
 export module ssc.bridge;
+import ssc.dns;
 import ssc.ipc;
 import ssc.json;
-import ssc.dns;
+import ssc.log;
 import ssc.runtime;
 import ssc.string;
 import ssc.types;
 import ssc.udp;
 import ssc.utils;
-import ssc.log;
 
 using namespace ssc::core::bluetooth;
 using namespace ssc::ipc;
@@ -197,7 +197,7 @@ export namespace ssc::bridge {
           auto result = Result { message.seq, message };
           result.value.data = runtime.dataManager.get(id);
           reply(result);
-          runtime.dataManager.remove(id);
+          //runtime.dataManager.remove(id);
         });
 
         /**
@@ -219,6 +219,491 @@ export namespace ssc::bridge {
           runtime.dns.lookup(
             message.seq,
             DNS::LookupOptions { message.get("hostname"), family },
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Checks if current user can access file at `path` with `mode`.
+         * @param path
+         * @param mode
+         * @see access(2)
+         */
+        router.map("fs.access", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path", "mode"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          int mode = 0;
+          getMessageParam(mode, "mode", std::stoi);
+
+          runtime.fs.access(
+            message.seq,
+            message.get("path"),
+            mode,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Returns a mapping of file system constants.
+         */
+        router.map("fs.constants", [&](auto message, auto _, auto reply) {
+          runtime.fs.constants(message.seq, resultCallback(message, reply));
+        });
+
+        /**
+         * Changes `mode` of file at `path`.
+         * @param path
+         * @param mode
+         * @see chmod(2)
+         */
+        router.map("fs.chmod", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path", "mode"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          int mode = 0;
+          getMessageParam(mode, "mode", std::stoi);
+
+          runtime.fs.chmod(
+            message.seq,
+            message.get("path"),
+            mode,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * @TODO
+         * @see chown(2)
+         */
+        router.map("fs.chown", [&](auto message, auto _, auto reply) {
+          // TODO
+        });
+
+        /**
+         * Closes underlying file descriptor handle.
+         * @param id
+         * @see close(2)
+         */
+        router.map("fs.close", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+
+          runtime.fs.close(message.seq, id, resultCallback(message, reply));
+        });
+
+        /**
+         * Closes underlying directory descriptor handle.
+         * @param id
+         * @see closedir(3)
+         */
+        router.map("fs.closedir", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+
+          runtime.fs.closedir(message.seq, id, resultCallback(message, reply));
+        });
+
+        /**
+         * Closes an open file or directory descriptor handle.
+         * @param id
+         * @see close(2)
+         * @see closedir(3)
+         */
+        router.map("fs.closeOpenDescriptor", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+
+          runtime.fs.closeOpenDescriptor(
+            message.seq,
+            id,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Closes all open file and directory descriptors, optionally preserving
+         * explicitly retrained descriptors.
+         * @param preserveRetained (default: true)
+         * @see close(2)
+         * @see closedir(3)
+         */
+        router.map("fs.closeOpenDescriptors", [&](auto message, auto _, auto reply) {
+          runtime.fs.closeOpenDescriptor(
+            message.seq,
+            message.get("preserveRetained") != "false",
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Copy file at path `src` to path `dest`.
+         * @param src
+         * @param dest
+         * @param flags
+         * @see copyfile(3)
+         */
+        router.map("fs.copyFile", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"src", "dest"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          int flags = 0;
+          getMessageParam(flags, "flags", std::stoi);
+
+          runtime.fs.copyFile(
+            message.seq,
+            message.get("src"),
+            message.get("dest"),
+            flags,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Computes stats for an open file descriptor.
+         * @param id
+         * @see stat(2)
+         * @see fstat(2)
+         */
+        router.map("fs.fstat", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+
+          runtime.fs.fstat(message.seq, id, resultCallback(message, reply));
+        });
+
+        /**
+         * Returns all open file or directory descriptors.
+         */
+        router.map("fs.getOpenDescriptors", [&](auto message, auto _, auto reply) {
+          runtime.fs.getOpenDescriptors(
+            message.seq,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Computes stats for a symbolic link at `path`.
+         * @param path
+         * @see stat(2)
+         * @see lstat(2)
+         */
+        router.map("fs.lstat", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          runtime.fs.lstat(
+            message.seq,
+            message.get("path"),
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Creates a directory at `path` with an optional mode.
+         * @param path
+         * @param mode
+         * @see mkdir(2)
+         */
+        router.map("fs.mkdir", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path", "mode"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          int mode = 0;
+          getMessageParam(mode, "mode", std::stoi);
+
+          runtime.fs.mkdir(
+            message.seq,
+            message.get("path"),
+            mode,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Opens a file descriptor at `path` for `id` with `flags` and `mode`
+         * @param id
+         * @param path
+         * @param flags
+         * @param mode
+         * @see open(2)
+         */
+        router.map("fs.open", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {
+            "id",
+            "path",
+            "flags",
+            "mode"
+          });
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+          int mode = 0;
+          getMessageParam(mode, "mode", std::stoi);
+          int flags = 0;
+          getMessageParam(flags, "flags", std::stoi);
+
+          runtime.fs.open(
+            message.seq,
+            id,
+            message.get("path"),
+            flags,
+            mode,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Opens a directory descriptor at `path` for `id` with `flags` and `mode`
+         * @param id
+         * @param path
+         * @see opendir(3)
+         */
+        router.map("fs.opendir", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id", "path"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+
+          runtime.fs.opendir(
+            message.seq,
+            id,
+            message.get("path"),
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Reads `size` bytes at `offset` from the underlying file descriptor.
+         * @param id
+         * @param size
+         * @param offset
+         * @see read(2)
+         */
+        router.map("fs.read", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id", "size", "offset"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+          int size = 0;
+          getMessageParam(size, "size", std::stoi);
+          int offset = 0;
+          getMessageParam(offset, "offset", std::stoi);
+
+          runtime.fs.read(
+            message.seq,
+            id,
+            size,
+            offset,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Reads next `entries` of from the underlying directory descriptor.
+         * @param id
+         * @param entries (default: 256)
+         */
+        router.map("fs.readdir", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+          int entries = 0;
+          getMessageParam(entries, "entries", std::stoi);
+
+          runtime.fs.readdir(
+            message.seq,
+            id,
+            entries,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Marks a file or directory descriptor as retained.
+         * @param id
+         */
+        router.map("fs.retainOpenDescriptor", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+
+          runtime.fs.retainOpenDescriptor(
+            message.seq,
+            id,
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Renames file at path `src` to path `dest`.
+         * @param src
+         * @param dest
+         * @see rename(2)
+         */
+        router.map("fs.rename", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"src", "dest"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          runtime.fs.rename(
+            message.seq,
+            message.get("src"),
+            message.get("dest"),
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Removes file at `path`.
+         * @param path
+         * @see rmdir(2)
+         */
+        router.map("fs.rmdir", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          runtime.fs.rmdir(
+            message.seq,
+            message.get("path"),
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Computes stats for a file at `path`.
+         * @param path
+         * @see stat(2)
+         */
+        router.map("fs.stat", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          runtime.fs.stat(
+            message.seq,
+            message.get("path"),
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Removes a file or empty directory at `path`.
+         * @param path
+         * @see unlink(2)
+         */
+        router.map("fs.unlink", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"path"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          runtime.fs.unlink(
+            message.seq,
+            message.get("path"),
+            resultCallback(message, reply)
+          );
+        });
+
+        /**
+         * Writes buffer at `message.buffer.bytes` of size `message.buffers.size`
+         * at `offset` for an opened file handle.
+         * @param id Handle ID for an open file descriptor
+         * @param offset The offset to start writing at
+         * @see write(2)
+         */
+        router.map("fs.write", [&](auto message, auto _, auto reply) {
+          auto err = validateMessageParameters(message, {"id", "offset"});
+
+          if (err.type != JSON::Type::Null) {
+            return reply(Result::Err { message, err });
+          }
+
+          if (message.buffer.bytes == nullptr || message.buffer.size == 0) {
+            auto err = JSON::Object::Entries {{ "message", "Missing buffer in message" }};
+            return reply(Result::Err { message, err });
+          }
+
+          uint64_t id;
+          getMessageParam(id, "id", std::stoull);
+          int offset = 0;
+          getMessageParam(offset, "offset", std::stoi);
+
+          runtime.fs.write(
+            message.seq,
+            id,
+            message.buffer.bytes,
+            message.buffer.size,
+            offset,
             resultCallback(message, reply)
           );
         });
@@ -295,7 +780,7 @@ export namespace ssc::bridge {
         /**
          * Simply returns `pong`.
          */
-        router.map("ping", [](auto message, auto _, auto reply) {
+        router.map("ping", [&](auto message, auto _, auto reply) {
           auto result = Result { message.seq, message };
           result.value.json.data = "pong";
           reply(result);
@@ -362,21 +847,21 @@ export namespace ssc::bridge {
         /**
          * Returns computed current working directory path.
          */
-        router.map("process.cwd", [&](auto message, auto router, auto reply) {
+        router.map("process.cwd", [&](auto message, auto _, auto reply) {
           runtime.platform.cwd(message.seq, resultCallback(message, reply));
         });
 
         /**
          * Prints incoming message value to stdout.
          */
-        router.map("stdout", [&](auto message, auto router, auto reply) {
+        router.map("stdout", [&](auto message, auto _, auto reply) {
           log::write(message.value, false);
         });
 
        /**
         * Prints incoming message value to stderr.
         */
-        router.map("stderr", [&](auto message, auto router, auto reply) {
+        router.map("stderr", [&](auto message, auto _, auto reply) {
           log::write(message.value, true);
         });
 
@@ -388,7 +873,7 @@ export namespace ssc::bridge {
          * @param address The address to bind the UDP socket to (default: 0.0.0.0)
          * @param reuseAddr Reuse underlying UDP socket address (default: false)
          */
-        router.map("udp.bind", [&](auto message, auto router, auto reply) {
+        router.map("udp.bind", [&](auto message, auto _, auto reply) {
           UDP::BindOptions options;
           auto err = validateMessageParameters(message, {"id", "port"});
 
@@ -415,7 +900,7 @@ export namespace ssc::bridge {
          * Close socket handle and underlying UDP socket.
          * @param id Handle ID of underlying socket
          */
-        router.map("udp.close", [&](auto message, auto router, auto reply) {
+        router.map("udp.close", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -435,7 +920,7 @@ export namespace ssc::bridge {
          * @param port Port to connect the UDP socket to
          * @param address The address to connect the UDP socket to (default: 0.0.0.0)
          */
-        router.map("udp.connect", [&](auto message, auto router, auto reply) {
+        router.map("udp.connect", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id", "port"});
 
           if (err.type != JSON::Type::Null) {
@@ -461,7 +946,7 @@ export namespace ssc::bridge {
         * Disconnects a connected socket handle and underlying UDP socket.
         * @param id Handle ID of underlying socket
         */
-        router.map("udp.disconnect", [&](auto message, auto router, auto reply) {
+        router.map("udp.disconnect", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -482,7 +967,7 @@ export namespace ssc::bridge {
          * Returns connected peer socket address information.
          * @param id Handle ID of underlying socket
          */
-        router.map("udp.getPeerName", [&](auto message, auto router, auto reply) {
+        router.map("udp.getPeerName", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -503,7 +988,7 @@ export namespace ssc::bridge {
          * Returns local socket address information.
          * @param id Handle ID of underlying socket
          */
-        router.map("udp.getSockName", [&](auto message, auto router, auto reply) {
+        router.map("udp.getSockName", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -524,7 +1009,7 @@ export namespace ssc::bridge {
          * Returns socket state information.
          * @param id Handle ID of underlying socket
          */
-        router.map("udp.getState", [&](auto message, auto router, auto reply) {
+        router.map("udp.getState", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -546,7 +1031,7 @@ export namespace ssc::bridge {
          * socket and route through the IPC bridge to the WebView.
          * @param id Handle ID of underlying socket
          */
-        router.map("udp.readStart", [&](auto message, auto router, auto reply) {
+        router.map("udp.readStart", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -568,7 +1053,7 @@ export namespace ssc::bridge {
          * socket and routing through the IPC bridge to the WebView.
          * @param id Handle ID of underlying socket
          */
-        router.map("udp.readStop", [&](auto message, auto router, auto reply) {
+        router.map("udp.readStop", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id"});
 
           if (err.type != JSON::Type::Null) {
@@ -597,7 +1082,7 @@ export namespace ssc::bridge {
          * @param address The address to send to (default: 0.0.0.0)
          * @param ephemeral Indicates that the socket handle, if created is ephemeral and should eventually be destroyed
          */
-        router.map("udp.send", [&](auto message, auto router, auto reply) {
+        router.map("udp.send", [&](auto message, auto _, auto reply) {
           auto err = validateMessageParameters(message, {"id", "port"});
 
           if (err.type != JSON::Type::Null) {

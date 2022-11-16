@@ -39,4 +39,8 @@ namespace ssc::core::window {
   void CoreWindow::exit (int code) {
     if (onExit != nullptr) onExit(code);
   }
+
+  void CoreWindow::eval (Script script) {
+    this->eval(script.str());
+  }
 }

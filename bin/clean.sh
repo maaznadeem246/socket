@@ -2,21 +2,20 @@
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare targets=(
-  bin
-  cache
-  cli
-  core
-  desktop
-  lib/libsocket*
-  modules
-  tests
+  "$root/build"/bin
+  "$root/build"/cache
+  "$root/build"/cli
+  "$root/build"/core
+  "$root/build"/desktop
+  "$root/build"/lib/libsocket*
+  "$root/build"/modules
+  "$root/build"/tests
 )
 
 echo "# cleaning targets"
 for target in "${targets[@]}"; do
-  dirname="$root/build/$target"
-  if test -d "$dirname"; then
-    rm -rf "$dirname"
-    echo "ok - cleaned $target"
+  if test "$target"; then
+    rm -rf "$target"
+    echo "ok - cleaned ${target/$root\//}"
   fi
 done

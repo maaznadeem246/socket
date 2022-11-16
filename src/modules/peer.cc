@@ -705,7 +705,6 @@ export namespace ssc::peer {
       const struct sockaddr *addr,
       unsigned flags
     ) {
-      printf("receive: %zu\n", nread);
       auto peer = (Peer *) handle->data;
 
       if (nread <= 0) {

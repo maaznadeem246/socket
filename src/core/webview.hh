@@ -144,7 +144,7 @@ namespace ssc::core::webview {
 
   template <class CoreSchemeTask> class CoreSchemeTaskManager {
     public:
-      using CoreSchemeTasks = std::map<std::string, CoreSchemeTask>;
+      using CoreSchemeTasks = std::map<String, CoreSchemeTask>;
       CoreSchemeTasks tasks;
       Mutex mutex;
 

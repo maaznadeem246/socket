@@ -261,10 +261,10 @@ namespace ssc::core::window {
     }
   }
 
-  void CoreWindow::eval (const String& js) {
+  void CoreWindow::eval (const String js) {
     [this->webview->internals->webview
       evaluateJavaScript: [NSString stringWithUTF8String: js.c_str()]
-       completionHandler: nil
+        completionHandler: nil
     ];
   }
 

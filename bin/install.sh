@@ -109,10 +109,40 @@ function _build_core {
 function _build_desktop_main () {
   echo "# precompiling main program for desktop"
   local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
+  local source="$root/src/desktop/main.cc"
+  local output="$ASSETS_DIR/build/main.o"
 
-  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} \
-    -c "$root/src/desktop/main.cc"               \
-    -o "$ASSETS_DIR/build/main.o"
+  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output" 2>&1 >/dev/null | {
+    while read -r line; do
+      ## try to rebuild stale modules reported from clang when building desktop
+      if echo "$line" | grep "imported by module" >/dev/null; then
+        local module="$(echo "$line" | grep -Eo 'imported by module.*' | awk '{print $4}' | tr -d "'" | sed 's/ssc.//g')"
+        local source="$(echo "$module" | sed 's/\./\//g')"
+        source="$root/src/modules/$source.cc"
+        touch "$source"
+        _build_modules
+      elif echo "$line" | grep "rebuild precompiled header" >/dev/null; then
+        local module="$(echo "$line" | grep -Eo 'header.*' | awk '{print $2}' | xargs basename | tr -d "'" | sed 's/ssc.//g')"
+        module="${module/\.pcm/}"
+        local source="$(echo "$module" | sed 's/\./\//g')"
+        source="$root/src/modules/$source.cc"
+        touch "$source"
+        _build_modules
+      elif echo "$line" | grep -E 'module.*' | grep 'not found' >/dev/null; then
+        local module="$(echo "$line" | grep -Eo "module .*" | awk '{print $2}' | tr -d "'" | sed 's/ssc.//g')"
+        local source="$(echo "$module" | sed 's/\./\//g')"
+        source="$root/src/modules/$source.cc"
+        touch "$source"
+        _build_modules
+      fi
+    done
+    return 1
+  }
+
+  ## try to rebuild desktop if failed before
+  if (( $? != 0 )); then
+    quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output"
+  fi
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for desktop"
@@ -252,7 +282,9 @@ function _compile_libuv {
   export CPPFLAGS="-fembed-bitcode -arch ${target} -isysroot $PLATFORMPATH/$platform.platform/Developer/SDKs/$platform$SDKVERSION.sdk -miphoneos-version-min=$SDKMINVERSION"
   export LDFLAGS="-Wc,-fembed-bitcode -arch ${target} -isysroot $PLATFORMPATH/$platform.platform/Developer/SDKs/$platform$SDKVERSION.sdk"
 
-  quiet ./configure --prefix=$STAGING_DIR/build --host=$hosttarget-apple-darwin
+  if ! test -f Makefile; then
+    quiet ./configure --prefix=$STAGING_DIR/build --host=$hosttarget-apple-darwin
+  fi
 
   if [ ! $? = 0 ]; then
     echo "WARNING! - iOS will not be enabled. iPhone simulator not found, try \"sudo xcode-select --switch /Applications/Xcode.app\"."

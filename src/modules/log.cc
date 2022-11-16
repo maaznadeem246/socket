@@ -62,6 +62,15 @@ export namespace ssc::log {
     write(string + "\n", false);
   }
 
+  inline auto info (const char* fmt, ...) {
+    static char buffer[4096] = {0};
+    va_list args;
+    va_start(args, fmt);
+    memset(buffer, 0, sizeof(buffer));
+    vsprintf(buffer, fmt, args);
+    info(String(buffer));
+  }
+
   inline auto info (std::nullptr_t _) {
     info(String("null"));
   }
@@ -84,10 +93,6 @@ export namespace ssc::log {
 
   inline auto info (const float f32) {
     info(JSON::Number(f32).str());
-  }
-
-  inline auto info (const char* string) {
-    info(String(string));
   }
 
   inline auto info (const JSON::Any& json) {
@@ -130,12 +135,17 @@ export namespace ssc::log {
     info(boolean ? "true" : "false");
   }
 
-  template <typename ...Args> auto info (const String& fmt, Args... args) {
-    info(format(fmt, args...));
-  }
-
   inline auto error (const String& string) {
     write(string + "\n", true);
+  }
+
+  inline auto error (const char* fmt, ...) {
+    static char buffer[4096] = {0};
+    va_list args;
+    va_start(args, fmt);
+    memset(buffer, 0, sizeof(buffer));
+    vsprintf(buffer, fmt, args);
+    error(String(buffer));
   }
 
   inline auto error (std::nullptr_t) {
@@ -156,10 +166,6 @@ export namespace ssc::log {
 
   inline auto error (const float f32) {
     error(JSON::Number(f32).str());
-  }
-
-  inline auto error (const char* string) {
-    error(String(string));
   }
 
   inline auto error (const JSON::Any& json) {
@@ -200,9 +206,5 @@ export namespace ssc::log {
 
   inline auto error (bool boolean) {
     error(boolean ? "true" : "false");
-  }
-
-  template <typename ...Args> auto error (const String& fmt, Args... args) {
-    error(format(fmt, args...));
   }
 }

@@ -8,11 +8,11 @@ module; // global
  * TODO
  */
 export module ssc.timers;
-import ssc.context;
 import ssc.loop;
+import ssc.types;
 import ssc.uv;
 
-using Context = ssc::context::Context;
+using namespace ssc::types;
 using Loop = ssc::loop::Loop;
 
 export namespace ssc::timers {
@@ -30,40 +30,40 @@ export namespace ssc::timers {
     Timers* timers;
   };
 
-  class Timers : Context {
-    AtomicBool started;
-    Mutex mutex;
+  class Timers {
     Vector<Timer> timers;
-    Loop* loop;
+    AtomicBool started = false;
+    Mutex mutex;
+    Loop& loop;
 
     public:
-      Timers (Runtime* runtime, Loop* loop) : Context(runtime) {
-        this->loop = loop;
+      Timers () = delete;
+      Timers (Loop& loop)
+        : loop(loop)
+      {
       }
 
       void add (Timer& timer, void* data) {
         Lock lock(this->mutex);
         timer.handle.data = data;
-        uv_timer_init(this->loop, &timer.handle);
+        uv_timer_init(this->loop.get(), &timer.handle);
         this->timers.push_back(timer);
       }
 
       void start () {
         Lock lock(this->mutex);
 
-        for (const auto &timer : this->timers) {
-          if (timer->started) {
-            uv_timer_again(&timer->handle);
+        for (auto& timer : this->timers) {
+          if (timer.started) {
+            uv_timer_again(&timer.handle);
           } else {
-            timer->started = 0 == uv_timer_start(
-              &timer->handle,
-              timer->invoke,
-              timer->timeout,
-              !timer->repeated
-                ? 0
-                : timer->interval > 0
-                  ? timer->interval
-                  : timer->timeout
+            timer.started = 0 == uv_timer_start(
+              &timer.handle,
+              timer.invoke,
+              timer.timeout,
+              timer.repeated
+                ? timer.interval > 0 ? timer.interval : timer.timeout
+                : 0
             );
           }
         }
@@ -75,9 +75,9 @@ export namespace ssc::timers {
         Lock lock(this->mutex);
 
         if (this->started) {
-          for (const auto& timer : timersToStop) {
-            if (timer->started) {
-              uv_timer_stop(&timer->handle);
+          for (auto& timer : this->timers) {
+            if (timer.started) {
+              uv_timer_stop(&timer.handle);
             }
           }
         }

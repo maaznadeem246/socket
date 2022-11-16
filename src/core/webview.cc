@@ -8,6 +8,20 @@
 using namespace ssc::core;
 using namespace ssc::core::types;
 
+#if defined(__APPLE__)
+auto constexpr DISPATCH_QUEUE_LABEL = "co.socketsupply.queue.webview";
+dispatch_queue_attr_t DISPATCH_QUEUE_QOS = dispatch_queue_attr_make_with_qos_class(
+  DISPATCH_QUEUE_CONCURRENT,
+  QOS_CLASS_DEFAULT,
+  -1
+);
+
+dispatch_queue_t dispatchQueue = dispatch_queue_create(
+  DISPATCH_QUEUE_LABEL,
+  DISPATCH_QUEUE_QOS
+);
+#endif
+
 /**
  * Core implementations for Linux.
  */
@@ -345,7 +359,7 @@ namespace ssc::core::webview {
       return request.end(statusCode, headers, body);
     }
 
-    // handle 'data' requests from the dataManager
+    // validate 'data' requests
     if (message.name == "data") {
       if (!message.has("id")) {
         statusCode = 400;
@@ -452,7 +466,10 @@ namespace ssc::core::webview {
     [task retain];
   #endif
 
-  self.handler->onSchemeRequest(request);
+  dispatch_async(dispatchQueue, ^{
+    ssc::core::webview::CoreSchemeRequest req(request);
+    self.handler->onSchemeRequest(req);
+  });
 }
 @end
 

@@ -11,6 +11,7 @@ namespace ssc::core::ipc {
   using namespace types;
   using data::CoreData;
   using utils::decodeURIComponent;
+  using utils::encodeURIComponent;
   using string::split;
 
   struct MessageBuffer {
@@ -26,13 +27,13 @@ namespace ssc::core::ipc {
   class Message {
     public:
       using Seq = String;
-      String uri = "";
       MessageBuffer buffer;
       String value = "";
       String name = "";
       String seq = "";
       int index = -1;
       Map args;
+      String string;
 
       Message () = default;
       Message (const Message& message) {
@@ -42,13 +43,11 @@ namespace ssc::core::ipc {
         this->index = message.index;
         this->name = message.name;
         this->seq = message.seq;
-        this->uri = message.uri;
         this->args = message.args;
       }
 
       Message (const String& source) {
         String str = source;
-        this->uri = source;
 
         // bail if missing protocol prefix
         if (str.find("ipc://") == -1) return;
@@ -110,16 +109,56 @@ namespace ssc::core::ipc {
         return this->get(key, "");
       }
 
-      String get (const String& key, const String &fallback) const {
+      void set (const String& key, const String& value) {
+        this->args.insert_or_assign(key, value);
+      }
+
+      String get (const String& key, const String& fallback) const {
         return args.count(key) ? decodeURIComponent(args.at(key)) : fallback;
       }
 
       String str () const {
-        return this->uri;
+        StringStream stream;
+
+        stream << "ipc://" << this->name << "?";
+        for (const auto& entry : this->args) {
+          stream << encodeURIComponent(entry.first);
+          stream << "=";
+          stream << encodeURIComponent(entry.second);
+          stream << "&";
+        }
+
+        return stream.str();
       }
 
-      const char * c_str () const {
-        return this->uri.c_str();
+      String operator [] (const String& key) const {
+        for (const auto& entry : this->args) {
+          if (entry.first == key) {
+            return entry.second;
+          }
+        }
+
+        return "";
+      }
+
+      String &operator [] (const String& key) {
+        static String empty = "";
+
+        if (!this->has(key)) {
+          this->set(key, "");
+        }
+
+        for (auto& entry : this->args) {
+          if (entry.first == key) {
+            return entry.second;
+          }
+        }
+
+        return empty;
+      }
+
+      size_t size () const {
+        return this->args.size();
       }
   };
 

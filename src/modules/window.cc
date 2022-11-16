@@ -44,8 +44,10 @@ export namespace ssc::window {
   class Window : public CoreWindow {
     public:
       Bridge bridge;
+      Runtime& runtime;
       Window (CoreApplication& app, Runtime& runtime, const WindowOptions opts)
         : bridge(runtime),
+          runtime(runtime),
           CoreWindow(app, opts, [this](auto& request) {
             return this->onIPCSchemeRequestRouteCallback(request);
           })
@@ -55,7 +57,9 @@ export namespace ssc::window {
 
       inline void init () {
         bridge.router.evaluateJavaScriptFunction = [&](auto script) {
-          this->eval(script);
+          app.dispatch([=] {
+            this->eval(script);
+          });
         };
       }
 
@@ -70,16 +74,18 @@ export namespace ssc::window {
           if (seq == "-1") {
             this->bridge.router.send(seq, json, data);
           } else {
-            auto headers = data.headers;
-            auto hasError = (
-              json.isObject() &&
-              json.as<JSON::Object>().has("err") &&
-              json.as<JSON::Object>().get("err").isObject()
-            );
+            app.dispatch([=] () mutable {
+              auto headers = data.headers;
+              auto hasError = (
+                json.isObject() &&
+                json.as<JSON::Object>().has("err") &&
+                json.as<JSON::Object>().get("err").isObject()
+              );
 
-            auto statusCode = hasError ? 500 : 200;
+              auto statusCode = hasError ? 500 : 200;
 
-            request.end(statusCode, headers, json, data.body, data.length);
+              request.end(statusCode, headers, json, data.body, data.length);
+            });
           }
         });
 
@@ -87,9 +93,12 @@ export namespace ssc::window {
           invoked = this->onMessage(request.message.str());
 
           if (invoked) {
+            auto seq = request.message.seq;
             auto json = JSON::Object::Entries {
               {"source", request.message.name},
-              {"data", JSON::Object::Entries { }}
+              {"data", JSON::Object::Entries {
+                {"seq", seq.size() > 0 ? JSON::Any(seq) : JSON::null}
+              }}
             };
 
             request.end(200, Headers {}, json, nullptr, 0);

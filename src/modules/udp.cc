@@ -5,6 +5,7 @@ export module ssc.udp;
 import ssc.data;
 import ssc.headers;
 import ssc.json;
+import ssc.log;
 import ssc.loop;
 import ssc.peer;
 import ssc.types;
@@ -19,13 +20,6 @@ using namespace ssc::types;
 using namespace ssc::utils;
 
 export namespace ssc::udp {
-
-  void parseAddress (struct sockaddr *name, int* port, char* address) {
-    struct sockaddr_in *name_in = (struct sockaddr_in *) name;
-    *port = ntohs(name_in->sin_port);
-    uv_ip4_name(name_in, address, 17);
-  }
-
   JSON::Object::Entries ERR_SOCKET_ALREADY_BOUND (
     const String& source,
     uint64_t id

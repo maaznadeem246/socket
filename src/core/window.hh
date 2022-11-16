@@ -6,20 +6,22 @@
 #include "config.hh"
 #include "data.hh"
 #include "string.hh"
+#include "javascript.hh"
 #include "types.hh"
 #include "utils.hh"
 #include "webview.hh"
 
 namespace ssc::core::window {
   using application::CoreApplication;
-  using utils::encodeURIComponent;
   using config::Config;
   using data::CoreDataManager;
+  using javascript::Script;
   using string::String;
   using string::trim;
   using types::ExitCallback;
   using types::Map;
   using types::MessageCallback;
+  using utils::encodeURIComponent;
   using webview::CoreWebView;
 
   // forward
@@ -153,7 +155,8 @@ namespace ssc::core::window {
 
       void initialize ();
       void about ();
-      void eval (const String&);
+      void eval (const Script);
+      void eval (const String);
       void show (const String&);
       void hide (const String&);
       void kill ();

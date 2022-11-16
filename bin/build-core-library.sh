@@ -15,23 +15,20 @@ declare ldflags=($("$root/bin/ldflags.sh"))
 declare sources=($(find "$root"/src/core/*.cc))
 declare objects=()
 
-if [[ "$(uname -s)" = "Darwin" ]]; then
-  sources+=("$root"/src/core/window/apple.cc)
-fi
-
 declare src_directory="$root/src/core"
 declare output_directory="$root/build/core"
 mkdir -p "$output_directory"
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
   flags+=("-ObjC++")
+  sources+=($(find "$root"/src/core -name apple.cc))
 fi
 
 echo "# building core static libary"
 for source in "${sources[@]}"; do
-    declare object="${source/.cc/.o}"
-    declare object="${object/$src_directory/$output_directory}"
-    objects+=("$object")
+  declare object="${source/.cc/.o}"
+  declare object="${object/$src_directory/$output_directory}"
+  objects+=("$object")
 done
 
 for source in "${sources[@]}"; do
