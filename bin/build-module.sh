@@ -99,14 +99,14 @@ function compile_module () {
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
         touch "$source"
-        compile_module "$source" | sed 's/# compiling/,/'
+        compile_module "$source"
       elif echo "$line" | grep -E 'module.*' | grep 'not found' >/dev/null; then
         did_read=1;
         local module="$(echo "$line" | grep -Eo "module .*" | awk '{print $2}' | tr -d "'" | sed 's/ssc.//g')"
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
         touch "$source"
-        compile_module "$source" | sed 's/# compiling/,/'
+        compile_module "$source"
       elif echo "$line" | grep "rebuild precompiled header" >/dev/null; then
         did_read=1;
         local module="$(echo "$line" | grep -Eo 'header.*' | awk '{print $2}' | xargs basename | tr -d "'" | sed 's/ssc.//g')"
@@ -114,7 +114,7 @@ function compile_module () {
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
         touch "$source"
-        compile_module "$source" | sed 's/# compiling/,/'
+        compile_module "$source"
       elif (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
         did_read=1;
         local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
@@ -122,14 +122,12 @@ function compile_module () {
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
         touch "$source"
-        compile_module "$source" | sed 's/# compiling/,/'
+        compile_module "$source"
       else
         if (( !did_read )); then
           echo
+          echo $line
         fi
-
-        did_read=1;
-        echo $line
       fi
     done
 

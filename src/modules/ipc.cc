@@ -136,7 +136,7 @@ export namespace ssc::ipc {
       }
 
       bool dispatch (DispatchFunction callback) {
-        this->runtime.loop.dispatch(callback);
+        this->runtime.dispatch(callback);
         return true;
       }
 

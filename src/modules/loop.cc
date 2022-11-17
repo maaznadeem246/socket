@@ -163,7 +163,7 @@ export namespace ssc::loop {
          * @see https://api.gtkd.org/glib.c.types.GSourceFuncs.html
          */
         #if defined(__linux__) && !defined(__ANDROID__)
-        static GSourceFuncs gSourceFuncs = {
+        GSourceFuncs gSourceFuncs = {
           .prepare = [](auto source, auto timeout) {
             auto loop = reinterpret_cast<LoopSource *>(source)->loop;
 
@@ -262,9 +262,9 @@ export namespace ssc::loop {
       }
 
       Loop& signal () {
-        //this->semaphores.signal.acquire();
+        this->semaphores.signal.acquire();
         uv_async_send(&this->async);
-        //this->semaphores.signal.release();
+        this->semaphores.signal.release();
         return *this;
       }
 

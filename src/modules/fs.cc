@@ -131,16 +131,17 @@ export namespace ssc::fs {
       using Descriptors = std::map<uint64_t, Descriptor*>;
 
       Descriptors descriptors;
+      Timers& timers;
       Mutex mutex;
       Loop& loop;
       FS* fs = nullptr;
 
       DescriptorManager () = delete;
-      DescriptorManager (Loop& loop, FS* fs)
-        : loop(loop)
+      DescriptorManager (Loop& loop, Timers& timers, FS* fs)
+        : timers(timers),
+          loop(loop)
       {
         this->fs = fs;
-        this->init();
       }
 
       void init ();
@@ -194,10 +195,12 @@ export namespace ssc::fs {
       using Callback = RequestContext::Callback;
 
       DescriptorManager& descriptorManager;
+      Timers& timers;
       Loop& loop;
 
-      FS (Loop& loop, DescriptorManager& descriptorManager)
+      FS (Loop& loop, DescriptorManager& descriptorManager, Timers& timers)
         : descriptorManager(descriptorManager),
+          timers(timers),
           loop(loop)
       {}
 
@@ -307,14 +310,15 @@ export namespace ssc::fs {
   };
 
   inline void DescriptorManager::init () {
-    Timer releaseWeakDescriptors = {
-      .timeout = 256, // in milliseconds
+    static Timer releaseWeakDescriptors = {
+      .timeout = 1024, // in milliseconds
       .invoke = [](uv_timer_t *handle) {
         auto descriptorManager = reinterpret_cast<DescriptorManager*>(handle->data);
         Vector<uint64_t> ids;
 
+        log::info("in timer");
         {
-          Lock lock(descriptorManager->mutex);
+          //Lock lock(descriptorManager->mutex);
           for (const auto& tuple : descriptorManager->descriptors) {
             ids.push_back(tuple.first);
           }
@@ -341,8 +345,12 @@ export namespace ssc::fs {
             descriptorManager->remove(id);
           }
         }
+
+        log::info("finish timer");
       }
     };
+
+    //this->timers.add(releaseWeakDescriptors, this);
   }
 
   #define SET_CONSTANT(c) constants[#c] = (c);

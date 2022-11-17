@@ -33,26 +33,22 @@ export namespace ssc::timers {
   class Timers {
     Vector<Timer> timers;
     AtomicBool started = false;
-    Mutex mutex;
     Loop& loop;
 
     public:
       Timers () = delete;
+
       Timers (Loop& loop)
         : loop(loop)
-      {
-      }
+      {}
 
       void add (Timer& timer, void* data) {
-        Lock lock(this->mutex);
         timer.handle.data = data;
         uv_timer_init(this->loop.get(), &timer.handle);
         this->timers.push_back(timer);
       }
 
       void start () {
-        Lock lock(this->mutex);
-
         for (auto& timer : this->timers) {
           if (timer.started) {
             uv_timer_again(&timer.handle);
@@ -72,8 +68,6 @@ export namespace ssc::timers {
       }
 
       void stop () {
-        Lock lock(this->mutex);
-
         if (this->started) {
           for (auto& timer : this->timers) {
             if (timer.started) {
