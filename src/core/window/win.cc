@@ -1,7 +1,8 @@
 #include <socket/config.hh>
 #include <wrl.h>
 #include <shellapi.h>
-#include "window.hh"
+#include "../window.hh"
+#include "../global.hh"
 
 #ifndef CHECK_FAILURE
 #define CHECK_FAILURE(...)

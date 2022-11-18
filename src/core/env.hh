@@ -1,6 +1,7 @@
 #ifndef SSC_CORE_ENV_HH
 #define SSC_CORE_ENV_HH
 
+#include <socket/socket.hh>
 #include "string.hh"
 
 namespace ssc::core::env {
@@ -19,6 +20,8 @@ namespace ssc::core::env {
       }
 
       return result;
+    #elif defined(__APPLE__) && TARGET_IPHONE_SIMULATOR
+      return String("");
     #else
       auto v = getenv(variableName);
 
@@ -37,6 +40,8 @@ namespace ssc::core::env {
   inline auto set (const char* pair) {
     #if defined(_WIN32)
       return _putenv(pair);
+    #elif defined(__APPLE__) && TARGET_IPHONE_SIMULATOR
+      return 0;
     #else
       return putenv((char*) &pair[0]);
     #endif
@@ -45,6 +50,8 @@ namespace ssc::core::env {
   inline auto set (const char* key, const char* value) {
     #if defined(_WIN32)
       SetEnvironmentVariable(key, value);
+    #elif defined(__APPLE__) && TARGET_IPHONE_SIMULATOR
+      return 0;
     #else
       setenv(key, value, 1);
     #endif

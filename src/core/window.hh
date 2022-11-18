@@ -191,6 +191,14 @@ namespace ssc::core::window {
         const String& value
       );
 
+      void dispatchEvent (
+        const String& name,
+        const String& data
+      );
+
+      void blur ();
+      void focus ();
+
       virtual bool onScriptMessage (const String& string) = 0;
   };
 

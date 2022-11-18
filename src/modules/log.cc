@@ -2,6 +2,8 @@ module; // global
 #include <socket/platform.hh>
 #include <iostream>
 #include <string>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include "../core/config.hh"
 #include "../core/headers.hh"
@@ -67,7 +69,7 @@ export namespace ssc::log {
     va_list args;
     va_start(args, fmt);
     memset(buffer, 0, sizeof(buffer));
-    vsprintf(buffer, fmt, args);
+    vsnprintf(buffer, 4096, fmt, args);
     info(String(buffer));
   }
 
@@ -144,7 +146,7 @@ export namespace ssc::log {
     va_list args;
     va_start(args, fmt);
     memset(buffer, 0, sizeof(buffer));
-    vsprintf(buffer, fmt, args);
+    vsnprintf(buffer, 4096, fmt, args);
     error(String(buffer));
   }
 

@@ -119,6 +119,13 @@ namespace ssc::core::webview {
         forKey: @"developerExtrasEnabled"
     ];
 
+    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+      [preferences
+        setValue: @YES
+          forKey: @"javaScriptEnabled"
+      ];
+    #endif
+
     [userScript
         initWithSource: [NSString stringWithUTF8String: preloadScript.str().c_str()]
          injectionTime: WKUserScriptInjectionTimeAtDocumentStart
@@ -136,10 +143,18 @@ namespace ssc::core::webview {
     ];
 
     this->navigationDelegate = [[CoreNavigationDelegate alloc] init];
-    this->webview = [[CoreWKWebView alloc]
-      initWithFrame: NSZeroRect
-      configuration: configuration
-    ];
+    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+      auto frame = [[UIScreen mainScreen] bounds];
+      this->webview = [[CoreWKWebView alloc]
+        initWithFrame: frame
+        configuration: configuration
+      ];
+    #else
+      this->webview = [[CoreWKWebView alloc]
+        initWithFrame: NSZeroRect
+        configuration: configuration
+      ];
+    #endif
 
     [this->webview
       setNavigationDelegate: this->navigationDelegate
@@ -149,6 +164,13 @@ namespace ssc::core::webview {
       setValue: @YES
         forKey: @"allowFileAccessFromFileURLs"
     ];
+
+    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+      this->webview.autoresizingMask = (
+        UIViewAutoresizingFlexibleWidth |
+        UIViewAutoresizingFlexibleHeight
+      );
+    #endif
 
     /* FIXME
     [this->webview
@@ -489,6 +511,8 @@ namespace ssc::core::webview {
 @end
 
 @implementation CoreWKWebView
+
+#if !TARGET_OS_IPHONE && !TARGET_OS_IPHONE
 Vector<String> draggablePayload;
 
 int lastX = 0;
@@ -852,5 +876,7 @@ int lastY = 0;
   String file(std::to_string(utils::rand64()) + ".download");
   return [NSString stringWithUTF8String:file.c_str()];
 }
+#endif // !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
 @end
-#endif
+
+#endif // __APPLE__

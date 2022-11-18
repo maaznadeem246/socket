@@ -1,50 +1,96 @@
 #!/usr/bin/env bash
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
-declare clang="$(which clang++)"
+declare clang="${CLANG:-"$(which clang++)"}"
 declare modules="$root/src/modules/"
 
+declare args=()
+
+if (( $# == 0 )); then
+  echo "not ok - Please specify modules to build"
+  echo "usage: $0 [--arch=$(uname -m)] [--platform=desktop]...<source files>"
+  exit 1
+fi
+
+declare arch="$(uname -m)"
+declare platform="desktop"
+
+if (( TARGET_OS_IPHONE )); then
+  arch="arm64"
+  platform="iPhoneOS"
+elif (( TARGET_IPHONE_SIMULATOR )); then
+  arch="x86_64"
+  platform="iPhoneSimulator"
+fi
+
+while (( $# > 0 )); do
+  declare arg="$1"; shift
+  if [[ "$arg" = "--arch" ]]; then
+    arch="$1"; shift; continue
+  fi
+
+  if [[ "$arg" = "--platform" ]]; then
+    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
+      arch="arm64"
+      platform="iPhoneOS";
+      export T1ET_OS_IPHONE=1
+    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
+      arch="x86_64"
+      platform="iPhoneSimulator";
+      export TARGET_IPHONE_SIMULATOR=1
+    else
+      platform="$1";
+    fi
+    shift
+    continue
+  fi
+
+  args+=("$arg")
+done
+
+declare built_modules=0
+declare build_dir="${BUILD_DIR:-$root/build/$arch-$platform}"
+declare objects=()
+declare pids=()
+declare force=0
+
 declare cflags=($("$root/bin/cflags.sh" -xc++-module --precompile))
+declare ldflags=($("$root/bin/ldflags.sh"))
 
 declare should_build_module_map=1
 declare did_build_module_map=0
 
-declare built_modules=0
-declare build_dir="${BUILD_DIR:-$root/build}"
-declare objects=()
-declare pids=()
-declare force_build=0
-
-if (( $# == 0 )); then
-  echo "not ok - Please specify modules to build"
-  echo "usage: $0 ...<source files>"
-  exit 1
-fi
-
-
 function main () {
+  mkdir -p "$build_dir"
   cd "$build_dir" || return $?
 
   while (( $# > 0 )); do
-    {
-      declare source="$1"; shift
+    declare source="$1"; shift
 
-      if [[ "$source" = "-f" ]] || [[ "$source" = "--force" ]]; then
-        force=1
-        continue
-      fi
+    if [[ "$source" = "-f" ]] || [[ "$source" = "--force" ]]; then
+      force=1
+      continue
+    fi
 
-      if [[ "$source" = "--no-build-module-map" ]]; then
-        should_build_module_map=0
-        continue
-      fi
+    if [[ "$source" = "--no-build-module-map" ]]; then
+      should_build_module_map=0
+      continue
+    fi
 
-      if ! test -f "$source"; then
-        source="$root/$source"
-      fi
+    if ! test -f "$source"; then
+      source="$root/$source"
+    fi
 
-      compile_module "$source" || return $?
-    }
+    if ! test -f "$source"; then
+      continue
+    fi
+
+    if (( should_build_module_map == 1 && did_build_module_map == 0 )); then
+      "$root/bin/build-module-map.sh" --arch "$arch" --platform "$platform"
+      did_build_module_map=1
+    fi
+
+    compile_module "$source" || return $?
   done
 
   local status=$?
@@ -77,20 +123,26 @@ function compile_module () {
 
   if (( ! force )) && test -f "$output"; then
     if (( $(stat "$source" -c %Y) < $(stat "$output" -c %Y) )); then
-      return 0
+      if test -f "modules/ssc.$module.o"; then
+        objects+=("modules/ssc.$module.o")
+        return 0
+      fi
     fi
   fi
 
-  if (( should_build_module_map == 1 && did_build_module_map == 0 )); then
-    "$root/bin/build-module-map.sh"
-    did_build_module_map=1
+  if ! test -f "$source"; then
+    return 1
   fi
 
-  printf "# compiling $(basename "$source")"
+  echo "# compiling $(basename "$source") ($arch-$platform)"
   mkdir -p "$(dirname "$output")"
   rm -f "$output"
 
-  "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "$source" -o "$output" 2>&1 >/dev/null | {
+  # echo "$clang" ${cflags[@]} "$source" -o "$output"
+  # "$clang" ${cflags[@]} "$source" -o "$output"
+  # return 0
+
+  "$clang" ${cflags[@]} "${ldflags[@]}"  "$source" -o "$output" 2>&1 >/dev/null | {
     local did_read=0
     while read -r line; do
       if echo "$line" | grep "imported by module" >/dev/null; then
@@ -124,8 +176,7 @@ function compile_module () {
         touch "$source"
         compile_module "$source"
       else
-        if (( !did_read )); then
-          echo
+        if (( !did_read )) && (( ${#line} > 0 )); then
           echo $line
         fi
       fi
@@ -143,13 +194,11 @@ function compile_module () {
 
   local status=$?
 
-  if (( status == 0 )); then
-    echo
-  elif (( status != 0 && status != 255 )); then
+  if (( status != 0 && status != 255 )); then
     return $status
   fi
 
-  echo "ok - built module $(basename "${output/.pcm/}")"
+  echo "ok - built module $(basename "${output/.pcm/}") ($arch-$platform)"
 
   objects+=("modules/ssc.$module.o")
 
@@ -168,24 +217,25 @@ function compile_object () {
         source="$root/src/modules/$source.cc"
         compile_module "$source" || return $?
         compile_object "modules/ssc.$module.o" || return $?
-        else
-          echo "$line" >&2
+      else
+        echo "$line" >&2
       fi
     done
   } || return $?
-  echo "ok - built object $(basename "$object")"
+  echo "ok - built object $(basename "$object") ($arch-$platform)"
 }
 
 function onsignal () {
   for pid in ${pids[@]}; do
     kill -9 $pid >/dev/null 2>&1
+    kill $pid >/dev/null 2>&1
   done
   exit
 }
 
-trap onsignal SIGINT
+trap onsignal SIGINT SIGTERM
 
-main $@
+main "${args[@]}"
 wait 2>/dev/null || exit $?
 
 if (( built_modules == 1 )); then

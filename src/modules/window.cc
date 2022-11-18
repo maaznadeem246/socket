@@ -448,8 +448,12 @@ export namespace ssc::window {
           .headless = this->options.headless || opts.headless || opts.config["headless"] == "true",
           .forwardConsole = opts.config["linux_forward_console_to_stdout"] == "true",
 
-          .cwd = this->options.cwd,
-          .executable = opts.config["executable"],
+          .cwd = opts.cwd.size() > 0 ? opts.cwd
+            : opts.config.has("cwd") ? opts.config.get("cwd")
+              : this->options.cwd.size() > 0 ? this->options.cwd
+                : app.cwd(),
+
+          .executable = opts.executable.size() > 0  ? opts.executable : app.config.get("executable"),
           .title = opts.title.size() > 0 ? opts.title : opts.config["title"],
           .url = opts.url.size() > 0 ? opts.url : "data:text/html,<html>",
           .version = "v" + opts.config["version"],

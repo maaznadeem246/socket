@@ -43,4 +43,21 @@ namespace ssc::core::window {
   void CoreWindow::eval (Script script) {
     this->eval(script.str());
   }
+
+  void CoreWindow::blur () {
+    this->eval(Script("window.blur()"));
+  }
+
+  void CoreWindow::focus () {
+    this->eval(Script("window.focus()"));
+  }
+
+  void CoreWindow::dispatchEvent (
+    const String& name,
+    const String& data
+  ) {
+    auto value = encodeURIComponent(data);
+    auto script = javascript::getEmitToRenderProcessJavaScript(name, value);
+    this->eval(script);
+  }
 }

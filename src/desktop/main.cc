@@ -68,11 +68,12 @@ void signalHandler (int signal) {
 MAIN {
   Application app(instanceId, argc, argv);
 
+  // @TODO(jwerle): move these to header
   const String OK_STATE = "0";
   const String ERROR_STATE = "1";
   const String EMPTY_SEQ = String("");
 
-  auto cwd = app.getCwd();
+  auto cwd = app.cwd();
 
   String suffix = "";
 
@@ -149,16 +150,6 @@ MAIN {
 
   if (ssc::config::isDebugEnabled()) {
     argvForward << " --debug=1";
-  }
-
-  StringStream env;
-  for (auto const &envKey : split(app.config["env"], ',')) {
-    auto cleanKey = trim(envKey);
-    auto envValue = env::get(cleanKey.c_str());
-
-    env << String(
-      cleanKey + "=" + encodeURIComponent(envValue) + "&"
-    );
   }
 
   String cmd;
@@ -723,9 +714,7 @@ MAIN {
     .onExit = shutdownHandler
   });
 
-  Window* defaultWindow = app.windowManager.createDefaultWindow(WindowOptions {
-    .config = app.config
-  });
+  Window* defaultWindow = app.createDefaultWindow();
 
   // app.windowManager.getOrCreateWindow(0);
   app.windowManager.getOrCreateWindow(1);

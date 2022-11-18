@@ -3,26 +3,34 @@
 
 #include "../private.hh"
 #include "../window.hh"
+#include "webview.hh"
 
 #if defined(__APPLE__)
-#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-@interface CoreWindowDelegate : NSObject
-@end
-#else
-@interface CoreWindowDelegate : NSObject <NSWindowDelegate, WKScriptMessageHandler>
-- (void) userContentController: (WKUserContentController*) userContentController
-       didReceiveScriptMessage: (WKScriptMessage*) scriptMessage;
-@end
-#endif
+  #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+    @interface CoreWindowDelegate : NSObject<WKScriptMessageHandler, UIScrollViewDelegate >
+    @property (nonatomic) ssc::core::window::CoreWindowInternals* internals;
+    @property (strong, nonatomic) CoreWKWebView* webview;
+    @end
+  #else
+    @interface CoreWindowDelegate : NSObject <NSWindowDelegate, WKScriptMessageHandler>
+    @property (nonatomic) ssc::core::window::CoreWindowInternals* internals;
+    @property (strong, nonatomic) CoreWKWebView* webview;
+    - (void) userContentController: (WKUserContentController*) userContentController
+           didReceiveScriptMessage: (WKScriptMessage*) scriptMessage;
+    @end
+  #endif
 #endif
 
 namespace ssc::core::window {
   class CoreWindowInternals {
     public:
+      CoreWindow* coreWindow;
     #if defined(__APPLE__)
-      #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+      CoreWindowDelegate* delegate = nullptr;
+      #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+        UIWindow* window = nullptr;
+      #else
         NSWindow* window = nullptr;
-        CoreWindowDelegate* delegate = nullptr;
       #endif
     #elif defined(__linux__) && !defined(__ANDROID__)
       GtkSelectionData *selectionData = nullptr;

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+declare pids=()
 
 LIPO=""
 WORK_DIR=`pwd`
 PREFIX="${PREFIX:-$HOME}"
 BUILD_DIR=$WORK_DIR/build
-LIB_DIR=$BUILD_DIR/lib
 
 if [ ! "$CXX" ]; then
   if [ ! -z "$LOCALAPPDATA" ]; then
@@ -83,19 +83,26 @@ fi
 
 function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
-  local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
-  local ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-{core,modules}}))
+  local arch="$(uname -m)"
+  local platform="desktop"
+  local ldflags=($("$root/bin/ldflags.sh" --arch "$arch" --platform "$platform" -l{uv,socket-{core,modules}}))
 
-  mkdir -p "$BUILD_DIR/cli"
-  mkdir -p "$BUILD_DIR/bin"
+  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
+  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
+  local cflags=(
+    $("$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules)
+  )
 
-  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} \
-    -c "$root/src/cli/cli.cc"                    \
-    -o "$BUILD_DIR/cli/cli.o"
+  mkdir -p "$BUILD_DIR/$arch-$platform/cli"
+  mkdir -p "$BUILD_DIR/$arch-$platform/bin"
 
-  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} ${ldflags[@]} \
-    "$BUILD_DIR/cli/cli.o"                                     \
-    -o "$BUILD_DIR/bin/ssc"
+  "$CXX" ${cflags[@]}                             \
+    -c "$root/src/cli/main.cc"                    \
+    -o "$BUILD_DIR/$arch-$platform/objects/cli.o"
+
+  "$CXX" ${cflags[@]} ${ldflags[@]}            \
+    "$BUILD_DIR/$arch-$platform/objects/cli.o" \
+    -o "$BUILD_DIR/$arch-$platform/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - built the cli for desktop"
@@ -103,60 +110,75 @@ function _build_cli {
 
 function _build_core {
   echo "# building core library"
- "$root/bin/build-core-library.sh"
+  "$root/bin/build-core-library.sh" --arch "$(uname -m)" --platform desktop &
+  if [[ "$(uname -s)" = "Darwin" ]]; then
+    "$root/bin/build-core-library.sh" --arch arm64 --platform iPhoneOS &
+    #"$root/bin/build-core-library.sh" --arch x86_64 --platform iPhoneSimulator &
+  fi
+
+  wait
 }
 
 function _build_desktop_main () {
   echo "# precompiling main program for desktop"
-  local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts))
+  local arch="$(uname -m)"
+  local platform="desktop"
+
+  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
+  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
+
+  local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
   local source="$root/src/desktop/main.cc"
-  local output="$ASSETS_DIR/build/main.o"
+  local output="$BUILD_DIR/$arch-$platform/objects/main.o"
 
-  quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output" 2>&1 >/dev/null | {
-    while read -r line; do
-      ## try to rebuild stale modules reported from clang when building desktop
-      if echo "$line" | grep "imported by module" >/dev/null; then
-        local module="$(echo "$line" | grep -Eo 'imported by module.*' | awk '{print $4}' | tr -d "'" | sed 's/ssc.//g')"
-        local source="$(echo "$module" | sed 's/\./\//g')"
-        source="$root/src/modules/$source.cc"
-        touch "$source"
-        _build_modules
-      elif echo "$line" | grep "rebuild precompiled header" >/dev/null; then
-        local module="$(echo "$line" | grep -Eo 'header.*' | awk '{print $2}' | xargs basename | tr -d "'" | sed 's/ssc.//g')"
-        module="${module/\.pcm/}"
-        local source="$(echo "$module" | sed 's/\./\//g')"
-        source="$root/src/modules/$source.cc"
-        touch "$source"
-        _build_modules
-      elif echo "$line" | grep -E 'module.*' | grep 'not found' >/dev/null; then
-        local module="$(echo "$line" | grep -Eo "module .*" | awk '{print $2}' | tr -d "'" | sed 's/ssc.//g')"
-        local source="$(echo "$module" | sed 's/\./\//g')"
-        source="$root/src/modules/$source.cc"
-        touch "$source"
-        _build_modules
-      fi
-    done
-    return 1
-  }
+  mkdir -p "$(dirname "$output")"
 
-  ## try to rebuild desktop if failed before
-  if (( $? != 0 )); then
-    quiet "$CXX" $CXX_FLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output"
-  fi
+  #echo "$CXX" ${cflags[@]} -c "$source" -o "$output"
+  "$CXX" ${cflags[@]} -c "$source" -o "$output"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for desktop"
 }
 
+function _build_ios_main () {
+  echo "# precompiling main program for iOS"
+  local arch="arm64"
+  local platform="iPhoneOS"
+
+  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
+  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
+
+  local cflags=($(TARGET_OS_IPHONE=1 "$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
+  local sources=(
+    "$root/src/ios/start.mm"
+    "$root/src/ios/main.cc"
+  )
+  local outputs=(
+    "$BUILD_DIR/$arch-$platform/objects/start.o"
+    "$BUILD_DIR/$arch-$platform/objects/main.o"
+  )
+
+  mkdir -p "$(dirname "$output")"
+
+  #echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
+
+  "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
+  "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}"
+
+  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  echo "ok - precompiled main program for iOS"
+}
+
 function _build_modules {
   echo "# building modules library"
   # build directly to the output assets directory for correct module file paths
-  "$root/bin/build-modules-library.sh"
-}
+  "$root/bin/build-modules-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
+  if [[ "$(uname -s)" = "Darwin" ]]; then
+    "$root/bin/build-modules-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
+    #"$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
+  fi
 
-function _build_library {
-  echo "# building libsocket library"
-  quiet ar crus "$root/build/lib/libsocket.a" "$root/build/lib/"*.a
+  wait
 }
 
 function _prepare {
@@ -168,8 +190,13 @@ function _prepare {
 
   echo "# preparing directories..."
   rm -rf "$ASSETS_DIR"
-  mkdir -p "$ASSETS_DIR"/{lib,src,include,build,modules,cache}
-  mkdir -p $LIB_DIR
+  mkdir -p "$ASSETS_DIR"/{lib,src,include,modules,cache,objects}
+
+  mkdir -p "$ASSETS_DIR"/{lib,modules,objects}/"$(uname -m)-desktop"
+
+  if [[ "$(uname -s)" = "Darwin" ]]; then
+    mkdir -p "$ASSETS_DIR"/{lib,modules,objects}/{arm64-iPhoneOS,x86-iPhoneSimulator}
+  fi
 
   if [ ! -d "$BUILD_DIR/uv" ]; then
   	git clone --depth=1 https://github.com/libuv/libuv.git $BUILD_DIR/uv > /dev/null 2>&1
@@ -182,33 +209,58 @@ function _prepare {
 }
 
 function _install {
+  declare arch="$1"
+  declare platform="$2"
   echo "# copying sources to $ASSETS_DIR/src"
   cp -r "$WORK_DIR"/src/* "$ASSETS_DIR/src"
 
-  echo "# copying libraries to $ASSETS_DIR/lib"
-  rm -rf "$ASSETS_DIR/lib"
-  mkdir -p "$ASSETS_DIR/lib"
-  cp -fr "$BUILD_DIR"/lib/* "$ASSETS_DIR/lib"
+  if test -d "$BUILD_DIR/$arch-$platform/objects"; then
+    echo "# copying objects to $ASSETS_DIR/objects/$arch-$platform"
+    rm -rf "$ASSETS_DIR/objects/$arch-$platform"
+    mkdir -p "$ASSETS_DIR/objects/$arch-$platform"
+    cp -r "$BUILD_DIR/$arch-$platform/objects"/* "$ASSETS_DIR/objects/$arch-$platform"
+  fi
+
+  if test -d "$BUILD_DIR"/lib; then
+    echo "# copying libraries to $ASSETS_DIR/lib"
+    mkdir -p "$ASSETS_DIR/lib"
+    cp -fr "$BUILD_DIR"/lib/*.a "$ASSETS_DIR/lib/"
+  fi
+
+  if test -d "$BUILD_DIR/$arch-$platform"/lib; then
+    echo "# copying libraries to $ASSETS_DIR/lib/$arch-$platform"
+    rm -rf "$ASSETS_DIR/lib/$arch-$platform"
+    mkdir -p "$ASSETS_DIR/lib/$arch-$platform"
+    cp -fr "$BUILD_DIR/$arch-$platform"/lib/*.a "$ASSETS_DIR/lib/$arch-$platform"
+  fi
 
   rm -rf "$ASSETS_DIR/include"
   mkdir -p "$ASSETS_DIR/include"
+  mkdir -p "$ASSETS_DIR/include/$arch-$platform"
   cp -rf "$WORK_DIR"/include/* $ASSETS_DIR/include
+  cp -rf "$BUILD_DIR"/uv/include/* $ASSETS_DIR/include
 
-  echo "# copying modules to $ASSETS_DIR/lib"
-  rm -rf "$ASSETS_DIR/modules"
-  mkdir -p "$ASSETS_DIR/modules"
-  cp -fr "$BUILD_DIR"/modules/* "$ASSETS_DIR/modules"
+  if test -d "$BUILD_DIR/$arch-$platform"/modules; then
+    echo "# copying modules to $ASSETS_DIR/modules/$arch-$platform"
+    rm -rf "$ASSETS_DIR/modules/$arch-$platform"
+    mkdir -p "$ASSETS_DIR/modules/$arch-$platform"
+    cp -fr "$BUILD_DIR/$arch-$platform"/modules/*.pcm "$ASSETS_DIR/modules/$arch-$platform"
+    cp -fr "$BUILD_DIR/$arch-$platform"/modules/*.modulemap "$ASSETS_DIR/modules/$arch-$platform"
+  fi
+}
 
+function _install_cli {
+  local arch="$(uname -m)"
+  local platform="desktop"
   if [ -z "$TEST" ]; then
     local binDest="/usr/local/bin/ssc"
     echo "# moving binary to $binDest (prompting to copy file into directory)"
     sudo mkdir -p /usr/local/bin
-    sudo mv "$BUILD_DIR"/bin/ssc $binDest
+    sudo mv "$BUILD_DIR/$arch-$platform"/bin/ssc $binDest
   fi
 
   die $? "not ok - unable to move binary into place"
   echo "ok - done. type 'ssc -h' for help"
-  exit 0
 }
 
 function _setSDKVersion {
@@ -254,10 +306,12 @@ function _compile_libuv {
     cd $STAGING_DIR
   fi
 
+  mkdir -p "$STAGING_DIR/build/"
+
   if [ $platform == "desktop" ]; then
     mkdir -p $PREFIX
     if ! test -f Makefile; then
-      quiet ./configure --prefix=$STAGING_DIR/build
+      quiet ./configure --prefix=$BUILD_DIR/$target-$platform
       die $? "not ok - desktop configure"
 
       quiet make clean
@@ -283,7 +337,7 @@ function _compile_libuv {
   export LDFLAGS="-Wc,-fembed-bitcode -arch ${target} -isysroot $PLATFORMPATH/$platform.platform/Developer/SDKs/$platform$SDKVERSION.sdk"
 
   if ! test -f Makefile; then
-    quiet ./configure --prefix=$STAGING_DIR/build --host=$hosttarget-apple-darwin
+    quiet ./configure --prefix=$BUILD_DIR/$target-$platform --host=$hosttarget-apple-darwin
   fi
 
   if [ ! $? = 0 ]; then
@@ -310,9 +364,17 @@ EOF_CC
   die $? "not ok - $CXX (`$CXX -dumpversion`) clang > 15 is required for building socket"
 }
 
+function onsignal () {
+  for pid in "${pids[@]}"; do kill -9 $pid 2>/dev/null; done
+  for pid in "${pids[@]}"; do kill TERM $pid 2>/dev/null; done
+  exit 1
+}
+
 _check_compiler_features
 _prepare
 cd $BUILD_DIR
+
+trap onsignal SIGTERM SIGINT
 
 if [[ "`uname -s`" == "Darwin" ]]; then
   quiet xcode-select -p
@@ -327,16 +389,15 @@ if [[ "`uname -s`" == "Darwin" ]]; then
 
   _setSDKVersion iPhoneOS
 
-  pids=""
-  _compile_libuv arm64 iPhoneOS & pids="$pids $!"
-  _compile_libuv x86_64 iPhoneSimulator & pids="$pids $!"
+  _compile_libuv arm64 iPhoneOS & pids+=($!)
+  _compile_libuv x86_64 iPhoneSimulator & pids+=($!)
 
-  for pid in $pids; do wait $pid; done
+  for pid in "${pids[@]}"; do wait $pid; done
 
-  quiet $LIPO -create \
-    $BUILD_DIR/arm64-iPhoneOS/uv/build/lib/libuv.a \
-    $BUILD_DIR/x86_64-iPhoneSimulator/uv/build/lib/libuv.a \
-    -output $LIB_DIR/libuv-ios.a
+  #quiet $LIPO -create \
+    #$BUILD_DIR/arm64-iPhoneOS/uv/build/lib/libuv.a \
+    #$BUILD_DIR/x86_64-iPhoneSimulator/uv/build/lib/libuv.a \
+    #-output $LIB_DIR/libuv-ios.a
 
   die $? "not ok - unable to combine build artifacts"
   echo "ok - created fat library"
@@ -344,14 +405,14 @@ if [[ "`uname -s`" == "Darwin" ]]; then
   unset PLATFORM CC STRIP LD CPP CFLAGS AR RANLIB \
     CPPFLAGS LDFLAGS IPHONEOS_DEPLOYMENT_TARGET
 
-  cp $LIB_DIR/libuv-ios.a $ASSETS_DIR/lib/libuv-ios.a
+  #cp $LIB_DIR/libuv-ios.a $ASSETS_DIR/lib/libuv-ios.a
   die $? "not ok - could not copy fat library"
   echo "ok - copied fat library"
 fi
 
 _compile_libuv
 
-cp $STAGING_DIR/build/lib/libuv.a $LIB_DIR
+#cp $STAGING_DIR/build/lib/libuv.a $LIB_DIR
 die $? "not ok - unable to build libuv"
 echo "ok - built libuv for $platform ($target)"
 
@@ -368,6 +429,21 @@ cd "$BUILD_DIR"
 #export BUILD_DIR
 _build_core
 _build_modules
-_build_desktop_main
-_build_cli
-_install
+_build_desktop_main & pids+=($!)
+
+if [[ "$(uname -s)" = "Darwin" ]]; then
+  _build_ios_main & pids+=($!)
+fi
+
+_build_cli & pids+=($!)
+
+wait
+
+_install "$(uname -m)" desktop
+
+if [[ "$(uname -s)" = "Darwin" ]]; then
+  _install arm64 iPhoneOS
+  #_install x86_64 iPhoneSimulator
+fi
+
+_install_cli

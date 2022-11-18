@@ -10,11 +10,12 @@
 
 #include "application.hh"
 #include "env.hh"
+#include "global.hh"
+#include "internal/application.hh"
 #include "private.hh"
-#include "window/global.hh"
 
 using namespace ssc::core::string;
-using namespace ssc::core::window::global;
+using namespace ssc::core::application;
 
 #if defined(__APPLE__)
 static dispatch_queue_attr_t qos = dispatch_queue_attr_make_with_qos_class(
@@ -45,10 +46,17 @@ static inline void alert (const char* s) {
 #endif
 
 namespace ssc::core::application {
-  CoreApplication::CoreApplication (const int argc, const char** argv)
-  : argc(argc), argv(argv) {
+  CoreApplication::CoreApplication (
+    const int argc,
+    const char** argv
+  ) : argc(argc), argv(argv) {
     this->wasStartedFromCli = env::has("SSC_CLI");
     ssc::init(this->config, argc, argv);
+    CoreApplication::instance = this;
+  }
+
+  CoreApplication::~CoreApplication () {
+    CoreApplication::instance = nullptr;
   }
 
 #if !defined(_WIN32)
@@ -69,15 +77,15 @@ namespace ssc::core::application {
 
     HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
-    ssc::global:::setWindowCompositionAttribute = reinterpret_cast<ssc::global::SetWindowCompositionAttribute>(GetProcAddress(
+    ssc::core::global:::setWindowCompositionAttribute = reinterpret_cast<ssc::core::global::SetWindowCompositionAttribute>(GetProcAddress(
       GetModuleHandleW(L"user32.dll"),
       "SetWindowCompositionAttribute")
     );
 
     if (hUxtheme) {
-      ssc::global::refreshImmersiveColorPolicyState = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(104));
-      ssc::global::shouldSystemUseDarkMode = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(138));
-      ssc::global::allowDarkModeForApp = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(135));
+      ssc::core::global::refreshImmersiveColorPolicyState = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(104));
+      ssc::core::global::shouldSystemUseDarkMode = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(138));
+      ssc::core::global::allowDarkModeForApp = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(135));
     }
 
     allowDarkModeForApp(shouldSystemUseDarkMode());
@@ -86,7 +94,7 @@ namespace ssc::core::application {
     // this fixes bad default quality DPI.
     SetProcessDPIAware();
 
-    auto iconPath = fs::path { getCwd() / fs::path { "index.ico" } };
+    auto iconPath = fs::path { cwd() / fs::path { "index.ico" } };
 
     auto icon = (HICON) LoadImageA(
       NULL,
@@ -121,12 +129,9 @@ namespace ssc::core::application {
 #endif
 
   int CoreApplication::run () {
-    auto cwd = this->getCwd();
-    uv_chdir(cwd.c_str());
-
   #if defined(__linux__)
     gtk_main();
-  #elif defined(__APPLE__)
+  #elif defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     [NSApp run];
   #elif defined(_WIN32)
     MSG msg;
@@ -161,7 +166,7 @@ namespace ssc::core::application {
     exitWasRequested = true;
   #if defined(__linux__)
     gtk_main_quit();
-  #elif defined(__APPLE__)
+  #elif defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     // if not launched from the cli, just use `terminate()`
     // exit code status will not be captured
     if (!wasStartedFromCli) {
@@ -227,21 +232,29 @@ namespace ssc::core::application {
   #endif
   }
 
-  String CoreApplication::getCwd () {
+  String CoreApplication::cwd () {
     String cwd = "";
 
-  #if defined(__linux__)
-    auto canonical = fs::canonical("/proc/self/exe");
-    cwd = fs::path(canonical).parent_path().string();
-  #elif defined(__APPLE__)
-    NSString *bundlePath = [[NSBundle mainBundle] resourcePath];
-    cwd = [bundlePath UTF8String];
-  #elif defined(_WIN32)
-    wchar_t filename[MAX_PATH];
-    GetModuleFileNameW(NULL, filename, MAX_PATH);
-    auto path = fs::path { filename }.remove_filename();
-    cwd = path.string();
-  #endif
+    #if defined(__linux__) && !defined(__ANDROID__)
+      auto canonical = fs::canonical("/proc/self/exe");
+      cwd = fs::path(canonical).parent_path().string();
+    #elif defined(__ANDROID__)
+      // TODO
+    #elif defined(__APPLE__)
+      #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        NSString *currentDirectoryPath = [fileManager currentDirectoryPath];
+        cwd = [[NSHomeDirectory() stringByAppendingPathComponent: currentDirectoryPath] UTF8String];
+      #else
+        NSString *bundlePath = [[NSBundle mainBundle] resourcePath];
+        cwd = [bundlePath UTF8String];
+      #endif
+    #elif defined(_WIN32)
+      wchar_t filename[MAX_PATH];
+      GetModuleFileNameW(NULL, filename, MAX_PATH);
+      auto path = fs::path { filename }.remove_filename();
+      cwd = path.string();
+    #endif
 
     return cwd;
   }
@@ -252,3 +265,48 @@ namespace ssc::core::application {
     }
   }
 }
+
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+@implementation IOSApplication
+//
+// iOS has no "window". There is no navigation, just a single webview. It also
+// has no "main" process, we want to expose some network functionality to the
+// JavaScript environment so it can be used by the web app and the wasm layer.
+//
+- (void) applicationDidEnterBackground: (UIApplication*) application {
+  window->blur();
+}
+
+- (void) applicationWillEnterForeground: (UIApplication*) application {
+  window->focus();
+}
+
+- (void) applicationWillTerminate: (UIApplication*) application {
+  // @TODO(jwerle): what should we do here?
+}
+
+- (void) applicationDidBecomeActive: (UIApplication*) application {
+  dispatch_async(queue, ^{
+    app->onResume();
+    app->start();
+  });
+}
+
+- (void) applicationWillResignActive: (UIApplication*) application {
+  dispatch_async(queue, ^{
+    app->onPause();
+    app->stop();
+  });
+}
+
+-            (BOOL) application: (UIApplication*) application
+  didFinishLaunchingWithOptions: (NSDictionary*) launchOptions
+{
+
+  app = CoreApplication::getInstance();
+  window = app->createDefaultWindow();
+
+  return YES;
+}
+@end
+#endif

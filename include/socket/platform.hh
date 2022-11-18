@@ -66,17 +66,18 @@ namespace ssc::platform {
       bool linux = false;
       bool unix = false;
     #elif defined(__APPLE__)
-      bool win = false;
-      bool linux = false;
       #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+        // eventually, we'll support tvos (TARGET_OS_TV) here too
         std::string os = "ios";
         bool ios = true;
         bool mac = false;
-      #else
+      #elif TARGET_OS_MAC
         std::string os = "mac";
         bool ios = false;
         bool mac = true;
       #endif
+      bool win = false;
+      bool linux = false;
       #if defined(__unix__) || defined(unix) || defined(__unix)
         bool unix = true;
       #else
