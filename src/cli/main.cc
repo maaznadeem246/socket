@@ -1395,8 +1395,8 @@ int main (const int argc, const char* argv[]) {
       }
 
       fs::copy(
-        fs::path(prefixFile()) / "lib",
-        paths.platformSpecificOutputPath / "lib",
+        fs::path(prefixFile()) / "include",
+        paths.platformSpecificOutputPath / "include",
         fs::copy_options::overwrite_existing | fs::copy_options::recursive
       );
 
@@ -1406,11 +1406,31 @@ int main (const int argc, const char* argv[]) {
         fs::copy_options::overwrite_existing | fs::copy_options::recursive
       );
 
-      fs::copy(
-        fs::path(prefixFile()) / "include",
-        paths.platformSpecificOutputPath / "include",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
+      if (flagBuildForSimulator) {
+        fs::copy(
+          fs::path(prefixFile()) / "objects/x86_64-iPhoneSimulator",
+          paths.platformSpecificOutputPath / "objects",
+          fs::copy_options::overwrite_existing | fs::copy_options::recursive
+        );
+
+        fs::copy(
+          fs::path(prefixFile()) / "lib/x86_64-iPhoneSimulator",
+          paths.platformSpecificOutputPath / "lib",
+          fs::copy_options::overwrite_existing | fs::copy_options::recursive
+        );
+      } else {
+        fs::copy(
+          fs::path(prefixFile()) / "objects/arm64-iPhoneOS",
+          paths.platformSpecificOutputPath / "objects",
+          fs::copy_options::overwrite_existing | fs::copy_options::recursive
+        );
+
+        fs::copy(
+          fs::path(prefixFile()) / "lib/arm64-iPhoneOS",
+          paths.platformSpecificOutputPath / "lib",
+          fs::copy_options::overwrite_existing | fs::copy_options::recursive
+        );
+      }
 
       writeFile(paths.platformSpecificOutputPath / "exportOptions.plist", tmpl(gXCodeExportOptions, config.entries));
       writeFile(paths.platformSpecificOutputPath / "Info.plist", tmpl(gXCodePlist, config.entries));

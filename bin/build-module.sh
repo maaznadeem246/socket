@@ -33,7 +33,7 @@ while (( $# > 0 )); do
     if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
       arch="arm64"
       platform="iPhoneOS";
-      export T1ET_OS_IPHONE=1
+      export TARGET_OS_IPHONE=1
     elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
@@ -59,6 +59,11 @@ declare ldflags=($("$root/bin/ldflags.sh"))
 
 declare should_build_module_map=1
 declare did_build_module_map=0
+
+if (( TARGET_OS_IPHONE )) || (( TARGET_IPHONE_SIMULATOR )); then
+  export LD="$(xcrun -sdk iphoneos -find ld)"
+  #clang="xcrun -sdk iphoneos $clang"
+fi
 
 function main () {
   mkdir -p "$build_dir"
@@ -123,10 +128,11 @@ function compile_module () {
 
   if (( ! force )) && test -f "$output"; then
     if (( $(stat "$source" -c %Y) < $(stat "$output" -c %Y) )); then
-      if test -f "modules/ssc.$module.o"; then
+      if ! test -f "modules/ssc.$module.o"; then
         objects+=("modules/ssc.$module.o")
-        return 0
       fi
+
+      return 0
     fi
   fi
 
@@ -142,7 +148,7 @@ function compile_module () {
   # "$clang" ${cflags[@]} "$source" -o "$output"
   # return 0
 
-  "$clang" ${cflags[@]} "${ldflags[@]}"  "$source" -o "$output" 2>&1 >/dev/null | {
+  $clang ${cflags[@]} ${ldflags[@]} "$source" -o "$output" 2>&1 >/dev/null | {
     local did_read=0
     while read -r line; do
       if echo "$line" | grep "imported by module" >/dev/null; then
@@ -209,7 +215,7 @@ function compile_module () {
 
 function compile_object () {
   local object="$1"
-  "$clang" -c "$(echo "$object" | sed 's/\.o$/.pcm/g')" -o "$object" 2>&1 >/dev/null | {
+  $clang -c "$(echo "$object" | sed 's/\.o$/.pcm/g')" -o "$object" 2>&1 >/dev/null | {
     while read -r line; do
       if echo "$line" | grep "imported by module" >/dev/null; then
         local module="$(echo "$line" | grep -Eo 'imported by module.*' | awk '{print $4}' | tr -d "'" | sed 's/ssc.//g')"

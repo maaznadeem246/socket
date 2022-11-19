@@ -7,6 +7,7 @@ declare ldflags=()
 declare args=()
 declare arch="$(uname -m)"
 declare platform="desktop"
+declare ios_sdk_path=""
 
 if (( TARGET_OS_IPHONE )); then
   arch="arm64"
@@ -42,29 +43,33 @@ while (( $# > 0 )); do
 done
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
-  if (( TARGET_OS_IPHONE )) || (( TARGET_IPHONE_SIMULATOR )); then
-    :
-    #ldflags+=("-framework" "UIKit")
-  else
+  if (( !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR )); then
     ldflags+=("-framework" "Cocoa")
   fi
 
+  if (( TARGET_OS_IPHONE )) || (( TARGET_IPHONE_SIMULATOR )); then
+    ldflags+=("-framework" "UIKit")
+
+    if (( TARGET_OS_IPHONE )); then
+      ios_sdk_path="$(xcrun -sdk iphoneos -show-sdk-path)"
+      ldflags+=("-arch arm64")
+    elif (( TARGET_IPHONE_SIMULATOR )); then
+      ios_sdk_path="$(xcrun -sdk iphonesimulator -show-sdk-path)"
+      ldflags+=("-arch x86_64")
+    fi
+
+    ldflags+=("-isysroot $ios_sdk_path/")
+    ldflags+=("-iframeworkwithsysroot /System/Library/Frameworks/")
+    ldflags+=("-F $ios_sdk_path/System/Library/Frameworks/")
+  fi
+
+  ldflags+=("-framework" "CoreFoundation")
   ldflags+=("-framework" "CoreBluetooth")
   ldflags+=("-framework" "Foundation")
   ldflags+=("-framework" "Network")
   ldflags+=("-framework" "UniformTypeIdentifiers")
   ldflags+=("-framework" "WebKit")
   ldflags+=("-framework" "UserNotifications")
-
-  if (( TARGET_OS_IPHONE )); then
-    ldflags+=("-arch arm64")
-    ldflags+=("-Wc,-fembed-bitcode")
-    ldflags+=("-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk")
-  elif (( TARGET_IPHONE_SIMULATOR )); then
-    ldflags+=("-arch x86_64")
-    ldflags+=("-Wc,-fembed-bitcode")
-    ldflags+=("-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk")
-  fi
 fi
 
 ldflags+=("-L$arch-$platform/lib")

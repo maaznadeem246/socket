@@ -170,7 +170,7 @@ namespace ssc::core::window {
         @selector(userContentController:didReceiveScriptMessage:),
         imp_implementationWithBlock(
           [=](id self, SEL cmd, WKScriptMessage* scriptMessage) {
-            auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
+            auto window = (__bridge CoreWindow*) objc_getAssociatedObject(self, "window");
             id body = [scriptMessage body];
 
             if (![body isKindOfClass:[NSString class]]) {
@@ -231,7 +231,7 @@ namespace ssc::core::window {
     objc_setAssociatedObject(
       this->internals->delegate,
       "window",
-      (id) this,
+      (__bridge id) this,
       OBJC_ASSOCIATION_ASSIGN
     );
 
@@ -412,8 +412,10 @@ namespace ssc::core::window {
   void CoreWindow::showInspector () {
     // This is a private method on the webview, so we need to use
     // the pragma keyword to suppress the access warning.
-    #pragma clang diagnostic ignored "-Wobjc-method-access"
-    [[this->webview->internals->webview _inspector] show];
+    #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+      #pragma clang diagnostic ignored "-Wobjc-method-access"
+      [[this->webview->internals->webview _inspector] show];
+    #endif
   }
 
   void CoreWindow::setBackgroundColor (int r, int g, int b, float a) {

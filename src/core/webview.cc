@@ -105,7 +105,7 @@ namespace ssc::core::webview {
     // configuration.limitsNavigationsToAppBoundDomains = YES;
 
     [configuration
-      setURLSchemeHandler: (::CoreSchemeHandler*) coreIPCSchemeHandler->internal
+      setURLSchemeHandler: (__bridge ::CoreSchemeHandler*) coreIPCSchemeHandler->internal
              forURLScheme: @"ipc"
     ];
 
@@ -126,7 +126,7 @@ namespace ssc::core::webview {
       ];
     #endif
 
-    [userScript
+    (void) [userScript
         initWithSource: [NSString stringWithUTF8String: preloadScript.str().c_str()]
          injectionTime: WKUserScriptInjectionTimeAtDocumentStart
       forMainFrameOnly: NO
@@ -199,7 +199,9 @@ namespace ssc::core::webview {
   CoreWebViewInternals::~CoreWebViewInternals () {
   #if defined(__APPLE__)
     if (this->webview != nullptr) {
-      [this->webview release];
+      #if !__has_feature(objc_arc)
+        [this->webview release];
+      #endif
       this->webview = nullptr;
     }
   #endif
@@ -249,7 +251,7 @@ namespace ssc::core::webview {
       auto schemeHandler = [::CoreSchemeHandler new];
       schemeHandler.handler = this;
       schemeHandler.taskManager = new CoreSchemeTaskManager<CoreSchemeTask>();
-      this->internal = (void*) schemeHandler;
+      this->internal = (__bridge void*) schemeHandler;
     #elif defined(__linux__) && !defined(__ANDROID__)
       auto schemeHandler = SharedPointer<CoreSchemeHandler>(new CoreSchemeHandler());
       schemeHandler->handler = this;
@@ -260,9 +262,11 @@ namespace ssc::core::webview {
   CoreSchemeHandler::~CoreSchemeHandler () {
     #if defined(__APPLE__)
       if (this->internal != nullptr) {
-        auto schemeHandler = (::CoreSchemeHandler*) this->internal;
+        auto schemeHandler = (__bridge ::CoreSchemeHandler*) this->internal;
         delete schemeHandler.taskManager;
-        [schemeHandler release];
+        #if !__has_feature(objc_arc)
+          [schemeHandler release];
+        #endif
         this->internal = nullptr;
       }
     #endif
@@ -312,7 +316,7 @@ namespace ssc::core::webview {
       }
 
       auto jsonString = this->response.body.json.str();
-      auto task = (CoreSchemeTask) this->internal;
+      auto task = (__bridge CoreSchemeTask) this->internal;
       auto headerFields = [NSMutableDictionary dictionary];
 
       headerFields[@"access-control-allow-methods"] = @"*";
@@ -434,12 +438,12 @@ namespace ssc::core::webview {
 
     if (message.seq.size() > 0 && message.seq != "-1") {
       #if defined(__APPLE__)
-        auto task = (CoreSchemeTask) request.internal;
+        auto task = (__bridge CoreSchemeTask) request.internal;
         #if !__has_feature(objc_arc)
           [task retain];
         #endif
 
-        auto schemeHandler = (::CoreSchemeHandler*) this->internal;
+        auto schemeHandler = (__bridge ::CoreSchemeHandler*) this->internal;
         schemeHandler.taskManager->put(message.seq, task);
       #endif
     }
@@ -483,7 +487,7 @@ namespace ssc::core::webview {
     request.message.buffer.size = request.body.size;
   }
 
-  request.internal = (void *) task;
+  request.internal = (__bridge void *) task;
   #if !__has_feature(objc_arc)
     [task retain];
   #endif

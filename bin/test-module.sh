@@ -48,6 +48,12 @@ declare module_tests_path="$root/build/$arch-$platform/tests/modules"
 declare cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
 declare ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-{core,modules}}))
 
+if (( TARGET_OS_IPHONE )); then
+  clang="xcrun -sdk iphonesimulator $clang"
+elif (( TARGET_IPHONE_SIMULATOR )); then
+  clang="xcrun -sdk iphoneos $clang"
+fi
+
 function onsignal () {
   for pid in ${pids[@]}; do
     kill -9 $pid >/dev/null 2>&1
@@ -74,10 +80,11 @@ function main () {
       declare filename="$(basename "$source" | sed -E 's/.(hh|cc|mm|cpp)//g')"
       declare output="$module_tests_path/$filename"
 
+      export LDFLAGS="${ldflags[@]}"
       if ! test -f "$output" || (( $(stat "$source" -c %Y) > $(stat "$output" -c %Y) )); then
-        "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} -c "$source" -o "$output.o" || continue
-        echo "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$root"/src/*.cc "$output.o" -o "$output"
-        "$clang" $CFLAGS $CXXFLAGS ${cflags[@]} "${ldflags[@]}" "$root"/src/*.cc "$output.o" -o "$output" || continue
+        $clang ${cflags[@]} -c "$source" -o "$output.o" || continue
+        echo "$clang" "${ldflags[@]}" "${cflags[@]}"  "$root"/src/*.cc "$output.o" -o "$output"
+        $clang "${cflags[@]}" "${ldflags[@]}"  "$root"/src/*.cc $output.o -o "$output" || continue
         echo "ok - built $(basename "$output") test"
       fi
 

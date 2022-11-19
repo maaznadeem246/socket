@@ -21,15 +21,17 @@ using namespace ssc::core::network;
 namespace ssc::core::network {
   NetworkStatusObserver::NetworkStatusObserver () {
     #if defined(__APPLE__)
-      this->internal = (void *) [[NetworkStatusMonitor alloc] initWithObserver: this];
+      this->internal = (__bridge void*) [[NetworkStatusMonitor alloc] initWithObserver: this];
     #endif
   }
 
   NetworkStatusObserver::~NetworkStatusObserver () {
     #if defined(__APPLE__)
       if (this->internal != nullptr) {
-        auto monitor = (NetworkStatusMonitor*) this->internal;
-        [monitor release];
+        auto monitor = (__bridge NetworkStatusMonitor*) this->internal;
+        #if !__has_feature(objc_arc)
+          [monitor release];
+        #endif
       }
     #endif
   }

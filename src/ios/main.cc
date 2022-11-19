@@ -11,6 +11,5 @@ using namespace ssc::window;
 
 int main (const int argc, const char **argv) {
   Application app(0, argc, argv);
-
   return ssc::start(argc, argv);
 }

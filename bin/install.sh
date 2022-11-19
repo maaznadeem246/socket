@@ -93,12 +93,13 @@ function _build_cli {
     $("$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules)
   )
 
-  mkdir -p "$BUILD_DIR/$arch-$platform/cli"
-  mkdir -p "$BUILD_DIR/$arch-$platform/bin"
+  mkdir -p "$BUILD_DIR/$arch-$platform/bin" &&
+  mkdir -p "$BUILD_DIR/$arch-$platform/objects" &&
+  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
 
   "$CXX" ${cflags[@]}                             \
     -c "$root/src/cli/main.cc"                    \
-    -o "$BUILD_DIR/$arch-$platform/objects/cli.o"
+    -o "$BUILD_DIR/$arch-$platform/objects/cli.o" &&
 
   "$CXX" ${cflags[@]} ${ldflags[@]}            \
     "$BUILD_DIR/$arch-$platform/objects/cli.o" \
@@ -110,10 +111,10 @@ function _build_cli {
 
 function _build_core {
   echo "# building core library"
-  "$root/bin/build-core-library.sh" --arch "$(uname -m)" --platform desktop &
+  "$root/bin/build-core-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    "$root/bin/build-core-library.sh" --arch arm64 --platform iPhoneOS &
-    #"$root/bin/build-core-library.sh" --arch x86_64 --platform iPhoneSimulator &
+    "$root/bin/build-core-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
+    "$root/bin/build-core-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
   fi
 
   wait
@@ -153,20 +154,51 @@ function _build_ios_main () {
     "$root/src/ios/start.mm"
     "$root/src/ios/main.cc"
   )
+
   local outputs=(
     "$BUILD_DIR/$arch-$platform/objects/start.o"
     "$BUILD_DIR/$arch-$platform/objects/main.o"
   )
 
-  mkdir -p "$(dirname "$output")"
+  mkdir -p "$(dirname "${outputs[0]}")"
 
-  #echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
+  # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
 
-  "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
+  "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
   "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for iOS"
+}
+
+function _build_ios_simulator_main () {
+  echo "# precompiling main program for iOS Simulator"
+  local arch="x86_64"
+  local platform="iPhoneSimulator"
+
+  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
+  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
+
+  local cflags=($(TARGET_OS_IPHONE=1 "$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
+  local sources=(
+    "$root/src/ios/start.mm"
+    "$root/src/ios/main.cc"
+  )
+
+  local outputs=(
+    "$BUILD_DIR/$arch-$platform/objects/start.o"
+    "$BUILD_DIR/$arch-$platform/objects/main.o"
+  )
+
+  mkdir -p "$(dirname "${outputs[0]}")"
+
+  # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
+
+  "$(xcrun -sdk iphonesimulator -find clang++)" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
+  "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}"
+
+  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  echo "ok - precompiled main program for iOS Simulator"
 }
 
 function _build_modules {
@@ -175,7 +207,7 @@ function _build_modules {
   "$root/bin/build-modules-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
   if [[ "$(uname -s)" = "Darwin" ]]; then
     "$root/bin/build-modules-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
-    #"$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
+    "$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
   fi
 
   wait
@@ -236,7 +268,6 @@ function _install {
 
   rm -rf "$ASSETS_DIR/include"
   mkdir -p "$ASSETS_DIR/include"
-  mkdir -p "$ASSETS_DIR/include/$arch-$platform"
   cp -rf "$WORK_DIR"/include/* $ASSETS_DIR/include
   cp -rf "$BUILD_DIR"/uv/include/* $ASSETS_DIR/include
 
@@ -394,26 +425,17 @@ if [[ "`uname -s`" == "Darwin" ]]; then
 
   for pid in "${pids[@]}"; do wait $pid; done
 
-  #quiet $LIPO -create \
-    #$BUILD_DIR/arm64-iPhoneOS/uv/build/lib/libuv.a \
-    #$BUILD_DIR/x86_64-iPhoneSimulator/uv/build/lib/libuv.a \
-    #-output $LIB_DIR/libuv-ios.a
-
   die $? "not ok - unable to combine build artifacts"
   echo "ok - created fat library"
 
   unset PLATFORM CC STRIP LD CPP CFLAGS AR RANLIB \
     CPPFLAGS LDFLAGS IPHONEOS_DEPLOYMENT_TARGET
 
-  #cp $LIB_DIR/libuv-ios.a $ASSETS_DIR/lib/libuv-ios.a
   die $? "not ok - could not copy fat library"
   echo "ok - copied fat library"
 fi
 
 _compile_libuv
-
-#cp $STAGING_DIR/build/lib/libuv.a $LIB_DIR
-die $? "not ok - unable to build libuv"
 echo "ok - built libuv for $platform ($target)"
 
 mkdir -p  $ASSETS_DIR/uv/{src/unix,include}
@@ -432,18 +454,22 @@ _build_modules
 _build_desktop_main & pids+=($!)
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
-  _build_ios_main & pids+=($!)
+  if test -d "$(xcrun -sdk iphoneos -show-sdk-path 2>/dev/null)"; then
+    _build_ios_main & pids+=($!)
+  fi
 fi
 
 _build_cli & pids+=($!)
 
-wait
+for pid in "${pids[@]}"; do
+  wait "$pid" 2>/dev/null
+done
 
 _install "$(uname -m)" desktop
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
   _install arm64 iPhoneOS
-  #_install x86_64 iPhoneSimulator
+  _install x86_64 iPhoneSimulator
 fi
 
 _install_cli

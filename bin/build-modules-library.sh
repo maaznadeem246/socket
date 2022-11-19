@@ -31,7 +31,7 @@ while (( $# > 0 )); do
     if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
       arch="arm64"
       platform="iPhoneOS";
-      export T1ET_OS_IPHONE=1
+      export TARGET_OS_IPHONE=1
     elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
