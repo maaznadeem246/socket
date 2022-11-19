@@ -414,21 +414,23 @@ export constexpr auto gWindowsAppManifest = R"XML(<?xml version="1.0" encoding="
 //
 export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 {
-  archiveVersion = 1;
-  classes = {
-  };
-  objectVersion = 55;
-  objects = {
+
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 55;
+	objects = {
+
 /* Begin PBXBuildFile section */
 		17C230BA28E9398700301440 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17C230B928E9398700301440 /* Foundation.framework */; };
+		17CEC54E2928667C00D2860A /* config.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334F9292855FB004809B4 /* config.cc */; };
+		17CEC54F2928667C00D2860A /* debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334FA292855FB004809B4 /* debug.cc */; };
+		17CEC5502928667C00D2860A /* init.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334FF292855FB004809B4 /* init.cc */; };
 		17E73FEF28FCD3360087604F /* libuv.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17E73FEE28FCD3360087604F /* libuv.a */; };
 		17F334E1292855D4004809B4 /* main.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F334DF292855D4004809B4 /* main.o */; };
 		17F334E2292855D4004809B4 /* start.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F334E0292855D4004809B4 /* start.o */; };
 		17F3350729285654004809B4 /* libsocket-core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F3350529285654004809B4 /* libsocket-core.a */; };
 		17F3350829285654004809B4 /* libsocket-modules.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F3350629285654004809B4 /* libsocket-modules.a */; };
-		17F3353C292858F1004809B4 /* config.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334F9292855FB004809B4 /* config.cc */; };
-		17F3353D292858F1004809B4 /* debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334FA292855FB004809B4 /* debug.cc */; };
-		17F3353E292858F1004809B4 /* init.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334FF292855FB004809B4 /* init.cc */; };
 		290F7EBF2768C49000486988 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 294A3C792763E9C6007B5B9A /* UIKit.framework */; };
 		290F7F87276BC2B000486988 /* lib in Resources */ = {isa = PBXBuildFile; fileRef = 290F7F86276BC2B000486988 /* lib */; };
 		29124C5D2761336B001832A0 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 29124C5B2761336B001832A0 /* LaunchScreen.storyboard */; };
@@ -468,38 +470,6 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 		17F334FF292855FB004809B4 /* init.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = init.cc; path = src/init.cc; sourceTree = "<group>"; };
 		17F3350529285654004809B4 /* libsocket-core.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libsocket-core.a"; path = "lib/libsocket-core.a"; sourceTree = "<group>"; };
 		17F3350629285654004809B4 /* libsocket-modules.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libsocket-modules.a"; path = "lib/libsocket-modules.a"; sourceTree = "<group>"; };
-		17F3350B2928586E004809B4 /* network.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = network.hh; sourceTree = "<group>"; };
-		17F3350D2928586E004809B4 /* window.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = window.cc; sourceTree = "<group>"; };
-		17F3350E2928586E004809B4 /* bluetooth.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = bluetooth.hh; sourceTree = "<group>"; };
-		17F3350F2928586E004809B4 /* webview.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = webview.cc; sourceTree = "<group>"; };
-		17F335102928586E004809B4 /* utils.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = utils.hh; sourceTree = "<group>"; };
-		17F335112928586E004809B4 /* platform.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = platform.hh; sourceTree = "<group>"; };
-		17F335122928586E004809B4 /* application.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = application.hh; sourceTree = "<group>"; };
-		17F335132928586E004809B4 /* data.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = data.hh; sourceTree = "<group>"; };
-		17F335152928586E004809B4 /* application.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = application.cc; sourceTree = "<group>"; };
-		17F335162928586E004809B4 /* json.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = json.hh; sourceTree = "<group>"; };
-		17F335172928586E004809B4 /* platform.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = platform.cc; sourceTree = "<group>"; };
-		17F335182928586E004809B4 /* private.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = private.hh; sourceTree = "<group>"; };
-		17F3351A2928586E004809B4 /* bluetooth.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = bluetooth.hh; sourceTree = "<group>"; };
-		17F3351B2928586E004809B4 /* application.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = application.hh; sourceTree = "<group>"; };
-		17F3351C2928586E004809B4 /* webview.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = webview.hh; sourceTree = "<group>"; };
-		17F3351D2928586E004809B4 /* window.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = window.hh; sourceTree = "<group>"; };
-		17F3351E2928586E004809B4 /* network.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = network.cc; sourceTree = "<group>"; };
-		17F3351F2928586E004809B4 /* javascript.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = javascript.hh; sourceTree = "<group>"; };
-		17F335202928586E004809B4 /* bluetooth.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = bluetooth.cc; sourceTree = "<group>"; };
-		17F335212928586E004809B4 /* string.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = string.hh; sourceTree = "<group>"; };
-		17F335222928586E004809B4 /* headers.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = headers.hh; sourceTree = "<group>"; };
-		17F335232928586E004809B4 /* webview.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = webview.hh; sourceTree = "<group>"; };
-		17F335242928586E004809B4 /* window.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = window.hh; sourceTree = "<group>"; };
-		17F335252928586E004809B4 /* global.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = global.hh; sourceTree = "<group>"; };
-		17F335262928586E004809B4 /* config.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = config.hh; sourceTree = "<group>"; };
-		17F335272928586E004809B4 /* version.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = version.hh; sourceTree = "<group>"; };
-		17F335282928586E004809B4 /* env.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = env.hh; sourceTree = "<group>"; };
-		17F3352A2928586E004809B4 /* linux.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = linux.cc; sourceTree = "<group>"; };
-		17F3352B2928586E004809B4 /* win.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = win.cc; sourceTree = "<group>"; };
-		17F3352D2928586E004809B4 /* types.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = types.hh; sourceTree = "<group>"; };
-		17F3352E2928586E004809B4 /* window.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = window.cc; sourceTree = "<group>"; };
-		17F3352F2928586E004809B4 /* ipc.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = ipc.hh; sourceTree = "<group>"; };
 		290F7F86276BC2B000486988 /* lib */ = {isa = PBXFileReference; lastKnownFileType = folder; path = lib; sourceTree = "<group>"; };
 		29124C4A27613369001832A0 /* {{name}}.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "{{name}}.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		29124C5C2761336B001832A0 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -520,10 +490,10 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			files = (
 				17F3350729285654004809B4 /* libsocket-core.a in Frameworks */,
 				17F3350829285654004809B4 /* libsocket-modules.a in Frameworks */,
-				17F334E2292855D4004809B4 /* start.o in Frameworks */,
 				17F334E1292855D4004809B4 /* main.o in Frameworks */,
 				17E73FEF28FCD3360087604F /* libuv.a in Frameworks */,
 				17C230BA28E9398700301440 /* Foundation.framework in Frameworks */,
+				17F334E2292855D4004809B4 /* start.o in Frameworks */,
 				2996EDB22770BC1F00C672A2 /* Network.framework in Frameworks */,
 				2996EDB22770BC1F00C672A3 /* CoreBluetooth.framework in Frameworks */,
 				2996EDB22770BC1F00C672A4 /* UserNotifications.framework in Frameworks */,
@@ -577,93 +547,12 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			path = socket;
 			sourceTree = "<group>";
 		};
-		17F3350A2928586E004809B4 /* core */ = {
-			isa = PBXGroup;
-			children = (
-				17F3350B2928586E004809B4 /* network.hh */,
-				17F3350C2928586E004809B4 /* apple */,
-				17F3350E2928586E004809B4 /* bluetooth.hh */,
-				17F3350F2928586E004809B4 /* webview.cc */,
-				17F335102928586E004809B4 /* utils.hh */,
-				17F335112928586E004809B4 /* platform.hh */,
-				17F335122928586E004809B4 /* application.hh */,
-				17F335132928586E004809B4 /* data.hh */,
-				17F335142928586E004809B4 /* win */,
-				17F335152928586E004809B4 /* application.cc */,
-				17F335162928586E004809B4 /* json.hh */,
-				17F335172928586E004809B4 /* platform.cc */,
-				17F335182928586E004809B4 /* private.hh */,
-				17F335192928586E004809B4 /* internal */,
-				17F3351E2928586E004809B4 /* network.cc */,
-				17F3351F2928586E004809B4 /* javascript.hh */,
-				17F335202928586E004809B4 /* bluetooth.cc */,
-				17F335212928586E004809B4 /* string.hh */,
-				17F335222928586E004809B4 /* headers.hh */,
-				17F335232928586E004809B4 /* webview.hh */,
-				17F335242928586E004809B4 /* window.hh */,
-				17F335252928586E004809B4 /* global.hh */,
-				17F335262928586E004809B4 /* config.hh */,
-				17F335272928586E004809B4 /* version.hh */,
-				17F335282928586E004809B4 /* env.hh */,
-				17F335292928586E004809B4 /* window */,
-				17F3352C2928586E004809B4 /* linux */,
-				17F3352D2928586E004809B4 /* types.hh */,
-				17F3352E2928586E004809B4 /* window.cc */,
-				17F3352F2928586E004809B4 /* ipc.hh */,
-			);
-			name = core;
-			path = src/core;
-			sourceTree = "<group>";
-		};
-		17F3350C2928586E004809B4 /* apple */ = {
-			isa = PBXGroup;
-			children = (
-				17F3350D2928586E004809B4 /* window.cc */,
-			);
-			path = apple;
-			sourceTree = "<group>";
-		};
-		17F335142928586E004809B4 /* win */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = win;
-			sourceTree = "<group>";
-		};
-		17F335192928586E004809B4 /* internal */ = {
-			isa = PBXGroup;
-			children = (
-				17F3351A2928586E004809B4 /* bluetooth.hh */,
-				17F3351B2928586E004809B4 /* application.hh */,
-				17F3351C2928586E004809B4 /* webview.hh */,
-				17F3351D2928586E004809B4 /* window.hh */,
-			);
-			path = internal;
-			sourceTree = "<group>";
-		};
-		17F335292928586E004809B4 /* window */ = {
-			isa = PBXGroup;
-			children = (
-				17F3352A2928586E004809B4 /* linux.cc */,
-				17F3352B2928586E004809B4 /* win.cc */,
-			);
-			path = window;
-			sourceTree = "<group>";
-		};
-		17F3352C2928586E004809B4 /* linux */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = linux;
-			sourceTree = "<group>";
-		};
 		29124C4127613369001832A0 = {
 			isa = PBXGroup;
 			children = (
 				17F334F9292855FB004809B4 /* config.cc */,
 				17F334FA292855FB004809B4 /* debug.cc */,
 				17F334FF292855FB004809B4 /* init.cc */,
-				17F3350A2928586E004809B4 /* core */,
 				17F334E3292855E2004809B4 /* include */,
 				17F334DF292855D4004809B4 /* main.o */,
 				17F334E0292855D4004809B4 /* start.o */,
@@ -771,9 +660,9 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				17F33504292855FB004809B4 /* init.cc in Sources */,
-				17F33500292855FB004809B4 /* config.cc in Sources */,
-				17F33501292855FB004809B4 /* debug.cc in Sources */,
+				17CEC54E2928667C00D2860A /* config.cc in Sources */,
+				17CEC54F2928667C00D2860A /* debug.cc in Sources */,
+				17CEC5502928667C00D2860A /* init.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -789,102 +678,6 @@ export constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
-
-/* Begin PBXNativeTarget section */
-		29124C4927613369001832A0 /* {{name}} */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 29124C792761336B001832A0 /* Build configuration list for PBXNativeTarget "{{name}}" */;
-			buildPhases = (
-				29124C4627613369001832A0 /* Sources */,
-				29124C4727613369001832A0 /* Frameworks */,
-				29124C4827613369001832A0 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "{{name}}";
-			productName = "{{name}}";
-			productReference = 29124C4A27613369001832A0 /* {{name}}.app */;
-			productType = "com.apple.product-type.application";
-		};
-/* End PBXNativeTarget section */
-
-/* Begin PBXProject section */
-		29124C4227613369001832A0 /* Project object */ = {
-			isa = PBXProject;
-			attributes = {
-				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 1340;
-				TargetAttributes = {
-					29124C4927613369001832A0 = {
-						CreatedOnToolsVersion = 13.1;
-					};
-				};
-			};
-			buildConfigurationList = 29124C4527613369001832A0 /* Build configuration list for PBXProject "{{name}}" */;
-			compatibilityVersion = "Xcode 13.0";
-			developmentRegion = en;
-			hasScannedForEncodings = 0;
-			knownRegions = (
-				en,
-				Base,
-			);
-			mainGroup = 29124C4127613369001832A0;
-			productRefGroup = 29124C4B27613369001832A0 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-				29124C4927613369001832A0 /* {{name}} */,
-			);
-		};
-/* End PBXProject section */
-
-/* Begin PBXResourcesBuildPhase section */
-		29124C4827613369001832A0 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				290F7F87276BC2B000486988 /* lib in Resources */,
-				29124C5D2761336B001832A0 /* LaunchScreen.storyboard in Resources */,
-				294A3C852764EAB7007B5B9A /* ui in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		29124C4627613369001832A0 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				17E73FEB28FCC9C80087604F /* ipc.cc in Sources */,
-				17DA350C28ECA38D00ED23A7 /* javascript.cc in Sources */,
-				17E73FEC28FCC9C80087604F /* bridge.cc in Sources */,
-				17DA350F28ECA38D00ED23A7 /* peer.cc in Sources */,
-				17E73FD928FCC90A0087604F /* bluetooth.cc in Sources */,
-				17DA351128ECA38D00ED23A7 /* fs.cc in Sources */,
-				17DA351428ECA38D00ED23A7 /* ios.mm in Sources */,
-				17E73FDD28FCC98A0087604F /* apple.mm in Sources */,
-				17DA351328ECA38D00ED23A7 /* runtime.cc in Sources */,
-				17DA350E28ECA38D00ED23A7 /* udp.cc in Sources */,
-				17E73FD828FCC90A0087604F /* json.cc in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXSourcesBuildPhase section */
-
-/* Begin PBXVariantGroup section */
-		29124C5B2761336B001832A0 /* LaunchScreen.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				29124C5C2761336B001832A0 /* Base */,
-			);
-			name = LaunchScreen.storyboard;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
-
 /* Begin XCBuildConfiguration section */
     29124C772761336B001832A0 /* Debug */ = {
       isa = XCBuildConfiguration;

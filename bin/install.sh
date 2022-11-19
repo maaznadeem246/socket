@@ -114,7 +114,7 @@ function _build_core {
   "$root/bin/build-core-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
   if [[ "$(uname -s)" = "Darwin" ]]; then
     "$root/bin/build-core-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
-    "$root/bin/build-core-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
+    #"$root/bin/build-core-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
   fi
 
   wait
@@ -207,7 +207,7 @@ function _build_modules {
   "$root/bin/build-modules-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
   if [[ "$(uname -s)" = "Darwin" ]]; then
     "$root/bin/build-modules-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
-    "$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
+    #"$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
   fi
 
   wait
@@ -469,7 +469,7 @@ _install "$(uname -m)" desktop
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
   _install arm64 iPhoneOS
-  _install x86_64 iPhoneSimulator
+  #_install x86_64 iPhoneSimulator
 fi
 
 _install_cli
