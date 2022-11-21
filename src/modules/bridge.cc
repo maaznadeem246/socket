@@ -21,7 +21,7 @@ using ssc::platform::PlatformInfo;
 using ssc::runtime::Runtime;
 using ssc::udp::UDP;
 
-#define resultCallback(message, reply)                                         \
+#define RESULT_CALLBACK(message, reply)                                         \
   [=](auto seq, auto json, auto data) {                                        \
     reply(Result { seq, message, json, data });                                \
   }
@@ -219,7 +219,7 @@ export namespace ssc::bridge {
           runtime.dns.lookup(
             message.seq,
             DNS::LookupOptions { message.get("hostname"), family },
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -243,7 +243,7 @@ export namespace ssc::bridge {
             message.seq,
             message.get("path"),
             mode,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -251,7 +251,7 @@ export namespace ssc::bridge {
          * Returns a mapping of file system constants.
          */
         router.map("fs.constants", [&](auto message, auto _, auto reply) {
-          runtime.fs.constants(message.seq, resultCallback(message, reply));
+          runtime.fs.constants(message.seq, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -274,7 +274,7 @@ export namespace ssc::bridge {
             message.seq,
             message.get("path"),
             mode,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -301,7 +301,7 @@ export namespace ssc::bridge {
           uint64_t id;
           getMessageParam(id, "id", std::stoull);
 
-          runtime.fs.close(message.seq, id, resultCallback(message, reply));
+          runtime.fs.close(message.seq, id, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -319,7 +319,7 @@ export namespace ssc::bridge {
           uint64_t id;
           getMessageParam(id, "id", std::stoull);
 
-          runtime.fs.closedir(message.seq, id, resultCallback(message, reply));
+          runtime.fs.closedir(message.seq, id, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -341,7 +341,7 @@ export namespace ssc::bridge {
           runtime.fs.closeOpenDescriptor(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -356,7 +356,7 @@ export namespace ssc::bridge {
           runtime.fs.closeOpenDescriptor(
             message.seq,
             message.get("preserveRetained") != "false",
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -382,7 +382,7 @@ export namespace ssc::bridge {
             message.get("src"),
             message.get("dest"),
             flags,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -402,7 +402,7 @@ export namespace ssc::bridge {
           uint64_t id;
           getMessageParam(id, "id", std::stoull);
 
-          runtime.fs.fstat(message.seq, id, resultCallback(message, reply));
+          runtime.fs.fstat(message.seq, id, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -411,7 +411,7 @@ export namespace ssc::bridge {
         router.map("fs.getOpenDescriptors", [&](auto message, auto _, auto reply) {
           runtime.fs.getOpenDescriptors(
             message.seq,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -431,7 +431,7 @@ export namespace ssc::bridge {
           runtime.fs.lstat(
             message.seq,
             message.get("path"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -455,7 +455,7 @@ export namespace ssc::bridge {
             message.seq,
             message.get("path"),
             mode,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -492,7 +492,7 @@ export namespace ssc::bridge {
             message.get("path"),
             flags,
             mode,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -516,7 +516,7 @@ export namespace ssc::bridge {
             message.seq,
             id,
             message.get("path"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -546,7 +546,7 @@ export namespace ssc::bridge {
             id,
             size,
             offset,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -571,7 +571,7 @@ export namespace ssc::bridge {
             message.seq,
             id,
             entries,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -592,7 +592,7 @@ export namespace ssc::bridge {
           runtime.fs.retainOpenDescriptor(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -613,7 +613,7 @@ export namespace ssc::bridge {
             message.seq,
             message.get("src"),
             message.get("dest"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -632,7 +632,7 @@ export namespace ssc::bridge {
           runtime.fs.rmdir(
             message.seq,
             message.get("path"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -651,7 +651,7 @@ export namespace ssc::bridge {
           runtime.fs.stat(
             message.seq,
             message.get("path"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -670,7 +670,7 @@ export namespace ssc::bridge {
           runtime.fs.unlink(
             message.seq,
             message.get("path"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -704,7 +704,7 @@ export namespace ssc::bridge {
             message.buffer.bytes,
             message.buffer.size,
             offset,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -739,7 +739,7 @@ export namespace ssc::bridge {
             id,
             size,
             buffer,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -774,7 +774,7 @@ export namespace ssc::bridge {
          * Returns a mapping of network interfaces.
          */
         router.map("os.networkInterfaces", [&](auto message, auto _, auto reply) {
-          runtime.os.networkInterfaces(message.seq, resultCallback(message, reply));
+          runtime.os.networkInterfaces(message.seq, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -802,7 +802,7 @@ export namespace ssc::bridge {
             message.seq,
             message.value,
             message.get("data"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -822,7 +822,7 @@ export namespace ssc::bridge {
             message.seq,
             message.get("title"),
             message.get("body"),
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -840,7 +840,7 @@ export namespace ssc::bridge {
           runtime.platform.openExternal(
             message.seq,
             message.value,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -848,7 +848,7 @@ export namespace ssc::bridge {
          * Returns computed current working directory path.
          */
         router.map("process.cwd", [&](auto message, auto _, auto reply) {
-          runtime.platform.cwd(message.seq, resultCallback(message, reply));
+          runtime.platform.cwd(message.seq, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -892,7 +892,7 @@ export namespace ssc::bridge {
             message.seq,
             id,
             options,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -910,7 +910,7 @@ export namespace ssc::bridge {
           uint64_t id;
           getMessageParam(id, "id", std::stoull);
 
-          runtime.udp.close(message.seq, id, resultCallback(message, reply));
+          runtime.udp.close(message.seq, id, RESULT_CALLBACK(message, reply));
         });
 
         /**
@@ -938,7 +938,7 @@ export namespace ssc::bridge {
             message.seq,
             id,
             options,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -959,7 +959,7 @@ export namespace ssc::bridge {
           runtime.udp.disconnect(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -980,7 +980,7 @@ export namespace ssc::bridge {
           runtime.udp.getPeerName(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -1001,7 +1001,7 @@ export namespace ssc::bridge {
           runtime.udp.getSockName(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -1022,7 +1022,7 @@ export namespace ssc::bridge {
           runtime.udp.getState(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -1044,7 +1044,7 @@ export namespace ssc::bridge {
           runtime.udp.readStart(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -1066,7 +1066,7 @@ export namespace ssc::bridge {
           runtime.udp.readStop(
             message.seq,
             id,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
 
@@ -1103,7 +1103,7 @@ export namespace ssc::bridge {
             message.seq,
             id,
             options,
-            resultCallback(message, reply)
+            RESULT_CALLBACK(message, reply)
           );
         });
       }

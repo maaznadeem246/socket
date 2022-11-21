@@ -249,6 +249,7 @@ function _build_ios_simulator_main () {
 }
 
 function _build_modules {
+  local pids=()
   echo "# building modules library"
   # build directly to the output assets directory for correct module file paths
   "$root/bin/build-modules-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
@@ -257,7 +258,9 @@ function _build_modules {
     #"$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
   fi
 
-  wait
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
 }
 
 function _prepare {
