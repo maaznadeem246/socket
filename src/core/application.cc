@@ -309,8 +309,6 @@ namespace ssc::core::application {
 
   app = CoreApplication::getInstance();
   window = app->createDefaultWindow();
-  printf("app=%p window=%p\n", app, window);
-  window->navigate(EMPTY_SEQ, ""); // FIXME
 
   return YES;
 }
