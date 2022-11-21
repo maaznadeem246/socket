@@ -21,7 +21,7 @@ using ssc::platform::PlatformInfo;
 using ssc::runtime::Runtime;
 using ssc::udp::UDP;
 
-#define RESULT_CALLBACK(message, reply)                                         \
+#define RESULT_CALLBACK(message, reply)                                        \
   [=](auto seq, auto json, auto data) {                                        \
     reply(Result { seq, message, json, data });                                \
   }
