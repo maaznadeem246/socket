@@ -24,7 +24,11 @@ namespace ssc::core::config {
       }
 
       const String operator [] (const String& key) const {
-        return this->entries.at(key);
+        if (this->entries.find(key) != this->entries.end()) {
+          return this->entries.at(key);
+        }
+
+        return "";
       }
 
       String& operator [] (const String& key) {
@@ -32,7 +36,11 @@ namespace ssc::core::config {
       }
 
       const String get (const String& key) const {
-        return this->entries.at(key);
+        if (this->entries.find(key) != this->entries.end()) {
+          return this->entries.at(key);
+        }
+
+        return "";
       }
 
       void set (const String& source) {

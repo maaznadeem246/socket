@@ -14,6 +14,7 @@ fi
 
 declare arch="$(uname -m)"
 declare platform="desktop"
+declare force=0
 
 if (( TARGET_OS_IPHONE )); then
   arch="arm64"
@@ -25,16 +26,20 @@ fi
 
 while (( $# > 0 )); do
   declare arg="$1"; shift
+  if [[ "$arg" = "--force" ]] || [[ "$arg" = "-f" ]]; then
+    force=1
+  fi
+
   if [[ "$arg" = "--arch" ]]; then
     arch="$1"; shift; continue
   fi
 
   if [[ "$arg" = "--platform" ]]; then
-    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
+    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]] || [[ "$1" = "iphoneos" ]]; then
       arch="arm64"
       platform="iPhoneOS";
       export TARGET_OS_IPHONE=1
-    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
+    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]] || [[ "$1" = "iphonesimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
       export TARGET_IPHONE_SIMULATOR=1
@@ -52,7 +57,6 @@ declare built_modules=0
 declare build_dir="${BUILD_DIR:-$root/build/$arch-$platform}"
 declare objects=()
 declare pids=()
-declare force=0
 
 declare cflags=($("$root/bin/cflags.sh" -xc++-module --precompile))
 declare ldflags=($("$root/bin/ldflags.sh"))
@@ -71,11 +75,6 @@ function main () {
 
   while (( $# > 0 )); do
     declare source="$1"; shift
-
-    if [[ "$source" = "-f" ]] || [[ "$source" = "--force" ]]; then
-      force=1
-      continue
-    fi
 
     if [[ "$source" = "--no-build-module-map" ]]; then
       should_build_module_map=0
@@ -150,41 +149,39 @@ function compile_module () {
 
   $clang ${cflags[@]} ${ldflags[@]} "$source" -o "$output" 2>&1 >/dev/null | {
     local did_read=0
+    local source=""
     while read -r line; do
       if echo "$line" | grep "imported by module" >/dev/null; then
         did_read=1;
         local module="$(echo "$line" | grep -Eo 'imported by module.*' | awk '{print $4}' | tr -d "'" | sed 's/ssc.//g')"
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
-        touch "$source"
-        compile_module "$source"
       elif echo "$line" | grep -E 'module.*' | grep 'not found' >/dev/null; then
         did_read=1;
         local module="$(echo "$line" | grep -Eo "module .*" | awk '{print $2}' | tr -d "'" | sed 's/ssc.//g')"
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
-        touch "$source"
-        compile_module "$source"
       elif echo "$line" | grep "rebuild precompiled header" >/dev/null; then
         did_read=1;
         local module="$(echo "$line" | grep -Eo 'header.*' | awk '{print $2}' | xargs basename | tr -d "'" | sed 's/ssc.//g')"
         module="${module/\.pcm/}"
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
-        touch "$source"
-        compile_module "$source"
       elif (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
         did_read=1;
         local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
         module="${module/\.pcm/}"
         local source="$(echo "$module" | sed 's/\./\//g')"
         source="$root/src/modules/$source.cc"
-        touch "$source"
-        compile_module "$source"
       else
         if (( !did_read )) && (( ${#line} > 0 )); then
           echo $line
         fi
+      fi
+
+      if test -f "$source"; then
+        touch "$source"
+        compile_module "$source"
       fi
     done
 

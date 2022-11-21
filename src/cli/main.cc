@@ -1394,6 +1394,12 @@ int main (const int argc, const char* argv[]) {
         config["apple_team_id"] = "";
       }
 
+      fs::create_directories(paths.platformSpecificOutputPath / "src");
+      fs::create_directories(paths.platformSpecificOutputPath / "src/core");
+      fs::create_directories(paths.platformSpecificOutputPath / "lib");
+      fs::create_directories(paths.platformSpecificOutputPath / "include");
+      fs::create_directories(paths.platformSpecificOutputPath / "objects");
+
       fs::copy(
         fs::path(prefixFile()) / "include",
         paths.platformSpecificOutputPath / "include",
@@ -1401,8 +1407,80 @@ int main (const int argc, const char* argv[]) {
       );
 
       fs::copy(
-        fs::path(prefixFile()) / "src",
+        fs::path(prefixFile()) / "src/config.cc",
         paths.platformSpecificOutputPath / "src",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/debug.cc",
+        paths.platformSpecificOutputPath / "src",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/init.cc",
+        paths.platformSpecificOutputPath / "src",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/config.cc",
+        paths.platformSpecificOutputPath / "src",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/config.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/data.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/env.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/javascript.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/json.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/string.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/types.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/utils.hh",
+        paths.platformSpecificOutputPath / "src/core",
+        fs::copy_options::overwrite_existing | fs::copy_options::recursive
+      );
+
+      fs::copy(
+        fs::path(prefixFile()) / "src/core/version.hh",
+        paths.platformSpecificOutputPath / "src/core",
         fs::copy_options::overwrite_existing | fs::copy_options::recursive
       );
 

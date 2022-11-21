@@ -28,7 +28,6 @@ namespace ssc::core::window {
       this->window.rootViewController = viewController;
 
       [viewController.view setFrame: frame];
-      [coreWindow->webview->internals->webview.scrollView setDelegate: this->delegate];
 
       [notificationCenter
         addObserver: this->delegate
@@ -122,6 +121,9 @@ namespace ssc::core::window {
   }
 
   void CoreWindow::initialize ()  {
+    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+      [this->webview->internals->webview.scrollView setDelegate: this->internals->delegate];
+    #endif
 
     /*
      TODO(@jwerle): move this to bridge

@@ -99,7 +99,20 @@ function _build_cli {
 
   "$CXX" ${cflags[@]}                             \
     -c "$root/src/cli/main.cc"                    \
-    -o "$BUILD_DIR/$arch-$platform/objects/cli.o" &&
+    -o "$BUILD_DIR/$arch-$platform/objects/cli.o" | {
+      while read -r line; do
+        if (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
+          local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
+          module="${module/\.pcm/}"
+          local source="$(echo "$module" | sed 's/\./\//g')"
+          source="$root/src/modules/$source.cc"
+          if test -f "$source"; then
+            touch "$source"
+            "$root/bin/build-module.sh" --arch "$(uname -m)" --platform desktop "$source";
+          fi
+        fi
+      done
+  } &&
 
   "$CXX" ${cflags[@]} ${ldflags[@]}            \
     "$BUILD_DIR/$arch-$platform/objects/cli.o" \
@@ -135,7 +148,24 @@ function _build_desktop_main () {
   mkdir -p "$(dirname "$output")"
 
   #echo "$CXX" ${cflags[@]} -c "$source" -o "$output"
-  "$CXX" ${cflags[@]} -c "$source" -o "$output"
+  "$CXX" ${cflags[@]} -c "$source" -o "$output" 2>&1 >/dev/null | {
+    local did_build_module=0
+    while read -r line; do
+      if (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
+        local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
+        module="${module/\.pcm/}"
+        local source="$(echo "$module" | sed 's/\./\//g')"
+        source="$root/src/modules/$source.cc"
+        if test -f "$source"; then
+          touch "$source"
+          "$root/bin/build-module.sh" --arch "$(uname -m)" --platform desktop "$source" || return $?
+          did_build_module=1
+        fi
+      elif (( !did_build_module )); then
+        echo "$line"
+      fi
+    done
+  }
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for desktop"
@@ -165,7 +195,24 @@ function _build_ios_main () {
   # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
 
   "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
-  "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}"
+  "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}" 2>&1 >/dev/null | {
+    local did_build_module=0
+    while read -r line; do
+      if (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
+        local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
+        module="${module/\.pcm/}"
+        local source="$(echo "$module" | sed 's/\./\//g')"
+        source="$root/src/modules/$source.cc"
+        if test -f "$source"; then
+          touch "$source"
+          "$root/bin/build-module.sh" --arch "$arch" --platform "$platform" "$source" || return $?
+          did_build_module=1
+        fi
+      elif (( !did_build_module )); then
+        echo "$line"
+      fi
+    done
+  }
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for iOS"

@@ -18,16 +18,15 @@ fi
 while (( $# > 0 )); do
   declare arg="$1"; shift
   if [[ "$arg" = "--arch" ]]; then
-    arch="$1"; shift
-    continue
+    arch="$1"; shift; continue
   fi
 
   if [[ "$arg" = "--platform" ]]; then
-    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
+    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]] || [[ "$1" = "iphoneos" ]]; then
       arch="arm64"
       platform="iPhoneOS";
       export T1ET_OS_IPHONE=1
-    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
+    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]] || [[ "$1" = "iphonesimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
       export T1ET_IPHONE_SIMULATOR=1

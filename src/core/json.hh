@@ -222,7 +222,11 @@ namespace ssc::core::JSON {
       }
 
       Any operator [] (const std::string& key) const {
-        return this->data.at(key);
+        if (this->data.find(key) != this->data.end()) {
+          return this->data.at(key);
+        }
+
+        return nullptr;
       }
 
       Any &operator [] (const std::string& key) {

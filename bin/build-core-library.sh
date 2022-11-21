@@ -30,11 +30,11 @@ while (( $# > 0 )); do
   fi
 
   if [[ "$arg" = "--platform" ]]; then
-    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
+    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]] || [[ "$1" = "iphoneos" ]]; then
       arch="arm64"
       platform="iPhoneOS";
       export TARGET_OS_IPHONE=1
-    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
+    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]] || [[ "$1" = "iphonesimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
       export TARGET_IPHONE_SIMULATOR=1
@@ -109,4 +109,10 @@ function build () {
   echo "ok - built static library ($arch-$platform): $(basename "$static_library")"
 }
 
-build "$@"
+build "${args[@]}"
+
+for pid in "${pids[@]}"; do
+  wait "$pid" 2>/dev/null
+done
+
+exit $?

@@ -20,7 +20,7 @@ fi
 while (( $# > 0 )); do
   declare arg="$1"; shift
   if [[ "$arg" = "--force" ]] || [[ "$arg" = "-f" ]]; then
-    force=1; continue
+    force=1
   fi
 
   if [[ "$arg" = "--arch" ]]; then
@@ -28,11 +28,11 @@ while (( $# > 0 )); do
   fi
 
   if [[ "$arg" = "--platform" ]]; then
-    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]]; then
+    if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]] || [[ "$1" = "iphoneos" ]]; then
       arch="arm64"
       platform="iPhoneOS";
       export TARGET_OS_IPHONE=1
-    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]]; then
+    elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]] || [[ "$1" = "iphonesimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
       export TARGET_IPHONE_SIMULATOR=1
@@ -43,7 +43,7 @@ while (( $# > 0 )); do
     continue
   fi
 
-  args+=()
+  args+=("$arg")
 done
 
 declare static_library="$build_dir/$arch-$platform/lib/libsocket-modules.a"
@@ -90,7 +90,7 @@ function build () {
   "$root/bin/build-module.sh"                  \
     --arch "$arch"                             \
     --platform "$platform"                     \
-    "$(if (( force )); then echo --force; fi)" \
+    "${args[@]}"                               \
     "$@"
 }
 

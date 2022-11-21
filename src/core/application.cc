@@ -17,6 +17,10 @@
 using namespace ssc::core::string;
 using namespace ssc::core::application;
 
+const String OK_STATE = "0";
+const String ERROR_STATE = "1";
+const String EMPTY_SEQ = String("");
+
 #if defined(__APPLE__)
 static dispatch_queue_attr_t qos = dispatch_queue_attr_make_with_qos_class(
   DISPATCH_QUEUE_CONCURRENT,
@@ -305,6 +309,8 @@ namespace ssc::core::application {
 
   app = CoreApplication::getInstance();
   window = app->createDefaultWindow();
+  printf("app=%p window=%p\n", app, window);
+  window->navigate(EMPTY_SEQ, ""); // FIXME
 
   return YES;
 }
