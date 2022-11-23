@@ -9,16 +9,6 @@
 #include <sstream>
 #include <thread>
 
-import ssc.templates;
-import ssc.platform;
-import ssc.process;
-import ssc.version;
-import ssc.utils;
-import ssc.config;
-import ssc.string;
-import ssc.types;
-import ssc.env;
-
 #ifdef __linux__
 #include <cstring>
 #endif
@@ -41,6 +31,8 @@ import ssc.env;
 #include <unistd.h>
 #endif
 
+#include "templates.hh"
+
 #ifndef CMD_RUNNER
 #define CMD_RUNNER
 #endif
@@ -54,9 +46,9 @@ namespace fs = std::filesystem;
 
 using namespace std::chrono;
 
-using ssc::version::VERSION_FULL_STRING;
-using ssc::version::VERSION_HASH_STRING;
-using ssc::version::VERSION_STRING;
+using ssc::VERSION_FULL_STRING;
+using ssc::VERSION_HASH_STRING;
+using ssc::VERSION_STRING;
 
 using ssc::platform::PlatformInfo;
 using ssc::process::exec;

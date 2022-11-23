@@ -1,51 +1,66 @@
 #ifndef SSC_SOCKET_PLATFORM_HH
 #define SSC_SOCKET_PLATFORM_HH
 
-#if !defined(SSC_INLINE_INCLUDE)
-  #include <errno.h>
-  #include <stddef.h>
-  #include <stdio.h>
-  #include <stdlib.h>
+#include <errno.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-  #if defined(_WIN32)
-    #if !defined(WIN32_LEAN_AND_MEAN)
-      #define WIN32_LEAN_AND_MEAN
-    #endif
-
-    #include <dwmapi.h>
-    #include <io.h>
-    #include <tchar.h>
-    #include <shlobj_core.h>
-    #include <shobjidl.h>
-    #include <signal.h>
-    #include <wingdi.h>
-    #include <Winbase.h>
-    #include <windows.h>
-    #include <ws2tcpip.h>
-
-    #include <future>
-  #else
-    #include <arpa/inet.h>
-    #include <ifaddrs.h>
-    #include <sys/socket.h>
-    #include <sys/types.h>
-    #include <sys/wait.h>
-    #include <unistd.h>
+#if defined(_WIN32)
+  #if !defined(WIN32_LEAN_AND_MEAN)
+    #define WIN32_LEAN_AND_MEAN
   #endif
 
-  #if defined(__APPLE__)
-    #include <CoreFoundation/CoreFoundation.h>
-    #include <TargetConditionals.h>
-    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-      #include <_types/_uint64_t.h>
-      #include <netinet/in.h>
-      #include <sys/un.h>
-    #endif
+  #include <dwmapi.h>
+  #include <io.h>
+  #include <tchar.h>
+  #include <shlobj_core.h>
+  #include <shobjidl.h>
+  #include <signal.h>
+  #include <wingdi.h>
+  #include <Winbase.h>
+  #include <windows.h>
+  #include <ws2tcpip.h>
+
+  #include <future>
+#endif
+
+#if defined(__APPLE__)
+  #include <CoreBluetooth/CoreBluetooth.h>
+  #include <Foundation/Foundation.h>
+  #include <TargetConditionals.h>
+  #include <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+  #include <UserNotifications/UserNotifications.h>
+  #include <WebKit/WebKit.h>
+
+  #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+    #include <_types/_uint64_t.h>
+    #include <netinet/in.h>
+    #include <sys/un.h>
+    #include <UIKit/UIKit.h>
+    #include <objc/runtime.h>
+  #elif TARGET_OS_MAC
+    #include <objc/objc-runtime.h>
+    #include <Cocoa/Cocoa.h>
   #endif
 #endif
 
-#include <exception>
-#include <string>
+#if defined(__linux__) && !defined(__ANDROID__)
+  #include <JavaScriptCore/JavaScript.h>
+  #include <webkit2/webkit2.h>
+  #include <gtk/gtk.h>
+#endif
+
+#if !defined(_WIN32)
+  #include <arpa/inet.h>
+  #include <ifaddrs.h>
+  #include <sys/socket.h>
+  #include <sys/types.h>
+  #include <sys/wait.h>
+  #include <unistd.h>
+#endif
+
+
 #include "common.hh"
 
 namespace ssc::platform {

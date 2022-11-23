@@ -85,49 +85,24 @@ function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
   local arch="$(uname -m)"
   local platform="desktop"
-  local ldflags=($("$root/bin/ldflags.sh" --arch "$arch" --platform "$platform" -l{uv,socket-{core,modules}}))
-
-  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
-  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
-  local cflags=(
-    $("$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules)
-  )
+  local ldflags=($("$root/bin/ldflags.sh" --arch "$arch" --platform "$platform" -l{uv,socket}))
+  local cflags=( $("$root/bin/cflags.sh" -Os))
 
   mkdir -p "$BUILD_DIR/$arch-$platform/bin" &&
-  mkdir -p "$BUILD_DIR/$arch-$platform/objects" &&
-  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
-
-  "$CXX" ${cflags[@]}                             \
-    -c "$root/src/cli/main.cc"                    \
-    -o "$BUILD_DIR/$arch-$platform/objects/cli.o" | {
-      while read -r line; do
-        if (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
-          local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
-          module="${module/\.pcm/}"
-          local source="$(echo "$module" | sed 's/\./\//g')"
-          source="$root/src/modules/$source.cc"
-          if test -f "$source"; then
-            touch "$source"
-            "$root/bin/build-module.sh" --arch "$(uname -m)" --platform desktop "$source";
-          fi
-        fi
-      done
-  } &&
-
-  "$CXX" ${cflags[@]} ${ldflags[@]}            \
-    "$BUILD_DIR/$arch-$platform/objects/cli.o" \
+  "$CXX" ${cflags[@]} ${ldflags[@]}         \
+    "$root/src/cli/main.cc"                 \
     -o "$BUILD_DIR/$arch-$platform/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - built the cli for desktop"
 }
 
-function _build_core {
-  echo "# building core library"
-  "$root/bin/build-core-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
+function _build_library {
+  echo "# building library"
+  "$root/bin/build-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    "$root/bin/build-core-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
-    #"$root/bin/build-core-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
+    "$root/bin/build-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
+    #"$root/bin/build-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
   fi
 
   wait
@@ -138,35 +113,13 @@ function _build_desktop_main () {
   local arch="$(uname -m)"
   local platform="desktop"
 
-  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
-  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
-
-  local cflags=($("$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
+  local cflags=($("$root/bin/cflags.sh" -Os))
   local source="$root/src/desktop/main.cc"
   local output="$BUILD_DIR/$arch-$platform/objects/main.o"
 
   mkdir -p "$(dirname "$output")"
 
-  #echo "$CXX" ${cflags[@]} -c "$source" -o "$output"
-  "$CXX" ${cflags[@]} -c "$source" -o "$output" 2>&1 >/dev/null | {
-    local did_build_module=0
-    while read -r line; do
-      if (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
-        local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
-        module="${module/\.pcm/}"
-        local source="$(echo "$module" | sed 's/\./\//g')"
-        source="$root/src/modules/$source.cc"
-        if test -f "$source"; then
-          touch "$source"
-          "$root/bin/build-module.sh" --arch "$(uname -m)" --platform desktop "$source" || return $?
-          did_build_module=1
-        fi
-      elif (( !did_build_module )); then
-        echo "$line"
-      fi
-    done
-  }
-
+  quiet "$CXX" ${cflags[@]} -c "$source" -o "$output"
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for desktop"
 }
@@ -176,10 +129,7 @@ function _build_ios_main () {
   local arch="arm64"
   local platform="iPhoneOS"
 
-  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
-  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
-
-  local cflags=($(TARGET_OS_IPHONE=1 "$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
+  local cflags=($(TARGET_OS_IPHONE=1 "$root/bin/cflags.sh" -Os))
   local sources=(
     "$root/src/ios/start.mm"
     "$root/src/ios/main.cc"
@@ -194,25 +144,13 @@ function _build_ios_main () {
 
   # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
 
-  "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
-  "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}" 2>&1 >/dev/null | {
-    local did_build_module=0
-    while read -r line; do
-      if (echo "$line" | grep "has been modified" >/dev/null) || (echo "$line" | grep "out of date" >/dev/null) then
-        local module="$(echo "$line" | grep -Eo 'module file.*' | awk '{print $3}' | tr -d "'" | xargs basename | sed 's/ssc.//g')"
-        module="${module/\.pcm/}"
-        local source="$(echo "$module" | sed 's/\./\//g')"
-        source="$root/src/modules/$source.cc"
-        if test -f "$source"; then
-          touch "$source"
-          "$root/bin/build-module.sh" --arch "$arch" --platform "$platform" "$source" || return $?
-          did_build_module=1
-        fi
-      elif (( !did_build_module )); then
-        echo "$line"
-      fi
-    done
-  }
+  quiet "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} \
+    -c "${sources[0]}"                                      \
+    -o "${outputs[0]}" &&
+
+  quiet "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} \
+    -c "${sources[1]}"                                      \
+    -o "${outputs[1]}"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for iOS"
@@ -222,11 +160,7 @@ function _build_ios_simulator_main () {
   echo "# precompiling main program for iOS Simulator"
   local arch="x86_64"
   local platform="iPhoneSimulator"
-
-  export MODULE_MAP_FILE="$arch-$platform/modules/modules.modulemap"
-  export MODULE_PATH="$BUILD_DIR/$arch-$platform/modules"
-
-  local cflags=($(TARGET_OS_IPHONE=1 "$root/bin/cflags.sh" -Os -fmodules-ts -fimplicit-modules))
+  local cflags=($(TARGET_IPHONE_SIMULATOR=1 "$root/bin/cflags.sh" -Os))
   local sources=(
     "$root/src/ios/start.mm"
     "$root/src/ios/main.cc"
@@ -241,26 +175,15 @@ function _build_ios_simulator_main () {
 
   # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
 
-  "$(xcrun -sdk iphonesimulator -find clang++)" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}" &&
-  "$CXX" ${cflags[@]} -c "${sources[1]}" -o "${outputs[1]}"
+  quiet "$(xcrun -sdk iphonesimulator -find clang++)" ${cflags[@]} \
+    -c "${sources[0]}"                                             \
+    -o "${outputs[0]}" &&
+  quiet "$(xcrun -sdk iphonesimulator -find clang++)" ${cflags[@]} \
+    -c "${sources[1]}"                                             \
+    -o "${outputs[1]}"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - precompiled main program for iOS Simulator"
-}
-
-function _build_modules {
-  local pids=()
-  echo "# building modules library"
-  # build directly to the output assets directory for correct module file paths
-  "$root/bin/build-modules-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
-  if [[ "$(uname -s)" = "Darwin" ]]; then
-    "$root/bin/build-modules-library.sh" --arch arm64 --platform iPhoneOS & pids+=($!)
-    #"$root/bin/build-modules-library.sh" --arch x86_64 --platform iPhoneSimulator
-  fi
-
-  for pid in "${pids[@]}"; do
-    wait "$pid"
-  done
 }
 
 function _prepare {
@@ -272,12 +195,12 @@ function _prepare {
 
   echo "# preparing directories..."
   rm -rf "$ASSETS_DIR"
-  mkdir -p "$ASSETS_DIR"/{lib,src,include,modules,cache,objects}
+  mkdir -p "$ASSETS_DIR"/{lib,src,include,cache,objects}
 
-  mkdir -p "$ASSETS_DIR"/{lib,modules,objects}/"$(uname -m)-desktop"
+  mkdir -p "$ASSETS_DIR"/{lib,objects}/"$(uname -m)-desktop"
 
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    mkdir -p "$ASSETS_DIR"/{lib,modules,objects}/{arm64-iPhoneOS,x86-iPhoneSimulator}
+    mkdir -p "$ASSETS_DIR"/{lib,objects}/{arm64-iPhoneOS,x86-iPhoneSimulator}
   fi
 
   if [ ! -d "$BUILD_DIR/uv" ]; then
@@ -320,14 +243,6 @@ function _install {
   mkdir -p "$ASSETS_DIR/include"
   cp -rf "$WORK_DIR"/include/* $ASSETS_DIR/include
   cp -rf "$BUILD_DIR"/uv/include/* $ASSETS_DIR/include
-
-  if test -d "$BUILD_DIR/$arch-$platform"/modules; then
-    echo "# copying modules to $ASSETS_DIR/modules/$arch-$platform"
-    rm -rf "$ASSETS_DIR/modules/$arch-$platform"
-    mkdir -p "$ASSETS_DIR/modules/$arch-$platform"
-    cp -fr "$BUILD_DIR/$arch-$platform"/modules/*.pcm "$ASSETS_DIR/modules/$arch-$platform"
-    cp -fr "$BUILD_DIR/$arch-$platform"/modules/*.modulemap "$ASSETS_DIR/modules/$arch-$platform"
-  fi
 }
 
 function _install_cli {
@@ -435,13 +350,11 @@ function _compile_libuv {
 
 function _check_compiler_features {
   echo "# checking compiler features"
-  $CXX -std=c++20 -fmodules-ts -x c++-module --precompile -o /dev/null - << EOF_CC >/dev/null 2>&1
-    module;
+  $CXX -std=c++20 -o /dev/null - << EOF_CC >/dev/null 2>&1
     #include <semaphore>
-    export module X;
-    export namespace X { void X () {} }
 EOF_CC
 
+  # FIXME
   die $? "not ok - $CXX (`$CXX -dumpversion`) clang > 15 is required for building socket"
 }
 
@@ -499,8 +412,7 @@ cd $WORK_DIR
 
 cd "$BUILD_DIR"
 #export BUILD_DIR
-_build_core
-_build_modules
+_build_library
 _build_desktop_main & pids+=($!)
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
@@ -519,7 +431,7 @@ _install "$(uname -m)" desktop
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
   _install arm64 iPhoneOS
-  #_install x86_64 iPhoneSimulator
+  _install x86_64 iPhoneSimulator
 fi
 
 _install_cli
