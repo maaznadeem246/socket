@@ -1,6 +1,5 @@
+#include <socket/socket.hh>
 #include <assert.h>
-
-import ssc.version;
 
 using namespace ssc;
 

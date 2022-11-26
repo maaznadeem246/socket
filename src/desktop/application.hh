@@ -2,25 +2,17 @@
 #define SSC_DESKTOP_APPLICATION_H
 
 #include <socket/socket.hh>
-#include <socket/utils.hh>
-
-#include "../runtime/application.hh"
-#include "../runtime/ipc.hh"
-#include "../runtime/log.hh"
-#include "../runtime/process.hh"
-#include "../runtime/runtime.hh"
-#include "../runtime/window.hh"
 
 // namespace log = ssc::runtime::log;
 
 namespace ssc::desktop {
   using runtime::Runtime;
-  using runtime::window::Window;
-  using runtime::window::WindowManager;
-  using runtime::window::WindowOptions;
-  using RuntimeApplication = runtime::application::Application;
+  using runtime::Window;
+  using runtime::WindowManager;
+  using runtime::WindowOptions;
+  using runtime::CoreApplication;
 
-  class Application : public RuntimeApplication {
+  class Application : public CoreApplication {
     public:
       WindowManager windowManager;
       Runtime runtime;
@@ -29,16 +21,16 @@ namespace ssc::desktop {
       Application () : Application(0, nullptr) {}
       Application (const int argc, const char** argv)
         : windowManager(*this, runtime),
-          RuntimeApplication(argc, argv) {}
+          CoreApplication(argc, argv) {}
 
     #if defined(_WIN32) // Windows
       Application (void* hInstance, const int argc, const char** argv)
         : windowManager(*this, runtime),
-          RuntimeApplication(hInstance, argc, argv) {}
+          CoreApplication(hInstance, argc, argv) {}
     #else // POSIX
       Application (int unused, const int argc, const char** argv)
         : windowManager(*this, runtime),
-          RuntimeApplication(unused, argc, argv) {}
+          CoreApplication(unused, argc, argv) {}
     #endif
 
       Window* createDefaultWindow () {

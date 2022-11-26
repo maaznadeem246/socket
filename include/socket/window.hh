@@ -1,16 +1,15 @@
-#ifndef SSC_RUNTIME_WINDOW_HH
-#define SSC_RUNTIME_WINDOW_HH
+#ifndef SSC_SOCKET_WINDOW_HH
+#define SSC_SOCKET_WINDOW_HH
 
-#include <socket/socket.hh>
-#include <socket/utils.hh>
-
-#include "application.hh"
-#include "ipc.hh"
+#include "common.hh"
 #include "runtime.hh"
+#include "utils.hh"
 #include "webview.hh"
-#include "log.hh"
 
 namespace ssc::runtime::window {
+  using namespace runtime;
+  using namespace webview;
+
   using config::Config;
   using utils::encodeURIComponent;
 
@@ -18,16 +17,10 @@ namespace ssc::runtime::window {
   class DragDrop;
   class WindowInternals;
 
-  using namespace application;
-  using namespace ipc;
-  using namespace webview;
-
-  #if !defined(MAX_WINDOWS)
-    #if defined(SSC_MAX_WINDOWS)
-      static constexpr int MAX_WINDOWS = SSC_MAX_WINDOWS;
-    #else
-      static constexpr int MAX_WINDOWS = 32;
-    #endif
+  #if defined(SSC_MAX_WINDOWS)
+    static constexpr int MAX_WINDOWS = SSC_MAX_WINDOWS;
+  #else
+    static constexpr int MAX_WINDOWS = 32;
   #endif
 
   struct ScreenSize {
@@ -226,7 +219,7 @@ namespace ssc::runtime::window {
   class Window {
     public:
       WindowOptions opts;
-      Application& app;
+      CoreApplication& app;
       Runtime& runtime;
       Bridge bridge;
       WindowInternals *internals = nullptr;
@@ -239,7 +232,7 @@ namespace ssc::runtime::window {
 
       Window () = delete;
       Window (
-        Application&,
+        CoreApplication&,
         Runtime& runtime,
         const WindowOptions
       );
@@ -336,7 +329,7 @@ namespace ssc::runtime::window {
 
           ManagedWindow (
             WindowManager& manager,
-            Application& app,
+            CoreApplication& app,
             Runtime& runtime,
             WindowOptions opts
           );
@@ -351,7 +344,7 @@ namespace ssc::runtime::window {
 
       std::chrono::system_clock::time_point lastDebugLogLine;
 
-      Application &app;
+      CoreApplication &app;
       bool destroyed = false;
       std::vector<bool> inits;
       std::vector<ManagedWindow*> windows;
@@ -360,7 +353,7 @@ namespace ssc::runtime::window {
       Runtime& runtime;
 
       WindowManager (
-        Application& app,
+        CoreApplication& app,
         Runtime& runtime
       );
 

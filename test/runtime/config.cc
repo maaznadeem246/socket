@@ -1,11 +1,7 @@
 #include <socket/socket.hh>
 #include <assert.h>
 
-import ssc.config;
-import ssc.string;
-import ssc.log;
-
-using namespace ssc::string;
+using namespace ssc;
 using namespace ssc::config;
 
 auto constexpr source = R"CONFIG(

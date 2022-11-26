@@ -1,6 +1,6 @@
 #include <socket/utils.hh>
-#include "webview.hh"
-#include "window.hh"
+#include <socket/webview.hh>
+#include <socket/window.hh>
 
 using namespace ssc;
 using namespace ssc::runtime;

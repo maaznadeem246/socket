@@ -8,9 +8,6 @@
 #pragma comment(lib, "Gdi32.lib")
 #endif
 
-#include "application.hh"
-#include "window.hh"
-
 using namespace ssc;
 
 static const String OK_STATE = "0";
@@ -45,34 +42,34 @@ static inline void alert (const char* s) {
 }
 #endif
 
-namespace ssc::runtime::application {
-  Application::Application (
+namespace ssc::runtime {
+  CoreApplication::CoreApplication (
     const int argc,
     const char** argv
   ) : argc(argc), argv(argv) {
     this->wasStartedFromCli = env::has("SSC_CLI");
     ssc::init(this->config, argc, argv);
-    Application::instance = this;
+    CoreApplication::instance = this;
   }
 
-  Application::~Application () {
-    Application::instance = nullptr;
+  CoreApplication::~CoreApplication () {
+    CoreApplication::instance = nullptr;
   }
 
 #if !defined(_WIN32)
-  Application::Application (
+  CoreApplication::CoreApplication (
     int unused,
     const int argc,
     const char** argv
-  ) : Application(argc, argv) {
+  ) : CoreApplication(argc, argv) {
     // noop
   }
 #else
-  Application::Application (
+  CoreApplication::CoreApplication (
     void *hInstance,
     const int argc,
     const char** argv
-  ) : Application() {
+  ) : CoreApplication() {
     this->hInstance = hInstance; // HINSTANCE
 
     HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
@@ -123,12 +120,12 @@ namespace ssc::runtime::application {
     //wcex.lpfnWndProc = Window::WndProc; // FIXME
 
     if (!RegisterClassEx(&wcex)) {
-      alert("Application could not launch, possible missing resources.");
+      alert("CoreApplication could not launch, possible missing resources.");
     }
   }
 #endif
 
-  int Application::run () {
+  int CoreApplication::run () {
   #if defined(__linux__)
     gtk_main();
   #elif defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
@@ -161,7 +158,7 @@ namespace ssc::runtime::application {
     return exitWasRequested ? 1 : 0;
   }
 
-  void Application::kill () {
+  void CoreApplication::kill () {
     // Distinguish window closing with app exiting
     exitWasRequested = true;
   #if defined(__linux__)
@@ -177,7 +174,7 @@ namespace ssc::runtime::application {
   #endif
   }
 
-  void Application::restart () {
+  void CoreApplication::restart () {
   #if defined(__linux__)
     // @TODO
   #elif defined(__APPLE__)
@@ -192,7 +189,7 @@ namespace ssc::runtime::application {
   #endif
   }
 
-  void Application::dispatch (std::function<void()> callback) {
+  void CoreApplication::dispatch (std::function<void()> callback) {
   #if defined(__linux__)
     auto threadCallback = new std::function<void()>(callback);
 
@@ -232,7 +229,7 @@ namespace ssc::runtime::application {
   #endif
   }
 
-  String Application::cwd () {
+  String CoreApplication::cwd () {
     String cwd = "";
 
     #if defined(__linux__) && !defined(__ANDROID__)
@@ -259,7 +256,7 @@ namespace ssc::runtime::application {
     return cwd;
   }
 
-  void Application::exit (int code) {
+  void CoreApplication::exit (int code) {
     if (this->callbacks.onExit != nullptr) {
       this->callbacks.onExit(code);
     }
@@ -267,7 +264,7 @@ namespace ssc::runtime::application {
 }
 
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
-@implementation IOSApplication
+@implementation IOSCoreApplication
 //
 // iOS has no "window". There is no navigation, just a single webview. It also
 // has no "main" process, we want to expose some network functionality to the
@@ -303,7 +300,7 @@ namespace ssc::runtime::application {
   didFinishLaunchingWithOptions: (NSDictionary*) launchOptions
 {
 
-  app = ssc::runtime::application::Application::getInstance();
+  app = ssc::runtime::CoreApplication::getInstance();
   window = app->createDefaultWindow();
 
   return YES;

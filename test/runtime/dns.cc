@@ -1,16 +1,10 @@
-import ssc.runtime;
-import ssc.string;
-import ssc.json;
-import ssc.dns;
-import ssc.log;
+#include <socket/socket.hh>
 
 #include <new>
 #include <assert.h>
 
 using namespace ssc;
-using ssc::dns::DNS;
-using ssc::string::String;
-using ssc::runtime::Runtime;
+using namespace ssc::runtime;
 
 auto test_family4_lookup_passed = false;
 auto test_family6_lookup_passed = false;

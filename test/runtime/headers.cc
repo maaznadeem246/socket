@@ -1,12 +1,8 @@
+#include <socket/socket.hh>
 #include <assert.h>
 
-import ssc.headers;
-import ssc.string;
-import ssc.log;
-
-using namespace ssc::headers;
-using namespace ssc::string;
 using namespace ssc;
+using namespace ssc::runtime;
 
 int main () {
   auto entries = Headers::Entries {

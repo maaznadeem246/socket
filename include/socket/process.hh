@@ -1,7 +1,9 @@
-#ifndef SSC_RUNTIME_PROCESS_H
-#define SSC_RUNTIME_PROCESS_H
+#ifndef SSC_SOCKET_PROCESS_H
+#define SSC_SOCKET_PROCESS_H
 
-#include <socket/socket.hh>
+#include "log.hh"
+#include "platform.hh"
+#include "runtime.hh"
 
 #include <array>
 #include <bitset>
@@ -16,8 +18,6 @@
   #include <unistd.h>
   #include <signal.h>
 #endif
-
-#include "log.hh"
 
 namespace ssc::runtime::process {
   using MessageCallback = std::function<void(const std::string)>;

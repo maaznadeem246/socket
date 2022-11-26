@@ -1,11 +1,29 @@
-#ifndef SSC_RUNTIME_RUNTIME_HH
-#define SSC_RUNTIME_RUNTIME_HH
+#ifndef SSC_SOCKET_RUNTIME_HH
+#define SSC_SOCKET_RUNTIME_HH
 
-#include <socket/socket.hh>
+#include "common.hh"
+#include "config.hh"
+#include "json.hh"
+#include "platform.hh"
+
 #include <uv.h>
+
+namespace ssc::runtime::window {
+  // forward
+  class Window;
+  class WindowOptions;
+  class WindowManager;
+  class WindowManagerOptions;
+}
+
+namespace ssc::runtime::process {
+  // forward
+  class Process;
+}
 
 namespace ssc::runtime {
   // forward
+  class CoreApplicationInternals;
   class BluetoothInternals;
   class Descriptor;
   class DescriptorManager;
@@ -17,6 +35,13 @@ namespace ssc::runtime {
   namespace ipc {
     class Router;
   }
+
+  using Config = config::Config;
+  using Process = process::Process;
+  using Window = window::Window;
+  using WindowOptions = window::WindowOptions;
+  using WindowManager = window::WindowManager;
+  using WindowManagerOptions = window::WindowManagerOptions;
 
   constexpr int RECV_BUFFER = 1;
   constexpr int SEND_BUFFER = 0;
@@ -844,6 +869,268 @@ namespace ssc::runtime {
       void stop ();
       void dispatch (Loop::DispatchCallback cb);
       void wait ();
+  };
+
+  class CoreApplication {
+    public:
+      static inline AtomicBool isReady = false;
+      static inline CoreApplication* instance = nullptr;
+
+      static CoreApplication* getInstance () {
+        return CoreApplication::instance;
+      }
+
+      struct Callbacks {
+        ExitCallback onExit = nullptr;
+      };
+
+      CoreApplicationInternals* internals = nullptr;
+      AtomicBool exitWasRequested = false;
+      AtomicBool wasStartedFromCli = false;
+      AtomicBool running = false;
+      AtomicBool started = false;
+      Callbacks callbacks;
+      Config config;
+      const int argc;
+      const char** argv;
+
+      CoreApplication (const CoreApplication&) = delete;
+      CoreApplication ()
+        : argc(0),
+          argv(nullptr)
+      {}
+
+      CoreApplication (const int argc, const char** argv);
+      ~CoreApplication ();
+
+      #if defined(_WIN32)
+        void* hInstance;
+        CoreApplication (
+          /* HINSTANCE*/ void* hInstance,
+          const int argc,
+          const char** argv
+        );
+      #else
+        CoreApplication (
+          int unused,
+          const int argc,
+          const char** argv
+        );
+      #endif
+
+      int run ();
+      void kill ();
+      void exit (int code);
+      void restart ();
+      void dispatch (Function<void()>);
+      String cwd ();
+
+      virtual window::Window* createDefaultWindow () = 0;
+      virtual window::Window* createWindow () = 0;
+      virtual void start () = 0;
+      virtual void stop () = 0;
+      virtual void onPause () = 0;
+      virtual void onResume () = 0;
+  };
+}
+
+#if defined(__APPLE__)
+  #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+    @interface ApplicationDelegate : NSObject<UIApplicationDelegate >
+    @end
+
+    @interface IOSCoreApplication : NSObject<UIApplicationDelegate> {
+      // initialized in `application:didFinishLaunchingWithOptions:` selector
+      ssc::runtime::CoreApplication* app;
+      ssc::runtime::Window* window;
+    }
+    @end
+  #else
+    @interface ApplicationDelegate : NSObject
+    @end
+  #endif
+#endif
+
+namespace ssc::runtime {
+  class CoreApplicationInternals {
+    public:
+      CoreApplication* coreApplication;
+    #if defined(__APPLE__)
+      ApplicationDelegate* delegate;
+    #endif
+
+      CoreApplicationInternals (CoreApplication* coreApplication);
+  };
+}
+
+namespace ssc::runtime::ipc {
+  struct MessageBuffer {
+    char *bytes = nullptr;
+    size_t size = 0;
+    MessageBuffer () = default;
+    MessageBuffer (auto bytes, auto size) {
+      this->bytes = bytes;
+      this->size = size;
+    }
+  };
+
+  class Message {
+    public:
+      using Seq = String;
+      MessageBuffer buffer;
+      String value = "";
+      String name = "";
+      String seq = "";
+      int index = -1;
+      Map args;
+      String string;
+
+      Message () = default;
+      Message (const Message& message);
+      Message (const String& source);
+      Message (const String& source, char *bytes, size_t size);
+
+      bool has (const String& key) const;
+      String get (const String& key) const;
+      void set (const String& key, const String& value);
+      String get (const String& key, const String& fallback) const;
+      String str () const;
+      size_t size () const;
+
+      String operator [] (const String& key) const;
+      String &operator [] (const String& key);
+  };
+
+  struct Value {
+    runtime::Data data;
+    struct {
+      JSON::Any data;
+      JSON::Any err;
+      JSON::Any raw;
+    } json;
+  };
+
+  class Result {
+    public:
+      class Err {
+        public:
+          Message message;
+          Message::Seq seq;
+          JSON::Any json;
+          Err () = default;
+          Err (const Message& message, const JSON::Any& json);
+      };
+
+      class Data {
+        public:
+          Message message;
+          Message::Seq seq;
+          JSON::Any json;
+
+          Data () = default;
+          Data (const Message& message, const JSON::Any& json);
+      };
+
+      Message message;
+      Message::Seq seq;
+      String source = "";
+      Value value;
+
+      Result () = default;
+      Result (const Err& err);
+      Result (const Data& data);
+      Result (const Message::Seq& seq, const Message& message);
+      Result (const Message::Seq& seq, const Message& message, JSON::Any json);
+      Result (
+        const Message::Seq& seq,
+        const Message& message,
+        JSON::Any json,
+        runtime::Data data
+      );
+
+      String str () const;
+      runtime::Data data () const;
+      JSON::Any json () const;
+  };
+
+  class Router {
+    public:
+      using EvaluateJavaScriptCallback = Function<void(const String)>;
+      using DispatchFunction = Function<void()>;
+      using DispatchCallback = Function<void(DispatchFunction)>;
+      using ResultCallback = Function<void(Result)>;
+      using ReplyCallback = Function<void(const Result&)>;
+      using RouteCallback = Function<void(const Message, Router*, ReplyCallback)>;
+      using BufferMap = std::map<String, MessageBuffer>;
+
+      struct RouteCallbackContext {
+        bool async = true;
+        RouteCallback callback;
+      };
+
+      using RouteTable = std::map<String, RouteCallbackContext>;
+
+      EvaluateJavaScriptCallback evaluateJavaScriptFunction = nullptr;
+
+      NetworkStatusObserver networkStatusObserver;
+      Runtime& runtime;
+      RouteTable table;
+      BufferMap buffers;
+      Mutex mutex;
+
+      Router (const Router &) = delete;
+      Router (Runtime& runtime);
+      ~Router ();
+
+      void onNetworkStatusChange (const String status, const String message);
+
+      bool hasMappedBuffer (int index, const Message::Seq& seq);
+      MessageBuffer getMappedBuffer (int index, const Message::Seq& seq);
+      void removeMappedBuffer (int index, const Message::Seq& seq);
+      void setMappedBuffer (
+        int index,
+        const Message::Seq& seq,
+        char* bytes,
+        size_t size
+      );
+
+      bool evaluateJavaScript (const String& js);
+      void map (const String& name, RouteCallback callback);
+      void map (const String& name, bool async, RouteCallback callback);
+      void unmap (const String& name);
+      bool dispatch (DispatchFunction callback);
+      bool emit (const String& name, const String& data);
+      bool emit (const String& name, const JSON::Any& data);
+
+      bool send (const Message::Seq& seq, const JSON::Any& json, runtime::Data data);
+      bool invoke (const Message& message);
+      bool invoke (const Message& message, ResultCallback callback);
+      bool invoke (const String& name, char *bytes, size_t size);
+      bool invoke (
+        const String& name,
+        char *bytes,
+        size_t size,
+        ResultCallback callback
+      );
+  };
+
+  class Bridge {
+    public:
+      Router router;
+      Runtime& runtime;
+      Bluetooth bluetooth;
+      PlatformInfo platform;
+
+      Bridge (const Bridge&) = delete;
+      Bridge (Runtime& runtime)
+        : runtime(runtime),
+          router(runtime),
+          bluetooth(&router)
+      {
+        this->init();
+      }
+
+      void init ();
   };
 }
 #endif

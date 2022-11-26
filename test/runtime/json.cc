@@ -1,12 +1,8 @@
+#include <socket/socket.hh>
 #include <assert.h>
 #include <stdio.h>
 
-//import ssc.log;
-import ssc.json;
-import ssc.string;
-
 using namespace ssc;
-using String = ssc::string::String;
 using ssc::JSON::typeof;
 
 bool test_array () {

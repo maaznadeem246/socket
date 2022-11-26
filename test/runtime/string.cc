@@ -1,13 +1,9 @@
-#include <socket/runtime.hh>
+#include <socket/socket.hh>
 #include <assert.h>
 
-import ssc.string;
-import ssc.types;
+using namespace ssc;
 
 int main () {
-  using namespace ssc::types;
-  using namespace ssc::string;
-
   String string = format("  $S  ", String("hello world"));
   String trimmed = trim(string);
   String replaced = replace(trimmed, "hello", "good byte");

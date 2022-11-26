@@ -1,9 +1,13 @@
-#include "window.hh"
-#include "log.hh"
+#include <socket/env.hh>
+#include <socket/log.hh>
+#include <socket/webview.hh>
+#include <socket/window.hh>
 
 namespace ssc::runtime::window {
+  using namespace runtime;
+
   Window::Window (
-    Application& app,
+    CoreApplication& app,
     Runtime& runtime,
     const WindowOptions opts
   )
@@ -143,7 +147,7 @@ namespace ssc::runtime::window {
 
   WindowManager::ManagedWindow::ManagedWindow (
     WindowManager& manager,
-    Application& app,
+    CoreApplication& app,
     Runtime& runtime,
     WindowOptions opts
   ) : Window(app, runtime, opts),
@@ -209,7 +213,7 @@ namespace ssc::runtime::window {
   }
 
   WindowManager::WindowManager (
-    Application& app,
+    CoreApplication& app,
     Runtime& runtime
   ) :
     app(app),

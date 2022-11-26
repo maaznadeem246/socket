@@ -1,7 +1,8 @@
 #ifndef SSC_RUNTIME_WEBVIEW_HH
 #define SSC_RUNTIME_WEBVIEW_HH
 
-#include <socket/platform.hh>
+#include "platform.hh"
+#include "runtime.hh"
 
 #if defined(_WIN32)
   #include <WebView2.h>
@@ -16,9 +17,6 @@
   #pragma comment(lib, "uv_a.lib")
 #endif
 
-#include "ipc.hh"
-#include "runtime.hh"
-
 namespace ssc::runtime::window {
   // forward
   class Window;
@@ -29,8 +27,9 @@ namespace ssc::runtime::webview {
   struct SchemeRequest;
   class WebViewInternals;
 
-  using ssc::runtime::window::Window;
-  using namespace ipc;
+  using window::Window;
+  using namespace runtime;
+  using namespace runtime::ipc;
 
   using SchemeResponseStatusCode = unsigned int;
   using SchemeResponseHeaders = Headers;

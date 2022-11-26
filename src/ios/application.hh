@@ -2,22 +2,14 @@
 #define SSC_IOS_APPLICATION_H
 
 #include <socket/socket.hh>
-#include <socket/utils.hh>
 
-#include "../runtime/application.hh"
-#include "../runtime/ipc.hh"
-#include "../runtime/process.hh"
-#include "../runtime/runtime.hh"
-#include "../runtime/window.hh"
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+@interface IOSApplication : IOSCoreApplication
+@end
+#endif
 
 namespace ssc::ios {
-  using runtime::Runtime;
-  using runtime::window::Window;
-  using runtime::window::WindowManager;
-  using runtime::window::WindowOptions;
-  using RuntimeApplication = runtime::application::Application;
-
-  class Application : public RuntimeApplication {
+  class Application : public CoreApplication {
     public:
       WindowManager windowManager;
       Runtime runtime;
@@ -29,7 +21,7 @@ namespace ssc::ios {
 
       Application (const int argc, const char** argv)
         : windowManager(*this, runtime),
-          RuntimeApplication(argc, argv)
+          CoreApplication(argc, argv)
       {}
 
       Window* createDefaultWindow () {
@@ -67,5 +59,4 @@ namespace ssc::ios {
       }
   };
 }
-
 #endif

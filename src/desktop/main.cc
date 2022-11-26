@@ -15,7 +15,6 @@ using namespace ssc::utils;
 using namespace ssc::runtime::process;
 
 namespace fs = std::filesystem;
-namespace log = ssc::runtime::log;
 
 const PlatformInfo platform;
 
@@ -688,7 +687,7 @@ MAIN {
 
   app.callbacks.onExit = shutdownHandler;
 
-  app.windowManager.configure(window::WindowManagerOptions {
+  app.windowManager.configure(WindowManagerOptions {
     .defaultHeight = height,
     .defaultWidth = width,
     .isHeightInPercent = isHeightInPercent,

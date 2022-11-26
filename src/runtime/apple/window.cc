@@ -1,4 +1,4 @@
-#include "../window.hh"
+#include <socket/window.hh>
 
 namespace JSON = ssc::JSON;
 

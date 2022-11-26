@@ -1,11 +1,9 @@
+#include <socket/socket.hh>
 #include <assert.h>
 #include <new>
 
-import ssc.loop;
-import ssc.log;
-
 using namespace ssc;
-using Loop = ssc::loop::Loop;
+using namespace ssc::runtime;
 
 int main () {
   Loop loop;

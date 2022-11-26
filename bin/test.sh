@@ -25,11 +25,11 @@ while (( $# > 0 )); do
     if [[ "$1" = "ios" ]] || [[ "$1" = "iPhoneOS" ]] || [[ "$1" = "iphoneos" ]]; then
       arch="arm64"
       platform="iPhoneOS";
-      export T1ET_OS_IPHONE=1
+      export TARGET_OS_IPHONE=1
     elif [[ "$1" = "ios-simulator" ]] || [[ "$1" = "iPhoneSimulator" ]] || [[ "$1" = "iphonesimulator" ]]; then
       arch="x86_64"
       platform="iPhoneSimulator";
-      export T1ET_IPHONE_SIMULATOR=1
+      export TARGET_IPHONE_SIMULATOR=1
     else
       platform="$1";
     fi
@@ -57,13 +57,13 @@ function onsignal () {
   for pid in ${pids[@]}; do
     kill -9 $pid >/dev/null 2>&1
     kill $pid >/dev/null 2>&1
+    wait "$pid"
   done
   exit
 }
 
 function main () {
-  "$root/bin/build-core-library.sh" --arch "$arch" --platform "$platform"
-  #"$root/bin/build-modules-library.sh" --arch "$arch" --platform "$platform"
+  "$root/bin/build-runtime-library.sh" --arch "$arch" --platform "$platform"
 
   mkdir -p "$module_tests_path"
   echo "# running tests"
@@ -82,7 +82,7 @@ function main () {
       export LDFLAGS="${ldflags[@]}"
       if ! test -f "$output" || (( $(stat "$source" -c %Y) > $(stat "$output" -c %Y) )); then
         $clang ${cflags[@]} -c "$source" -o "$output.o" || continue
-        echo "$clang" "${ldflags[@]}" "${cflags[@]}"  "$root"/src/*.cc "$output.o" -o "$output"
+        # echo "$clang" "${ldflags[@]}" "${cflags[@]}"  "$root"/src/*.cc "$output.o" -o "$output"
         $clang "${cflags[@]}" "${ldflags[@]}"  "$root"/src/*.cc $output.o -o "$output" || continue
         echo "ok - built $(basename "$output") test"
       fi
@@ -104,7 +104,7 @@ function main () {
   return $?
 }
 
-trap onsignal SIGTERM SIGINT
+trap onsignal INT TERM
 
 main "${args[@]}"
 exit $?

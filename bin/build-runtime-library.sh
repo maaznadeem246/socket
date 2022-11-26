@@ -4,8 +4,6 @@ declare root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 declare clang="${CLANG:-"$(which clang++)"}"
 declare cache_path="$root/build/cache"
 
-declare cflags=($("$root/bin/cflags.sh"))
-declare ldflags=($("$root/bin/ldflags.sh"))
 declare sources=($(find "$root"/src/runtime/*.cc))
 declare objects=()
 declare args=()
@@ -63,6 +61,9 @@ if [[ "$(uname -s)" = "Darwin" ]]; then
 elif [[ "$(uname -s)" = "Linux" ]]; then
   sources+=($(find "$root"/src/runtime/linux/*.cc))
 fi
+
+declare cflags=($("$root/bin/cflags.sh"))
+declare ldflags=($("$root/bin/ldflags.sh"))
 
 declare src_directory="$root/src/runtime"
 declare output_directory="$root/build/$arch-$platform/runtime"

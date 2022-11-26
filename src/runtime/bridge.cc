@@ -1,7 +1,6 @@
 #include <socket/platform.hh>
-#include "runtime.hh"
-#include "ipc.hh"
-#include "log.hh"
+#include <socket/runtime.hh>
+#include <socket/log.hh>
 
 #define RESULT_CALLBACK(message, reply)                                        \
   [=](auto seq, auto json, auto data) {                                        \

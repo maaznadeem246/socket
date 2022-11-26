@@ -1,12 +1,8 @@
+#include <socket/socket.hh>
 #include <assert.h>
 
-import ssc.javascript;
-import ssc.string;
-import ssc.log;
-
 using namespace ssc;
-using ssc::string::String;
-using ssc::javascript::Script;
+using namespace ssc::runtime;
 
 int main () {
   Script script("hello.js", "1 + 2 + 3");

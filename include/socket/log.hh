@@ -1,16 +1,18 @@
-#ifndef SSC_RUNTIME_LOG_HH
-#define SSC_RUNTIME_LOG_HH
+#ifndef SSC_SOCKET_LOG_HH
+#define SSC_SOCKET_LOG_HH
 
-#include <socket/socket.hh>
 #include <iostream>
 #include <string>
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "common.hh"
+#include "platform.hh"
 #include "runtime.hh"
-#include "ipc.hh"
 
-namespace ssc::runtime::log {
+namespace ssc::log {
+  using namespace ssc::runtime;
+
   inline auto write (const String& str, bool isError) {
     #if defined(_WIN32)
       StringStream ss;
@@ -180,5 +182,4 @@ namespace ssc::runtime::log {
     error(boolean ? "true" : "false");
   }
 }
-
 #endif

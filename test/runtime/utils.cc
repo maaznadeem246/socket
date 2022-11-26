@@ -1,13 +1,10 @@
+#include <socket/socket.hh>
 #include <assert.h>
 
-#include <socket/runtime.hh>
-import ssc.string;
-import ssc.utils;
-
+using namespace ssc;
+using namespace ssc::utils;
 
 int main () {
-  using namespace ssc::utils;
-  using namespace ssc::string;
 
   assert(
     decodeURIComponent("betty%20aime%20le%20fromage%20fran%C3%A7ais") ==

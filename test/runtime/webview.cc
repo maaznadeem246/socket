@@ -1,20 +1,9 @@
 #include <socket/socket.hh>
 #include <assert.h>
 
-import ssc.webview;
-import ssc.string;
-import ssc.types;
-import ssc.json;
-import ssc.data;
-import ssc.ipc;
-import ssc.log;
-
-#include <new>
-
 using namespace ssc;
-using namespace ssc::data;
-using namespace ssc::types;
-using namespace ssc::webview;
+using namespace ssc::runtime;
+using namespace ssc::runtime::webview;
 
 void test_ipc_scheme_handler () {
   DataManager dataManager;
@@ -28,7 +17,7 @@ void test_ipc_scheme_handler () {
     return true;
   });
 
-  IPCSchemeRequest request = { String("ipc://hello?value=world") };
+  SchemeRequest request = { String("ipc://hello?value=world") };
 
   schemeHandler.onSchemeRequest(request);
   assert(called);
