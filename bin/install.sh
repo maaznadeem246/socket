@@ -31,12 +31,12 @@ fi
 
 function quiet () {
   if [ -n "$VERBOSE" ]; then
-    "$@" || return $?
+    "$@"
   else
-    "$@" > /dev/null 2>&1 || return $?
+    "$@" > /dev/null 2>&1
   fi
 
-  return 0
+  return $?
 }
 
 if ! quiet command -v sudo; then
@@ -47,8 +47,15 @@ if ! quiet command -v sudo; then
 fi
 
 function die {
-  if [ ! $1 = 0 ]; then
-    echo "$2 - please report (https://discord.gg/YPV32gKCsH)" && exit 1
+  local status=$1
+  if (( status != 0 && status != 127 )); then
+    for pid in "${pids[@]}"; do
+      kill TERM $pid >/dev/null 2>&1
+      kill -9 $pid >/dev/null 2>&1
+      wait "$pid" 2>/dev/null
+    done
+    echo "$2 - please report (https://discord.gg/YPV32gKCsH)"
+    exit 1
   fi
 }
 
@@ -85,104 +92,145 @@ function _build_cli {
   echo "# building cli for desktop (`uname -m`)..."
   local arch="$(uname -m)"
   local platform="desktop"
-  local ldflags=($("$root/bin/ldflags.sh" --arch "$arch" --platform "$platform" -l{uv,socket}))
-  local cflags=( $("$root/bin/cflags.sh" -Os))
 
-  mkdir -p "$BUILD_DIR/$arch-$platform/bin" &&
-  "$CXX" ${cflags[@]} ${ldflags[@]}         \
-    "$root/src/cli/main.cc"                 \
+  local src="$root/src"
+  local objects="$BUILD_DIR/$arch-$platform/objects"
+
+  local ldflags=($("$root/bin/ldflags.sh" --arch "$arch" --platform "$platform" -l{uv,socket-runtime}))
+  local cflags=($("$root/bin/cflags.sh" -Os))
+
+  local sources=($(find "$src"/cli/*.cc 2>/dev/null))
+  local outputs=()
+
+  mkdir -p "$BUILD_DIR/$arch-$platform/bin"
+
+  for source in "${sources[@]}"; do
+    local output="${source/$src/$objects}"
+    output="${output/.cc/.o}"
+    outputs+=("$output")
+  done
+
+  for (( i = 0; i < ${#sources[@]}; i++ )); do
+    # echo "$CXX" ${cflags[@]} -c "${sources[$i]}" -o "${outputs[$i]}"
+    mkdir -p "$(dirname "${outputs[$i]}")"
+    quiet "$CXX" ${cflags[@]} \
+      -c "${sources[$i]}"     \
+      -o "${outputs[$i]}"
+    die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  done
+
+  quiet "$CXX" ${cflags[@]} ${ldflags[@]}        \
+    "$src"/*.cc                                  \
+    "$BUILD_DIR/$arch-$platform"/objects/cli/*.o \
     -o "$BUILD_DIR/$arch-$platform/bin/ssc"
 
   die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
   echo "ok - built the cli for desktop"
 }
 
-function _build_library {
+function _build_runtime_library {
   echo "# building library"
-  "$root/bin/build-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
+  "$root/bin/build-runtime-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    "$root/bin/build-library.sh" --arch "$(uname -m)" --platform desktop & pids+=($!)
-    #"$root/bin/build-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
+    "$root/bin/build-runtime-library.sh" --arch "$(uname -m)" --platform ios & pids+=($!)
+    #"$root/bin/build-runtime-library.sh" --arch x86_64 --platform iPhoneSimulator & pids+=($!)
   fi
 
   wait
 }
 
-function _build_desktop_main () {
+function _prebuild_desktop_main () {
   echo "# precompiling main program for desktop"
   local arch="$(uname -m)"
   local platform="desktop"
 
+  local src="$root/src"
+  local objects="$BUILD_DIR/$arch-$platform/objects"
+
   local cflags=($("$root/bin/cflags.sh" -Os))
-  local source="$root/src/desktop/main.cc"
-  local output="$BUILD_DIR/$arch-$platform/objects/main.o"
+  local sources=($(find "$src"/desktop/*.{cc,mm} 2>/dev/null))
+  local outputs=()
 
   mkdir -p "$(dirname "$output")"
 
-  quiet "$CXX" ${cflags[@]} -c "$source" -o "$output"
-  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  for source in "${sources[@]}"; do
+    local output="${source/$src/$objects}"
+    output="${output/.cc/.o}"
+    output="${output/.mm/.o}"
+    outputs+=("$output")
+  done
+
+  for (( i = 0; i < ${#sources[@]}; i++ )); do
+    # echo "$CXX" ${cflags[@]} -c "${sources[$i]}" -o "${outputs[$i]}"
+    mkdir -p "$(dirname "${outputs[$i]}")"
+    quiet "$CXX" ${cflags[@]} \
+      -c "${sources[$i]}"     \
+      -o "${outputs[$i]}"
+    die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  done
+
   echo "ok - precompiled main program for desktop"
 }
 
-function _build_ios_main () {
+function _prebuild_ios_main () {
   echo "# precompiling main program for iOS"
   local arch="arm64"
   local platform="iPhoneOS"
 
+  local src="$root/src"
+  local objects="$BUILD_DIR/$arch-$platform/objects"
+
+  local clang="$(xcrun -sdk iphoneos -find clang++)"
   local cflags=($(TARGET_OS_IPHONE=1 "$root/bin/cflags.sh" -Os))
-  local sources=(
-    "$root/src/ios/start.mm"
-    "$root/src/ios/main.cc"
-  )
+  local sources=($(find "$src"/ios/*.{cc,mm} 2>/dev/null))
+  local outputs=()
 
-  local outputs=(
-    "$BUILD_DIR/$arch-$platform/objects/start.o"
-    "$BUILD_DIR/$arch-$platform/objects/main.o"
-  )
+  for source in "${sources[@]}"; do
+    local output="${source/$src/$objects}"
+    output="${output/.cc/.o}"
+    output="${output/.mm/.o}"
+    outputs+=("$output")
+  done
 
-  mkdir -p "$(dirname "${outputs[0]}")"
-
-  # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
-
-  quiet "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} \
-    -c "${sources[0]}"                                      \
-    -o "${outputs[0]}" &&
-
-  quiet "$(xcrun -sdk iphoneos -find clang++)" ${cflags[@]} \
-    -c "${sources[1]}"                                      \
-    -o "${outputs[1]}"
-
-  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  for (( i = 0; i < ${#sources[@]}; i++ )); do
+    # echo "$CXX" ${cflags[@]} -c "${sources[$i]}" -o "${outputs[$i]}"
+    mkdir -p "$(dirname "${outputs[$i]}")"
+    "$clang" ${cflags[@]} \
+      -c "${sources[$i]}" \
+      -o "${outputs[$i]}"
+    die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  done
   echo "ok - precompiled main program for iOS"
 }
 
-function _build_ios_simulator_main () {
+function _prebuild_ios_simulator_main () {
   echo "# precompiling main program for iOS Simulator"
   local arch="x86_64"
   local platform="iPhoneSimulator"
+
+  local src="$root/src"
+  local objects="$BUILD_DIR/$arch-$platform/objects"
+
+  local clang="$(xcrun -sdk iphonesimulator -find clang++)"
   local cflags=($(TARGET_IPHONE_SIMULATOR=1 "$root/bin/cflags.sh" -Os))
-  local sources=(
-    "$root/src/ios/start.mm"
-    "$root/src/ios/main.cc"
-  )
+  local sources=($(find "$src"/ios/*.{cc,mm} 2>/dev/null))
+  local outputs=()
 
-  local outputs=(
-    "$BUILD_DIR/$arch-$platform/objects/start.o"
-    "$BUILD_DIR/$arch-$platform/objects/main.o"
-  )
+  for source in "${sources[@]}"; do
+    local output="${source/$src/$objects}"
+    output="${output/.cc/.o}"
+    output="${output/.mm/.o}"
+    outputs+=("$output")
+  done
 
-  mkdir -p "$(dirname "${outputs[0]}")"
-
-  # echo "$CXX" ${cflags[@]} -c "${sources[0]}" -o "${outputs[0]}"
-
-  quiet "$(xcrun -sdk iphonesimulator -find clang++)" ${cflags[@]} \
-    -c "${sources[0]}"                                             \
-    -o "${outputs[0]}" &&
-  quiet "$(xcrun -sdk iphonesimulator -find clang++)" ${cflags[@]} \
-    -c "${sources[1]}"                                             \
-    -o "${outputs[1]}"
-
-  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  for (( i = 0; i < ${#sources[@]}; i++ )); do
+    # echo "$CXX" ${cflags[@]} -c "${sources[$i]}" -o "${outputs[$i]}"
+    mkdir -p "$(dirname "${outputs[$i]}")"
+    quiet "$clang" ${cflags[@]} \
+      -c "${sources[$i]}"       \
+      -o "${outputs[$i]}"
+    die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
+  done
   echo "ok - precompiled main program for iOS Simulator"
 }
 
@@ -195,12 +243,12 @@ function _prepare {
 
   echo "# preparing directories..."
   rm -rf "$ASSETS_DIR"
-  mkdir -p "$ASSETS_DIR"/{lib,src,include,cache,objects}
 
+  mkdir -p "$ASSETS_DIR"/{lib,src,include,objects}
   mkdir -p "$ASSETS_DIR"/{lib,objects}/"$(uname -m)-desktop"
 
   if [[ "$(uname -s)" = "Darwin" ]]; then
-    mkdir -p "$ASSETS_DIR"/{lib,objects}/{arm64-iPhoneOS,x86-iPhoneSimulator}
+    mkdir -p "$ASSETS_DIR"/{lib,objects}/{arm64-iPhoneOS,x86_64-iPhoneSimulator}
   fi
 
   if [ ! -d "$BUILD_DIR/uv" ]; then
@@ -350,25 +398,30 @@ function _compile_libuv {
 
 function _check_compiler_features {
   echo "# checking compiler features"
-  $CXX -std=c++20 -o /dev/null - << EOF_CC >/dev/null 2>&1
+  $CXX -std=c++20 -x c++ -o /dev/null - << EOF_CC >/dev/null
     #include <semaphore>
+    int main () { return 0; }
 EOF_CC
 
   # FIXME
-  die $? "not ok - $CXX (`$CXX -dumpversion`) clang > 15 is required for building socket"
+  die $? "not ok - $CXX (`$CXX -dumpversion`) clang > 11 is required for building socket"
 }
 
 function onsignal () {
-  for pid in "${pids[@]}"; do kill -9 $pid 2>/dev/null; done
-  for pid in "${pids[@]}"; do kill TERM $pid 2>/dev/null; done
-  exit 1
+  local status=${1:-$?}
+  for pid in "${pids[@]}"; do
+    kill TERM $pid >/dev/null 2>&1
+    kill -9 $pid >/dev/null 2>&1
+    wait "$pid" 2>/dev/null
+  done
+  exit $status
 }
 
 _check_compiler_features
 _prepare
 cd $BUILD_DIR
 
-trap onsignal SIGTERM SIGINT
+trap onsignal INT TERM
 
 if [[ "`uname -s`" == "Darwin" ]]; then
   quiet xcode-select -p
@@ -411,20 +464,23 @@ echo "ok - copied headers"
 cd $WORK_DIR
 
 cd "$BUILD_DIR"
-#export BUILD_DIR
-_build_library
-_build_desktop_main & pids+=($!)
+
+_build_runtime_library
+_build_cli & pids+=($!)
+
+_prebuild_desktop_main & pids+=($!)
 
 if [[ "$(uname -s)" = "Darwin" ]]; then
   if test -d "$(xcrun -sdk iphoneos -show-sdk-path 2>/dev/null)"; then
-    _build_ios_main & pids+=($!)
+    _prebuild_ios_main & pids+=($!)
+    _prebuild_ios_simulator_main & pids+=($!)
+    :
   fi
 fi
 
-_build_cli & pids+=($!)
-
 for pid in "${pids[@]}"; do
   wait "$pid" 2>/dev/null
+  die $? "not ok - unable to build. See trouble shooting guide in the README.md file"
 done
 
 _install "$(uname -m)" desktop

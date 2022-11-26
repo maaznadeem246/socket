@@ -20,13 +20,7 @@ while (( $# > 0 )); do
 done
 
 function generate () {
-  export MODULE_MAP_FILE="build/$arch-$platform/modules/modules.modulemap"
-  export MODULE_PATH="build/$arch-$platform/modules"
-  local cflags=($("$root/bin/cflags.sh") -ferror-limit=0 -fimplicit-modules --precompile)
-
-  if [[ "$(uname -s)" = "Darwin" ]]; then
-    cflags+=("-ObjC++")
-  fi
+  local cflags=($("$root/bin/cflags.sh") -ferror-limit=0)
 
   for flag in "${cflags[@]}"; do
     echo "$flag"

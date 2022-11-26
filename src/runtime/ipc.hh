@@ -2,8 +2,8 @@
 #define SSC_RUNTIME_IPC_HH
 
 #include <socket/socket.hh>
+#include <socket/utils.hh>
 #include "runtime.hh"
-#include "utils.hh"
 
 namespace ssc::runtime::ipc {
   struct MessageBuffer {

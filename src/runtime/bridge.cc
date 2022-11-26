@@ -1072,6 +1072,5 @@ namespace ssc::runtime::ipc {
             RESULT_CALLBACK(message, reply)
           );
         });
-      }
-  };
+  }
 }

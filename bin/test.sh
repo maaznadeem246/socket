@@ -45,7 +45,7 @@ export MODULE_PATH="$arch-$platform/modules"
 
 declare module_tests_path="$root/build/$arch-$platform/tests/modules"
 declare cflags=($("$root/bin/cflags.sh" -Os))
-declare ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-core}))
+declare ldflags=($("$root/bin/ldflags.sh" -l{uv,socket-runtime}))
 
 if (( TARGET_OS_IPHONE )); then
   clang="xcrun -sdk iphonesimulator $clang"

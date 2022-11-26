@@ -1,4 +1,5 @@
 #include <socket/socket.hh>
+#include <socket/utils.hh>
 
 #include <filesystem>
 #include <fstream>
@@ -31,6 +32,7 @@
 #include <unistd.h>
 #endif
 
+#include "../runtime/process.hh"
 #include "templates.hh"
 
 #ifndef CMD_RUNNER
@@ -50,14 +52,18 @@ using ssc::VERSION_FULL_STRING;
 using ssc::VERSION_HASH_STRING;
 using ssc::VERSION_STRING;
 
-using ssc::platform::PlatformInfo;
-using ssc::process::exec;
-using ssc::config::Config;
-
-using namespace ssc::string;
 using namespace ssc::utils;
-using namespace ssc::types;
-
+using ssc::Map;
+using ssc::PlatformInfo;
+using ssc::replace;
+using ssc::split;
+using ssc::String;
+using ssc::StringStream;
+using ssc::tmpl;
+using ssc::trim;
+using ssc::WStringToString;
+using ssc::config::Config;
+using ssc::runtime::process::exec;
 
 PlatformInfo platform;
 String _config;
@@ -974,6 +980,7 @@ int main (const int argc, const char* argv[]) {
       log("preparing build for mac");
 
       flags = "-std=c++20";
+      flags += " -ObjC++";
       flags += " -framework UniformTypeIdentifiers";
       flags += " -framework CoreBluetooth";
       flags += " -framework Network";
@@ -987,18 +994,13 @@ int main (const int argc, const char* argv[]) {
       flags += " -L" + prefixFile("lib");
       flags += " -L" + prefixFile("lib/" + platform.arch + "-desktop/");
       flags += " -luv";
-      flags += " -lsocket-core";
-      flags += " -lsocket-modules";
-      flags += " -fimplicit-modules";
-      flags += " -fmodule-map-file=" + prefixFile("modules/" + platform.arch + "-desktop/modules.modulemap");
-      flags += " -fmodules-cache-path=" + prefixFile("cache");
-      flags += " -fprebuilt-module-path=" + prefixFile("modules/" + platform.arch + "-desktop");
+      flags += " -lsocket-runtime";
       flags += " " + getCxxFlags();
 
       files += prefixFile("src/config.cc");
       files += prefixFile("src/debug.cc");
       files += prefixFile("src/init.cc");
-      files += prefixFile("objects/" + platform.arch + "-desktop/main.o");
+      files += prefixFile("objects/" + platform.arch + "-desktop/desktop/main.o");
 
       fs::path pathBase = "Contents";
       pathResources = { paths.pathPackage / pathBase / "Resources" };
@@ -1419,60 +1421,6 @@ int main (const int argc, const char* argv[]) {
       fs::copy(
         fs::path(prefixFile()) / "src/config.cc",
         paths.platformSpecificOutputPath / "src",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/config.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/data.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/env.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/javascript.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/json.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/string.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/types.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/utils.hh",
-        paths.platformSpecificOutputPath / "src/core",
-        fs::copy_options::overwrite_existing | fs::copy_options::recursive
-      );
-
-      fs::copy(
-        fs::path(prefixFile()) / "src/core/version.hh",
-        paths.platformSpecificOutputPath / "src/core",
         fs::copy_options::overwrite_existing | fs::copy_options::recursive
       );
 

@@ -6,7 +6,6 @@
 
 namespace ssc::runtime {
   // forward
-  class ApplicationInternals;
   class BluetoothInternals;
   class Descriptor;
   class DescriptorManager;
@@ -15,7 +14,6 @@ namespace ssc::runtime {
   class PeerManager;
   class Runtime;
   class Timers;
-  class Window;
   namespace ipc {
     class Router;
   }
@@ -846,64 +844,6 @@ namespace ssc::runtime {
       void stop ();
       void dispatch (Loop::DispatchCallback cb);
       void wait ();
-  };
-
-  class Application {
-    public:
-      static inline AtomicBool isReady = false;
-      static inline Application* instance = nullptr;
-
-      static Application* getInstance () {
-        return Application::instance;
-      }
-
-      struct Callbacks {
-        ExitCallback onExit = nullptr;
-      };
-
-      ApplicationInternals* internals = nullptr;
-      AtomicBool exitWasRequested = false;
-      AtomicBool wasStartedFromCli = false;
-      AtomicBool running = false;
-      AtomicBool started = false;
-      Callbacks callbacks;
-      Config config;
-      const int argc;
-      const char** argv;
-
-      Application (const Application&) = delete;
-      Application ();
-      Application (const int argc, const char** argv);
-      ~Application ();
-
-      #if defined(_WIN32)
-        void* hInstance;
-        Application (
-          /* HINSTANCE*/ void* hInstance,
-          const int argc,
-          const char** argv
-        );
-      #else
-        Application (
-          int unused,
-          const int argc,
-          const char** argv
-        );
-      #endif
-
-      int run ();
-      void kill ();
-      void exit (int code);
-      void restart ();
-      void dispatch (Function<void()>);
-      String cwd ();
-
-      virtual Window* createDefaultWindow () = 0;
-      virtual Window* createWindow () = 0;
-      virtual void start () = 0;
-      virtual void stop () = 0;
-      virtual void onPause () = 0;
-      virtual void onResume () = 0;
   };
 }
 #endif

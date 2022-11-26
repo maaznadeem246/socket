@@ -1,15 +1,11 @@
 #include <socket/socket.hh>
-#include "start.hh"
+#import <UIKit/UIKit.h>
 
-import ssc.application;
-import ssc.config;
-import ssc.window;
-
-using namespace ssc::application;
-using namespace ssc::config;
-using namespace ssc::window;
+#include "application.hh"
 
 int main (const int argc, const char **argv) {
-  Application app(0, argc, argv);
-  return ssc::start(argc, argv);
+  ssc::ios::Application app(argc, argv);
+  @autoreleasepool {
+    return UIApplicationMain(argc, (char **) argv, nil, NSStringFromClass([IOSApplication class]));
+  }
 }

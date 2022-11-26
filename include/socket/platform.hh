@@ -63,7 +63,7 @@
 
 #include "common.hh"
 
-namespace ssc::platform {
+namespace ssc {
   struct PlatformInfo {
     #if defined(__x86_64__) || defined(_M_X64)
       const std::string arch = "x86_64";

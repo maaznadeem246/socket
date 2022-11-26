@@ -41,12 +41,10 @@ if [ -n "$arch" ] || [ -n "$platform" ]; then
   platform="${platform:-desktop}"
   targets+=($(find                               \
     "$root/build/$arch-$platform"/bin            \
-    "$root/build/$arch-$platform"/cache          \
     "$root/build/$arch-$platform"/cli            \
-    "$root/build/$arch-$platform"/core           \
-    "$root/build/$arch-$platform"/desktop        \
+    "$root/build/$arch-$platform"/runtime        \
+    "$root/build/$arch-$platform"/objects        \
     "$root/build/$arch-$platform"/lib/libsocket* \
-    "$root/build/$arch-$platform"/modules        \
     "$root/build/$arch-$platform"/tests          \
     "$root/build/$arch-$platform"/*.o            \
     "$root/build/$arch-$platform"/**/*.o         \
@@ -54,12 +52,10 @@ if [ -n "$arch" ] || [ -n "$platform" ]; then
 else
   targets+=($(find                 \
     "$root"/build/*/bin            \
-    "$root"/build/*/cache          \
     "$root"/build/*/cli            \
-    "$root"/build/*/core           \
-    "$root"/build/*/desktop        \
+    "$root"/build/*/runtime        \
+    "$root"/build/*/objects        \
     "$root"/build/*/lib/libsocket* \
-    "$root"/build/*/modules        \
     "$root"/build/*/tests          \
     "$root"/build/*/*.o            \
     "$root"/build/**/*.o           \

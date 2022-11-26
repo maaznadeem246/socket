@@ -1,6 +1,6 @@
+#include <socket/utils.hh>
 #include "log.hh"
 #include "runtime.hh"
-#include "utils.hh"
 
 using namespace ssc::utils;
 
@@ -365,6 +365,7 @@ size_t FSRequestContext::getBufferSize (int index) {
       auto filename = path.c_str();
       auto ctx = new FSRequestContext(seq, callback);
       auto req = &ctx->req;
+      log::info("access: " + path);
       auto err = uv_fs_access(loop.get(), req, filename, mode, [](uv_fs_t* req) {
         auto ctx = (FSRequestContext *) req->data;
         auto json = JSON::Object {};

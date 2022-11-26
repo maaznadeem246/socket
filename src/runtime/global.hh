@@ -1,12 +1,12 @@
-#ifndef SSC_CORE_GLOBAL_HH
-#define SSC_CORE_GLOBAL_HH
+#ifndef SSC_RUNTIME_GLOBAL_HH
+#define SSC_RUNTIME_GLOBAL_HH
 
 #include <socket/platform.hh>
 #include <socket/common.hh>
 
 #include "window.hh"
 
-namespace ssc::core::global {
+namespace ssc::runtime::global {
 #if defined(_WIN32)
   using RefreshImmersiveColorPolicyState = VOID(WINAPI*)();
   using SetWindowCompositionAttribute = BOOL(WINAPI *)(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA*);

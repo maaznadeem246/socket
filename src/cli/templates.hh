@@ -423,15 +423,13 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 	objects = {
 
 /* Begin PBXBuildFile section */
+		17A7F8B7293192890051D146 /* main.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 17A7F8B6293192890051D146 /* main.o */; };
 		17C230BA28E9398700301440 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17C230B928E9398700301440 /* Foundation.framework */; };
 		17CEC54E2928667C00D2860A /* config.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334F9292855FB004809B4 /* config.cc */; };
 		17CEC54F2928667C00D2860A /* debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334FA292855FB004809B4 /* debug.cc */; };
 		17CEC5502928667C00D2860A /* init.cc in Sources */ = {isa = PBXBuildFile; fileRef = 17F334FF292855FB004809B4 /* init.cc */; };
 		17E73FEF28FCD3360087604F /* libuv.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17E73FEE28FCD3360087604F /* libuv.a */; };
-		17F334E1292855D4004809B4 /* main.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F334DF292855D4004809B4 /* main.o */; };
-		17F334E2292855D4004809B4 /* start.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F334E0292855D4004809B4 /* start.o */; };
-		17F3350729285654004809B4 /* libsocket-core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F3350529285654004809B4 /* libsocket-core.a */; };
-		17F3350829285654004809B4 /* libsocket-modules.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F3350629285654004809B4 /* libsocket-modules.a */; };
+		17F3350729285654004809B4 /* libsocket-runtime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17F3350529285654004809B4 /* libsocket-runtime.a */; };
 		290F7EBF2768C49000486988 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 294A3C792763E9C6007B5B9A /* UIKit.framework */; };
 		290F7F87276BC2B000486988 /* lib in Resources */ = {isa = PBXBuildFile; fileRef = 290F7F86276BC2B000486988 /* lib */; };
 		29124C5D2761336B001832A0 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 29124C5B2761336B001832A0 /* LaunchScreen.storyboard */; };
@@ -443,36 +441,37 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		17A7F8B6293192890051D146 /* main.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = main.o; path = objects/ios/main.o; sourceTree = "<group>"; };
+		17A7F8D2293192D80051D146 /* uv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = uv.h; sourceTree = "<group>"; };
+		17A7F8D4293192D80051D146 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		17A7F8D5293192D80051D146 /* bsd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bsd.h; sourceTree = "<group>"; };
+		17A7F8D6293192D80051D146 /* threadpool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = threadpool.h; sourceTree = "<group>"; };
+		17A7F8D7293192D80051D146 /* linux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = linux.h; sourceTree = "<group>"; };
+		17A7F8D8293192D80051D146 /* tree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tree.h; sourceTree = "<group>"; };
+		17A7F8D9293192D80051D146 /* posix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = posix.h; sourceTree = "<group>"; };
+		17A7F8DA293192D80051D146 /* errno.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = errno.h; sourceTree = "<group>"; };
+		17A7F8DB293192D80051D146 /* darwin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = darwin.h; sourceTree = "<group>"; };
+		17A7F8DC293192D80051D146 /* os390.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = os390.h; sourceTree = "<group>"; };
+		17A7F8DD293192D80051D146 /* aix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = aix.h; sourceTree = "<group>"; };
+		17A7F8DE293192D80051D146 /* sunos.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sunos.h; sourceTree = "<group>"; };
+		17A7F8DF293192D80051D146 /* win.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = win.h; sourceTree = "<group>"; };
+		17A7F8E0293192D80051D146 /* unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unix.h; sourceTree = "<group>"; };
+		17A7F8E2293192D80051D146 /* common.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = common.hh; sourceTree = "<group>"; };
+		17A7F8E3293192D80051D146 /* utils.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = utils.hh; sourceTree = "<group>"; };
+		17A7F8E4293192D80051D146 /* platform.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = platform.hh; sourceTree = "<group>"; };
+		17A7F8E5293192D80051D146 /* json.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = json.hh; sourceTree = "<group>"; };
+		17A7F8E6293192D80051D146 /* socket.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = socket.hh; sourceTree = "<group>"; };
+		17A7F8E7293192D80051D146 /* config.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = config.hh; sourceTree = "<group>"; };
+		17A7F8E8293192D80051D146 /* version.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = version.hh; sourceTree = "<group>"; };
+		17A7F8E9293192D80051D146 /* env.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = env.hh; sourceTree = "<group>"; };
 		17C230B928E9398700301440 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		17E73FEE28FCD3360087604F /* libuv.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libuv.a; path = lib/libuv.a; sourceTree = "<group>"; };
-		17F334DF292855D4004809B4 /* main.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = main.o; path = objects/main.o; sourceTree = "<group>"; };
-		17F334E0292855D4004809B4 /* start.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = start.o; path = objects/start.o; sourceTree = "<group>"; };
-		17F334E4292855E2004809B4 /* uv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = uv.h; sourceTree = "<group>"; };
-		17F334E6292855E2004809B4 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
-		17F334E7292855E2004809B4 /* bsd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bsd.h; sourceTree = "<group>"; };
-		17F334E8292855E2004809B4 /* threadpool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = threadpool.h; sourceTree = "<group>"; };
-		17F334E9292855E2004809B4 /* linux.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = linux.h; sourceTree = "<group>"; };
-		17F334EA292855E2004809B4 /* tree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tree.h; sourceTree = "<group>"; };
-		17F334EB292855E2004809B4 /* posix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = posix.h; sourceTree = "<group>"; };
-		17F334EC292855E2004809B4 /* errno.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = errno.h; sourceTree = "<group>"; };
-		17F334ED292855E2004809B4 /* darwin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = darwin.h; sourceTree = "<group>"; };
-		17F334EE292855E2004809B4 /* os390.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = os390.h; sourceTree = "<group>"; };
-		17F334EF292855E2004809B4 /* aix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = aix.h; sourceTree = "<group>"; };
-		17F334F0292855E2004809B4 /* sunos.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sunos.h; sourceTree = "<group>"; };
-		17F334F1292855E2004809B4 /* win.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = win.h; sourceTree = "<group>"; };
-		17F334F2292855E2004809B4 /* unix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unix.h; sourceTree = "<group>"; };
-		17F334F4292855E2004809B4 /* common.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = common.hh; sourceTree = "<group>"; };
-		17F334F5292855E2004809B4 /* platform.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = platform.hh; sourceTree = "<group>"; };
-		17F334F6292855E2004809B4 /* socket.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = socket.hh; sourceTree = "<group>"; };
-		17F334F7292855E2004809B4 /* config.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = config.hh; sourceTree = "<group>"; };
-		17F334F8292855E2004809B4 /* runtime.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = runtime.hh; sourceTree = "<group>"; };
-		17F334F9292855FB004809B4 /* config.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = config.cc; path = src/config.cc; sourceTree = "<group>"; };
-		17F334FA292855FB004809B4 /* debug.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = debug.cc; path = src/debug.cc; sourceTree = "<group>"; };
-		17F334FF292855FB004809B4 /* init.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = init.cc; path = src/init.cc; sourceTree = "<group>"; };
-		17F3350529285654004809B4 /* libsocket-core.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libsocket-core.a"; path = "lib/libsocket-core.a"; sourceTree = "<group>"; };
-		17F3350629285654004809B4 /* libsocket-modules.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libsocket-modules.a"; path = "lib/libsocket-modules.a"; sourceTree = "<group>"; };
+		17F334F9292855FB004809B4 /* config.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = config.cc; path = src/config.cc; sourceTree = "<group>"; };
+		17F334FA292855FB004809B4 /* debug.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = debug.cc; path = src/debug.cc; sourceTree = "<group>"; };
+		17F334FF292855FB004809B4 /* init.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = init.cc; path = src/init.cc; sourceTree = "<group>"; };
+		17F3350529285654004809B4 /* libsocket-runtime.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libsocket-runtime.a"; path = "lib/libsocket-runtime.a"; sourceTree = "<group>"; };
 		290F7F86276BC2B000486988 /* lib */ = {isa = PBXFileReference; lastKnownFileType = folder; path = lib; sourceTree = "<group>"; };
-		29124C4A27613369001832A0 /* {{name}}.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "{{name}}.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		29124C4A27613369001832A0 /* dogfood-dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "dogfood-dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		29124C5C2761336B001832A0 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		29124C5E2761336B001832A0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		294A3C792763E9C6007B5B9A /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
@@ -489,12 +488,10 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				17F3350729285654004809B4 /* libsocket-core.a in Frameworks */,
-				17F3350829285654004809B4 /* libsocket-modules.a in Frameworks */,
-				17F334E1292855D4004809B4 /* main.o in Frameworks */,
+				17F3350729285654004809B4 /* libsocket-runtime.a in Frameworks */,
 				17E73FEF28FCD3360087604F /* libuv.a in Frameworks */,
+				17A7F8B7293192890051D146 /* main.o in Frameworks */,
 				17C230BA28E9398700301440 /* Foundation.framework in Frameworks */,
-				17F334E2292855D4004809B4 /* start.o in Frameworks */,
 				2996EDB22770BC1F00C672A2 /* Network.framework in Frameworks */,
 				2996EDB22770BC1F00C672A3 /* CoreBluetooth.framework in Frameworks */,
 				2996EDB22770BC1F00C672A4 /* UserNotifications.framework in Frameworks */,
@@ -506,44 +503,47 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		17F334E3292855E2004809B4 /* include */ = {
+		17A7F8D1293192D80051D146 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				17F334E4292855E2004809B4 /* uv.h */,
-				17F334E5292855E2004809B4 /* uv */,
-				17F334F3292855E2004809B4 /* socket */,
+				17A7F8D2293192D80051D146 /* uv.h */,
+				17A7F8D3293192D80051D146 /* uv */,
+				17A7F8E1293192D80051D146 /* socket */,
 			);
 			path = include;
 			sourceTree = "<group>";
 		};
-		17F334E5292855E2004809B4 /* uv */ = {
+		17A7F8D3293192D80051D146 /* uv */ = {
 			isa = PBXGroup;
 			children = (
-				17F334E6292855E2004809B4 /* version.h */,
-				17F334E7292855E2004809B4 /* bsd.h */,
-				17F334E8292855E2004809B4 /* threadpool.h */,
-				17F334E9292855E2004809B4 /* linux.h */,
-				17F334EA292855E2004809B4 /* tree.h */,
-				17F334EB292855E2004809B4 /* posix.h */,
-				17F334EC292855E2004809B4 /* errno.h */,
-				17F334ED292855E2004809B4 /* darwin.h */,
-				17F334EE292855E2004809B4 /* os390.h */,
-				17F334EF292855E2004809B4 /* aix.h */,
-				17F334F0292855E2004809B4 /* sunos.h */,
-				17F334F1292855E2004809B4 /* win.h */,
-				17F334F2292855E2004809B4 /* unix.h */,
+				17A7F8D4293192D80051D146 /* version.h */,
+				17A7F8D5293192D80051D146 /* bsd.h */,
+				17A7F8D6293192D80051D146 /* threadpool.h */,
+				17A7F8D7293192D80051D146 /* linux.h */,
+				17A7F8D8293192D80051D146 /* tree.h */,
+				17A7F8D9293192D80051D146 /* posix.h */,
+				17A7F8DA293192D80051D146 /* errno.h */,
+				17A7F8DB293192D80051D146 /* darwin.h */,
+				17A7F8DC293192D80051D146 /* os390.h */,
+				17A7F8DD293192D80051D146 /* aix.h */,
+				17A7F8DE293192D80051D146 /* sunos.h */,
+				17A7F8DF293192D80051D146 /* win.h */,
+				17A7F8E0293192D80051D146 /* unix.h */,
 			);
 			path = uv;
 			sourceTree = "<group>";
 		};
-		17F334F3292855E2004809B4 /* socket */ = {
+		17A7F8E1293192D80051D146 /* socket */ = {
 			isa = PBXGroup;
 			children = (
-				17F334F4292855E2004809B4 /* common.hh */,
-				17F334F5292855E2004809B4 /* platform.hh */,
-				17F334F6292855E2004809B4 /* socket.hh */,
-				17F334F7292855E2004809B4 /* config.hh */,
-				17F334F8292855E2004809B4 /* runtime.hh */,
+				17A7F8E2293192D80051D146 /* common.hh */,
+				17A7F8E3293192D80051D146 /* utils.hh */,
+				17A7F8E4293192D80051D146 /* platform.hh */,
+				17A7F8E5293192D80051D146 /* json.hh */,
+				17A7F8E6293192D80051D146 /* socket.hh */,
+				17A7F8E7293192D80051D146 /* config.hh */,
+				17A7F8E8293192D80051D146 /* version.hh */,
+				17A7F8E9293192D80051D146 /* env.hh */,
 			);
 			path = socket;
 			sourceTree = "<group>";
@@ -551,12 +551,11 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 		29124C4127613369001832A0 = {
 			isa = PBXGroup;
 			children = (
+				17A7F8D1293192D80051D146 /* include */,
+				17A7F8B6293192890051D146 /* main.o */,
 				17F334F9292855FB004809B4 /* config.cc */,
 				17F334FA292855FB004809B4 /* debug.cc */,
 				17F334FF292855FB004809B4 /* init.cc */,
-				17F334E3292855E2004809B4 /* include */,
-				17F334DF292855D4004809B4 /* main.o */,
-				17F334E0292855D4004809B4 /* start.o */,
 				290F7F86276BC2B000486988 /* lib */,
 				294A3C9027677424007B5B9A /* socket.entitlements */,
 				294A3C842764EAB7007B5B9A /* ui */,
@@ -570,7 +569,7 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 		29124C4B27613369001832A0 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				29124C4A27613369001832A0 /* {{name}}.app */,
+				29124C4A27613369001832A0 /* dogfood-dev.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -578,8 +577,7 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 		294A3C782763E9C6007B5B9A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				17F3350529285654004809B4 /* libsocket-core.a */,
-				17F3350629285654004809B4 /* libsocket-modules.a */,
+				17F3350529285654004809B4 /* libsocket-runtime.a */,
 				17E73FEE28FCD3360087604F /* libuv.a */,
 				17C230B928E9398700301440 /* Foundation.framework */,
 				2996EDB12770BC1F00C672A2 /* Network.framework */,
@@ -594,9 +592,9 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		29124C4927613369001832A0 /* {{name}} */ = {
+		29124C4927613369001832A0 /* dogfood-dev */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 29124C792761336B001832A0 /* Build configuration list for PBXNativeTarget "{{name}}" */;
+			buildConfigurationList = 29124C792761336B001832A0 /* Build configuration list for PBXNativeTarget "dogfood-dev" */;
 			buildPhases = (
 				29124C4627613369001832A0 /* Sources */,
 				29124C4727613369001832A0 /* Frameworks */,
@@ -606,9 +604,9 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			);
 			dependencies = (
 			);
-			name = "{{name}}";
-			productName = "{{name}}";
-			productReference = 29124C4A27613369001832A0 /* {{name}}.app */;
+			name = "dogfood-dev";
+			productName = "dogfood-dev";
+			productReference = 29124C4A27613369001832A0 /* dogfood-dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -625,7 +623,7 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 					};
 				};
 			};
-			buildConfigurationList = 29124C4527613369001832A0 /* Build configuration list for PBXProject "{{name}}" */;
+			buildConfigurationList = 29124C4527613369001832A0 /* Build configuration list for PBXProject "dogfood-dev" */;
 			compatibilityVersion = "Xcode 13.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -638,7 +636,7 @@ constexpr auto gXCodeProject = R"ASCII(// !$*UTF8*$!
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				29124C4927613369001832A0 /* {{name}} */,
+				29124C4927613369001832A0 /* dogfood-dev */,
 			);
 		};
 /* End PBXProject section */

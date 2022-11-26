@@ -1,4 +1,7 @@
+#include <socket/utils.hh>
 #include "runtime.hh"
+
+using namespace ssc::utils;
 
 namespace ssc::runtime {
   JSON::Object::Entries ERR_SOCKET_ALREADY_BOUND (

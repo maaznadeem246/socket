@@ -1,11 +1,11 @@
+#include <socket/utils.hh>
 #include "runtime.hh"
-#include "utils.hh"
 
 using namespace ssc::utils;
 
 namespace ssc::runtime {
   PeerManager::PeerManager (Runtime* runtime)
-    : loop(runtime->loop)
+    : loop(runtime->loops.main)
   {}
 
   void PeerManager::resumeAllPeers () {

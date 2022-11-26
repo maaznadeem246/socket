@@ -4,6 +4,13 @@
 #include "json.hh"
 
 namespace ssc::config {
+  // forward
+  class Config;
+
+  extern bool isDebugEnabled ();
+  extern int getServerPort ();
+  extern void init (Config& config);
+
   class Config {
     public:
       String source;
@@ -70,8 +77,5 @@ namespace ssc::config {
         return JSON::Object(this->entries);
       }
   };
-
-  bool isDebugEnabled ();
-  int getServerPort ();
 }
 #endif

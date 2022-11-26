@@ -1,7 +1,7 @@
-#ifndef SSC_RUNTIME_UTILS_HH
-#define SSC_RUNTIME_UTILS_HH
+#ifndef SSC_SOCKET_UTILS_HH
+#define SSC_SOCKET_UTILS_HH
 
-#include <socket/platform.hh>
+#include "platform.hh"
 #include <uv.h>
 #include <cmath>
 

@@ -1,25 +1,26 @@
-module;
-#include "../core/application.hh"
+#ifndef SSC_DESKTOP_APPLICATION_H
+#define SSC_DESKTOP_APPLICATION_H
 
-/**
- * @module ssc.application
- * @description Core platform agnostic WebView APIs
- */
-export module ssc.application;
-import ssc.runtime;
-import ssc.window;
-import ssc.types;
-import ssc.uv;
+#include <socket/socket.hh>
+#include <socket/utils.hh>
 
-using namespace ssc::types;
-using ssc::runtime::Runtime;
-using ssc::window::Window;
-using ssc::window::WindowManager;
-using ssc::window::WindowOptions;
+#include "../runtime/application.hh"
+#include "../runtime/ipc.hh"
+#include "../runtime/log.hh"
+#include "../runtime/process.hh"
+#include "../runtime/runtime.hh"
+#include "../runtime/window.hh"
 
-export namespace ssc::application {
-  using ssc::core::application::CoreApplication;
-  class Application : public CoreApplication {
+// namespace log = ssc::runtime::log;
+
+namespace ssc::desktop {
+  using runtime::Runtime;
+  using runtime::window::Window;
+  using runtime::window::WindowManager;
+  using runtime::window::WindowOptions;
+  using RuntimeApplication = runtime::application::Application;
+
+  class Application : public RuntimeApplication {
     public:
       WindowManager windowManager;
       Runtime runtime;
@@ -28,16 +29,16 @@ export namespace ssc::application {
       Application () : Application(0, nullptr) {}
       Application (const int argc, const char** argv)
         : windowManager(*this, runtime),
-          CoreApplication(argc, argv) {}
+          RuntimeApplication(argc, argv) {}
 
     #if defined(_WIN32) // Windows
       Application (void* hInstance, const int argc, const char** argv)
         : windowManager(*this, runtime),
-          CoreApplication(hInstance, argc, argv) {}
+          RuntimeApplication(hInstance, argc, argv) {}
     #else // POSIX
       Application (int unused, const int argc, const char** argv)
         : windowManager(*this, runtime),
-          CoreApplication(unused, argc, argv) {}
+          RuntimeApplication(unused, argc, argv) {}
     #endif
 
       Window* createDefaultWindow () {
@@ -58,6 +59,10 @@ export namespace ssc::application {
         auto cwd = this->cwd();
         uv_chdir(cwd.c_str());
 
+        this->dispatch([this] () mutable {
+          this->onResume();
+        });
+
         this->started = true;
         this->runtime.start();
         // start the platform specific event loop for the main
@@ -72,7 +77,7 @@ export namespace ssc::application {
       }
 
       void onPause () {
-        // TODO(@jwerle)
+        // TODO
       }
 
       void onResume () {
@@ -84,3 +89,5 @@ export namespace ssc::application {
       }
   };
 }
+
+#endif

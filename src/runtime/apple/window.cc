@@ -1,64 +1,58 @@
 #include "../window.hh"
-#include "../private.hh"
-#include "../internal/window.hh"
-#include "../internal/webview.hh"
 
-using namespace ssc::core;
+namespace JSON = ssc::JSON;
 
-namespace ssc::core::window {
-  using namespace application;
-  using namespace string;
-
+namespace ssc::runtime::window {
   static bool isDelegateSet = false;
 
-  CoreWindowInternals::CoreWindowInternals (
-    CoreWindow* coreWindow,
-    const CoreWindowOptions& opts
+  WindowInternals::WindowInternals (
+    Window* window,
+    const WindowOptions& opts
   ) {
-    this->coreWindow = coreWindow;
-    this->delegate = [CoreWindowDelegate new];
-    this->delegate.internals = this;
+    this->window = window;
+    this->coreDelegate = [CoreWindowDelegate new];
+    this->coreDelegate.internals = this;
 
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
       auto notificationCenter = [NSNotificationCenter defaultCenter];
       auto viewController = [[UIViewController alloc] init];
       auto frame = [[UIScreen mainScreen] bounds];
 
-      this->window = [[UIWindow alloc] initWithFrame: frame];
-      this->window.rootViewController = viewController;
+      this->coreWindow = [[UIWindow alloc] initWithFrame: frame];
+      this->coreWindow.rootViewController = viewController;
 
       [viewController.view setFrame: frame];
 
       [notificationCenter
-        addObserver: this->delegate
+        addObserver: this->coreDelegate
            selector: @selector(keyboardDidShow)
                name: UIKeyboardDidShowNotification
               object: nil
       ];
 
       [notificationCenter
-        addObserver: this->delegate
+        addObserver: this->coreDelegate
            selector: @selector(keyboardDidHide)
                name: UIKeyboardDidHideNotification
              object: nil
       ];
 
       [notificationCenter
-        addObserver: this->delegate
+        addObserver: this->coreDelegate
            selector: @selector(keyboardWillShow)
                name: UIKeyboardWillShowNotification
              object: nil
       ];
 
       [notificationCenter
-        addObserver: this->delegate
+        addObserver: this->coreDelegate
           selector: @selector(keyboardWillHide)
               name: UIKeyboardWillHideNotification
             object: nil
       ];
 
       [notificationCenter
-        addObserver: this->delegate
+        addObserver: this->coreDelegate
            selector: @selector(keyboardWillChange:)
                name: UIKeyboardWillChangeFrameNotification
              object: nil
@@ -91,11 +85,11 @@ namespace ssc::core::window {
         nil
 		  ];
 
-      auto screenSize = coreWindow->getScreenSize();
+      auto screenSize = window->getScreenSize();
       auto height = opts.isHeightInPercent ? screenSize.height * opts.height / 100 : opts.height;
       auto width = opts.isWidthInPercent ? screenSize.width * opts.width / 100 : opts.width;
 
-      this->window = [[NSWindow alloc]
+      this->coreWindow = [[NSWindow alloc]
           initWithContentRect: NSMakeRect(0, 0, width, height)
                     styleMask: style
                       backing: NSBackingStoreBuffered
@@ -103,26 +97,26 @@ namespace ssc::core::window {
       ];
 
       // Position window in center of screen
-      [this->window center];
-      [this->window setOpaque: YES];
+      [this->coreWindow center];
+      [this->coreWindow setOpaque: YES];
       // Minimum window size
-      [this->window setContentMinSize: NSMakeSize(width, height)];
-      [this->window setBackgroundColor: [NSColor controlBackgroundColor]];
-      [this->window registerForDraggedTypes: draggableTypes];
-      // [this->window setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
-      // [this->window setMovableByWindowBackground: true];
+      [this->coreWindow setContentMinSize: NSMakeSize(width, height)];
+      [this->coreWindow setBackgroundColor: [NSColor controlBackgroundColor]];
+      [this->coreWindow registerForDraggedTypes: draggableTypes];
+      // [this->coreWindow setAppearance:[NSAppearance appearanceNamed:NSAppearanceNameVibrantDark]];
+      // [this->coreWindow setMovableByWindowBackground: true];
 
       if (opts.frameless) {
-        [this->window setTitlebarAppearsTransparent: true];
+        [this->coreWindow setTitlebarAppearsTransparent: true];
       }
 
-      [this->window setDelegate: this->delegate];
+      [this->coreWindow setDelegate: this->coreDelegate];
     #endif
   }
 
-  void CoreWindow::initialize ()  {
+  void Window::initialize ()  {
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-      [this->webview->internals->webview.scrollView setDelegate: this->internals->delegate];
+      [this->webview->internals->coreWebView.scrollView setDelegate: this->internals->coreDelegate];
     #endif
 
     /*
@@ -133,7 +127,7 @@ namespace ssc::core::window {
       auto  script = [NSString stringWithUTF8String: value.c_str()];
 
       dispatch_async(dispatch_get_main_queue(), ^{
-        [this->internals->webview evaluateJavaScript: script completionHandler: ^(id result, NSError *error) {
+        [this->internals->coreWebView evaluateJavaScript: script completionHandler: ^(id result, NSError *error) {
           if (result) {
             auto msg = String([[NSString stringWithFormat:@"%@", result] UTF8String]);
             this->bridge->router.send(seq, msg, Post{});
@@ -172,7 +166,7 @@ namespace ssc::core::window {
         @selector(userContentController:didReceiveScriptMessage:),
         imp_implementationWithBlock(
           [=](id self, SEL cmd, WKScriptMessage* scriptMessage) {
-            auto window = (__bridge CoreWindow*) objc_getAssociatedObject(self, "window");
+            auto window = (__bridge Window*) objc_getAssociatedObject(self, "window");
             id body = [scriptMessage body];
 
             if (![body isKindOfClass:[NSString class]]) {
@@ -194,7 +188,7 @@ namespace ssc::core::window {
             [&](id self, SEL cmd, id notification) {
               if (exiting) return true;
 
-              auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
+              auto window = (Window*) objc_getAssociatedObject(self, "window");
 
               if (window->opts.canExit) {
                 exiting = true;
@@ -202,7 +196,7 @@ namespace ssc::core::window {
                 return true;
               }
 
-              window->eval(javascript::getEmitToRenderProcessJavaScript("windowHide", "{}"));
+              window->eval(getEmitToRenderProcessJavaScript("windowHide", "{}"));
               window->hide("");
               return false;
             }),
@@ -214,7 +208,7 @@ namespace ssc::core::window {
           @selector(menuItemSelected:),
           imp_implementationWithBlock(
             [=](id self, SEL _cmd, id item) {
-              auto window = (CoreWindow*) objc_getAssociatedObject(self, "window");
+              auto window = (Window*) objc_getAssociatedObject(self, "window");
               if (window->onMessage != nullptr) {
                 id menuItem = (id) item;
                 String title = [[menuItem title] UTF8String];
@@ -222,7 +216,7 @@ namespace ssc::core::window {
                 String parent = [[[menuItem menu] title] UTF8String];
                 String seq = std::to_string([menuItem tag]);
 
-                window->eval(javascript::getResolveMenuSelectionJavaScript(seq, title, parent));
+                window->eval(getResolveMenuSelectionJavaScript(seq, title, parent));
               }
             }),
           "v@:@:@:"
@@ -231,18 +225,18 @@ namespace ssc::core::window {
     }
 
     objc_setAssociatedObject(
-      this->internals->delegate,
+      this->internals->coreDelegate,
       "window",
       (__bridge id) this,
       OBJC_ASSOCIATION_ASSIGN
     );
 
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-      [this->internals->window.rootViewController.view
-        addSubview: this->webview->internals->webview
+      [this->internals->coreWindow.rootViewController.view
+        addSubview: this->webview->internals->coreWebView
       ];
 
-      [this->internals->window makeKeyAndVisible];
+      [this->internals->coreWindow makeKeyAndVisible];
     #else
       // Initialize application
       [NSApplication sharedApplication];
@@ -256,13 +250,13 @@ namespace ssc::core::window {
       }
 
       // Add webview to window
-      [this->internals->window setContentView: this->webview->internals->webview];
+      [this->internals->coreWindow setContentView: this->webview->internals->coreWebView];
     #endif
 
     this->navigate("", opts.url);
   }
 
-  ScreenSize CoreWindow::getScreenSize () {
+  ScreenSize Window::getScreenSize () {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       NSRect e = [[NSScreen mainScreen] frame];
 
@@ -276,12 +270,12 @@ namespace ssc::core::window {
     #endif
   }
 
-  void CoreWindow::show (const String& seq) {
+  void Window::show (const String& seq) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       if (this->opts.headless == true) {
         [NSApp activateIgnoringOtherApps: NO];
       } else {
-        [this->internals->window makeKeyAndOrderFront: nil];
+        [this->internals->coreWindow makeKeyAndOrderFront: nil];
         [NSApp activateIgnoringOtherApps: YES];
       }
     #endif
@@ -292,22 +286,22 @@ namespace ssc::core::window {
     }
   }
 
-  void CoreWindow::kill () {
+  void Window::kill () {
   }
 
-  void CoreWindow::close (int code) {
+  void Window::close (int code) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       // `onExit` handled in `windowShouldClose:` selector
-      [this->internals->window performClose: nil];
+      [this->internals->coreWindow performClose: nil];
     #endif
   }
 
-  void CoreWindow::hide (const String& seq) {
+  void Window::hide (const String& seq) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-      [this->internals->window orderOut: this->internals->window];
+      [this->internals->coreWindow orderOut: this->internals->coreWindow];
     #endif
 
-    this->eval(javascript::getEmitToRenderProcessJavaScript("windowHide", "{}"));
+    this->eval(getEmitToRenderProcessJavaScript("windowHide", "{}"));
 
     if (seq.size() > 0) {
       auto index = std::to_string(this->opts.index);
@@ -315,14 +309,14 @@ namespace ssc::core::window {
     }
   }
 
-  void CoreWindow::eval (const String js) {
-    [this->webview->internals->webview
+  void Window::eval (const String js) {
+    [this->webview->internals->coreWebView
       evaluateJavaScript: [NSString stringWithUTF8String: js.c_str()]
         completionHandler: nil
     ];
   }
 
-  void CoreWindow::setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos) {
+  void Window::setSystemMenuItemEnabled (bool enabled, int barPos, int menuPos) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       auto menuBar = [NSApp mainMenu];
       auto menuBarItems = [menuBar itemArray];
@@ -338,16 +332,16 @@ namespace ssc::core::window {
     #endif
   }
 
-  void CoreWindow::navigate (const String& seq, const String& value) {
+  void Window::navigate (const String& seq, const String& value) {
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
       auto allowed = [[NSBundle mainBundle] resourcePath];
       auto url = [allowed stringByAppendingPathComponent:@"ui/index.html"];
-      [this->webview->internals->webview
+      [this->webview->internals->coreWebView
         loadFileURL: [NSURL fileURLWithPath: url]
         allowingReadAccessToURL: [NSURL fileURLWithPath: allowed]
       ];
     #else
-      [this->webview->internals->webview
+      [this->webview->internals->coreWebView
         loadRequest: [NSURLRequest
           requestWithURL: [NSURL
             URLWithString: [NSString stringWithUTF8String: value.c_str()]
@@ -362,9 +356,9 @@ namespace ssc::core::window {
     }
   }
 
-  void CoreWindow::setTitle (const String& seq, const String& value) {
+  void Window::setTitle (const String& seq, const String& value) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-      [this->internals->window setTitle: [NSString stringWithUTF8String: value.c_str()]];
+      [this->internals->coreWindow setTitle: [NSString stringWithUTF8String: value.c_str()]];
     #endif
 
     if (seq.size() > 0) {
@@ -373,15 +367,15 @@ namespace ssc::core::window {
     }
   }
 
-  void CoreWindow::setSize (const String& seq, int width, int height, int hints) {
+  void Window::setSize (const String& seq, int width, int height, int hints) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
-      [this->internals->window
+      [this->internals->coreWindow
           setFrame: NSMakeRect(0.f, 0.f, (float) width, (float) height)
           display: YES
           animate: YES
       ];
 
-      [this->internals->window center];
+      [this->internals->coreWindow center];
     #endif
 
     if (seq.size() > 0) {
@@ -390,7 +384,7 @@ namespace ssc::core::window {
     }
   }
 
-  int CoreWindow::openExternal (const String& value) {
+  int Window::openExternal (const String& value) {
     auto string = [NSString stringWithUTF8String: value.c_str()];
     auto url = [NSURL URLWithString: string];
 
@@ -403,29 +397,29 @@ namespace ssc::core::window {
     #endif
   }
 
-  void CoreWindow::closeContextMenu () {
+  void Window::closeContextMenu () {
     // @TODO(jwerle)
   }
 
-  void CoreWindow::closeContextMenu (const String &seq) {
+  void Window::closeContextMenu (const String &seq) {
     // @TODO(jwerle)
   }
 
-  void CoreWindow::showInspector () {
+  void Window::showInspector () {
     // This is a private method on the webview, so we need to use
     // the pragma keyword to suppress the access warning.
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       #pragma clang diagnostic ignored "-Wobjc-method-access"
-      [[this->webview->internals->webview _inspector] show];
+      [[this->webview->internals->coreWebView _inspector] show];
     #endif
   }
 
-  void CoreWindow::setBackgroundColor (int r, int g, int b, float a) {
+  void Window::setBackgroundColor (int r, int g, int b, float a) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       CGFloat sRGBComponents[4] = { r / 255.0, g / 255.0, b / 255.0, a };
       NSColorSpace *colorSpace = [NSColorSpace sRGBColorSpace];
 
-      [this->internals->window
+      [this->internals->coreWindow
         setBackgroundColor: [NSColor
           colorWithColorSpace: colorSpace
                    components: sRGBComponents
@@ -435,7 +429,7 @@ namespace ssc::core::window {
     #endif
   }
 
-  void CoreWindow::setContextMenu (const String& seq, const String& value) {
+  void Window::setContextMenu (const String& seq, const String& value) {
     #if !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       auto menuItems = split(value, '_');
       auto id = std::stoi(seq.substr(1)); // remove the 'R' prefix
@@ -484,7 +478,7 @@ namespace ssc::core::window {
     #endif
   }
 
-  void CoreWindow::setSystemMenu (const String& seq, const String& value) {
+  void Window::setSystemMenu (const String& seq, const String& value) {
     #if defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
       auto menu = String(value);
 
@@ -637,7 +631,7 @@ namespace ssc::core::window {
       if (seq.size() > 0) {
         auto value = JSON::Object(JSON::Object::Entries {
           {"err", JSON::Object::Entries {
-            {"message", "CoreWindow::setSystemMenu is not supported on this platform"}
+            {"message", "Window::setSystemMenu is not supported on this platform"}
           }}
         });
 
@@ -646,7 +640,7 @@ namespace ssc::core::window {
     #endif
   }
 
-  void CoreWindow::openDialog (
+  void Window::openDialog (
     const String& seq,
     bool isSave,
     bool allowDirs,
@@ -765,7 +759,7 @@ namespace ssc::core::window {
   };
 
   self.webview.scrollView.scrollEnabled = YES;
-  self.internals->coreWindow->dispatchEvent("keyboard", JSON::Object(json).str());
+  self.internals->window->dispatchEvent("keyboard", JSON::Object(json).str());
 }
 
 - (void) keyboardDidHide {
@@ -775,7 +769,7 @@ namespace ssc::core::window {
     }}
   };
 
-  self.internals->coreWindow->dispatchEvent("keyboard", JSON::Object(json).str());
+  self.internals->window->dispatchEvent("keyboard", JSON::Object(json).str());
 }
 - (void) keyboardWillShow {
   auto json = JSON::Object::Entries {
@@ -785,7 +779,7 @@ namespace ssc::core::window {
   };
 
   self.webview.scrollView.scrollEnabled = NO;
-  self.internals->coreWindow->dispatchEvent("keyboard", JSON::Object(json).str());
+  self.internals->window->dispatchEvent("keyboard", JSON::Object(json).str());
 }
 - (void) keyboardDidShow {
   auto json = JSON::Object::Entries {
@@ -794,7 +788,7 @@ namespace ssc::core::window {
     }}
   };
 
-  self.internals->coreWindow->dispatchEvent("keyboard", JSON::Object(json).str());
+  self.internals->window->dispatchEvent("keyboard", JSON::Object(json).str());
 }
 - (void) keyboardWillChange: (NSNotification*) notification {
   NSDictionary* keyboardInfo = [notification userInfo];
@@ -811,7 +805,7 @@ namespace ssc::core::window {
     }}
   };
 
-  self.internals->coreWindow->dispatchEvent("keyboard", JSON::Object(json).str());
+  self.internals->window->dispatchEvent("keyboard", JSON::Object(json).str());
 }
 #endif
 

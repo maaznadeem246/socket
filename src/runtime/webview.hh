@@ -1,5 +1,5 @@
-#ifndef SSC_CORE_WEBVIEW_HH
-#define SSC_CORE_WEBVIEW_HH
+#ifndef SSC_RUNTIME_WEBVIEW_HH
+#define SSC_RUNTIME_WEBVIEW_HH
 
 #include <socket/platform.hh>
 
@@ -17,23 +17,20 @@
 #endif
 
 #include "ipc.hh"
+#include "runtime.hh"
 
-namespace ssc::core::window {
+namespace ssc::runtime::window {
   // forward
   class Window;
 }
 
-namespace ssc::core::webview {
+namespace ssc::runtime::webview {
   // forward
   struct SchemeRequest;
   class WebViewInternals;
 
-  using namespace window;
-  using namespace headers;
-  using namespace string;
-  using namespace types;
+  using ssc::runtime::window::Window;
   using namespace ipc;
-  using namespace data;
 
   using SchemeResponseStatusCode = unsigned int;
   using SchemeResponseHeaders = Headers;
@@ -124,13 +121,13 @@ namespace ssc::core::webview {
     public:
       String scheme;
       SchemeRequestCallback onSchemeRequestCallback;
-      DataManager* coreDataManager;
+      DataManager* dataManager;
       void* internal = nullptr;
 
       SchemeHandler () = default;
       SchemeHandler (
         const String& scheme,
-        DataManager* coreDataManager,
+        DataManager* dataManager,
         SchemeRequestCallback onSchemeRequestCallback
       );
 
@@ -144,7 +141,7 @@ namespace ssc::core::webview {
       IPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback;
       IPCSchemeHandler () = default;
       IPCSchemeHandler (
-        DataManager* coreDataManager,
+        DataManager* dataManager,
         IPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
       );
 
@@ -187,18 +184,73 @@ namespace ssc::core::webview {
   class WebView {
     public:
       WebViewInternals* internals = nullptr;
-      Window* coreWindow = nullptr;
-      DataManager* coreDataManager = nullptr;
+      Window* window = nullptr;
+      DataManager* dataManager = nullptr;
       IPCSchemeHandler* ipcSchemeHandler = nullptr;
 
       WebView (
-        Window* coreWindow,
-        DataManager* coreDataManager,
+        Window* window,
+        DataManager* dataManager,
         IPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
-        const javascript::Script preloadScript
+        const Script preloadScript
       );
 
       ~WebView ();
+  };
+}
+
+#if defined(__APPLE__)
+namespace ssc::runtime::webview {
+  using CoreSchemeTask = id<WKURLSchemeTask>;
+}
+
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+@interface CoreWKWebView : WKWebView
+@end
+#else
+@interface CoreWKWebView : WKWebView<
+  WKUIDelegate,
+  NSDraggingDestination,
+  NSFilePromiseProviderDelegate,
+  NSDraggingSource
+>
+-     (NSDragOperation) draggingSession: (NSDraggingSession*) session
+  sourceOperationMaskForDraggingContext: (NSDraggingContext) context;
+@end
+#endif
+
+@interface CoreSchemeHandler : NSObject<WKURLSchemeHandler>
+@property (nonatomic) ssc::runtime::webview::SchemeHandler* handler;
+@property (nonatomic) ssc::runtime::webview::SchemeTaskManager<ssc::runtime::webview::CoreSchemeTask>* taskManager;
+- (void) webView: (CoreWKWebView*) webview startURLSchemeTask: (ssc::runtime::webview::CoreSchemeTask) task;
+- (void) webView: (CoreWKWebView*) webview stopURLSchemeTask: (ssc::runtime::webview::CoreSchemeTask) task;
+@end
+
+@interface CoreNavigationDelegate : NSObject<WKNavigationDelegate>
+-                  (void) webview: (WKWebView*) webview
+  decidePolicyForNavigationAction: (WKNavigationAction*) navigationAction
+                  decisionHandler: (void (^)(WKNavigationActionPolicy)) decisionHandler;
+@end
+#endif
+
+namespace ssc::runtime::webview {
+  class WebViewInternals {
+    public:
+      WebView* webview = nullptr;
+      Window* window = nullptr;
+    #if defined(__APPLE__)
+      CoreWKWebView* coreWebView = nullptr; // aka WKWebView
+      CoreNavigationDelegate* coreNavigationDelegate = nullptr;
+    #endif
+      WebViewInternals (
+        WebView* webview,
+        Window* window,
+        DataManager* dataManager,
+        SchemeHandler* ipcSchemeHandler,
+        const Script preloadScript
+      );
+
+      ~WebViewInternals ();
   };
 }
 #endif

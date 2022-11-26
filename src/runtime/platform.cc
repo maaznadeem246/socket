@@ -2,7 +2,7 @@
 
 namespace ssc::runtime {
   Platform::Platform (Runtime* runtime)
-  : loop(runtime->loop)
+  : loop(runtime->loops.main)
   {
     // noop
   }

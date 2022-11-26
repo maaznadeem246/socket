@@ -9,17 +9,13 @@
 #endif
 
 #include "application.hh"
-#include "env.hh"
-#include "global.hh"
-#include "internal/application.hh"
-#include "private.hh"
+#include "window.hh"
 
-using namespace ssc::core::string;
-using namespace ssc::core::application;
+using namespace ssc;
 
-const String OK_STATE = "0";
-const String ERROR_STATE = "1";
-const String EMPTY_SEQ = String("");
+static const String OK_STATE = "0";
+static const String ERROR_STATE = "1";
+static const String EMPTY_SEQ = String("");
 
 #if defined(__APPLE__)
 static dispatch_queue_attr_t qos = dispatch_queue_attr_make_with_qos_class(
@@ -49,47 +45,47 @@ static inline void alert (const char* s) {
 }
 #endif
 
-namespace ssc::core::application {
-  CoreApplication::CoreApplication (
+namespace ssc::runtime::application {
+  Application::Application (
     const int argc,
     const char** argv
   ) : argc(argc), argv(argv) {
     this->wasStartedFromCli = env::has("SSC_CLI");
     ssc::init(this->config, argc, argv);
-    CoreApplication::instance = this;
+    Application::instance = this;
   }
 
-  CoreApplication::~CoreApplication () {
-    CoreApplication::instance = nullptr;
+  Application::~Application () {
+    Application::instance = nullptr;
   }
 
 #if !defined(_WIN32)
-  CoreApplication::CoreApplication (
+  Application::Application (
     int unused,
     const int argc,
     const char** argv
-  ) : CoreApplication(argc, argv) {
+  ) : Application(argc, argv) {
     // noop
   }
 #else
-  CoreApplication::CoreApplication (
+  Application::Application (
     void *hInstance,
     const int argc,
     const char** argv
-  ) : CoreApplication() {
+  ) : Application() {
     this->hInstance = hInstance; // HINSTANCE
 
     HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
-    ssc::core::global:::setWindowCompositionAttribute = reinterpret_cast<ssc::core::global::SetWindowCompositionAttribute>(GetProcAddress(
+    ssc::runtime::global:::setWindowCompositionAttribute = reinterpret_cast<ssc::runtime::global::SetWindowCompositionAttribute>(GetProcAddress(
       GetModuleHandleW(L"user32.dll"),
       "SetWindowCompositionAttribute")
     );
 
     if (hUxtheme) {
-      ssc::core::global::refreshImmersiveColorPolicyState = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(104));
-      ssc::core::global::shouldSystemUseDarkMode = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(138));
-      ssc::core::global::allowDarkModeForApp = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(135));
+      ssc::runtime::global::refreshImmersiveColorPolicyState = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(104));
+      ssc::runtime::global::shouldSystemUseDarkMode = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(138));
+      ssc::runtime::global::allowDarkModeForApp = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(135));
     }
 
     allowDarkModeForApp(shouldSystemUseDarkMode());
@@ -132,7 +128,7 @@ namespace ssc::core::application {
   }
 #endif
 
-  int CoreApplication::run () {
+  int Application::run () {
   #if defined(__linux__)
     gtk_main();
   #elif defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
@@ -165,7 +161,7 @@ namespace ssc::core::application {
     return exitWasRequested ? 1 : 0;
   }
 
-  void CoreApplication::kill () {
+  void Application::kill () {
     // Distinguish window closing with app exiting
     exitWasRequested = true;
   #if defined(__linux__)
@@ -181,7 +177,7 @@ namespace ssc::core::application {
   #endif
   }
 
-  void CoreApplication::restart () {
+  void Application::restart () {
   #if defined(__linux__)
     // @TODO
   #elif defined(__APPLE__)
@@ -196,7 +192,7 @@ namespace ssc::core::application {
   #endif
   }
 
-  void CoreApplication::dispatch (std::function<void()> callback) {
+  void Application::dispatch (std::function<void()> callback) {
   #if defined(__linux__)
     auto threadCallback = new std::function<void()>(callback);
 
@@ -236,7 +232,7 @@ namespace ssc::core::application {
   #endif
   }
 
-  String CoreApplication::cwd () {
+  String Application::cwd () {
     String cwd = "";
 
     #if defined(__linux__) && !defined(__ANDROID__)
@@ -263,7 +259,7 @@ namespace ssc::core::application {
     return cwd;
   }
 
-  void CoreApplication::exit (int code) {
+  void Application::exit (int code) {
     if (this->callbacks.onExit != nullptr) {
       this->callbacks.onExit(code);
     }
@@ -307,7 +303,7 @@ namespace ssc::core::application {
   didFinishLaunchingWithOptions: (NSDictionary*) launchOptions
 {
 
-  app = CoreApplication::getInstance();
+  app = ssc::runtime::application::Application::getInstance();
   window = app->createDefaultWindow();
 
   return YES;

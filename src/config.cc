@@ -1,6 +1,5 @@
-#include <socket/config.hh>
-#include "core/config.hh"
-#include "core/utils.hh"
+#include <socket/socket.hh>
+#include <socket/utils.hh>
 
 namespace ssc::config {
   bool isDebugEnabled () {
@@ -10,8 +9,8 @@ namespace ssc::config {
     return false;
   }
 
-  void init (GlobalConfig& config) {
-    config.set(core::utils::decodeURIComponent(STR_VALUE(SSC_CONFIG)));
+  void init (Config& config) {
+    config.set(utils::decodeURIComponent(STR_VALUE(SSC_CONFIG)));
   }
 
   int getServerPort () {

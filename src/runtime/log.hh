@@ -1,5 +1,5 @@
-#ifndef SSC_CORE_LOG_HH
-#define SSC_CORE_LOG_HH
+#ifndef SSC_RUNTIME_LOG_HH
+#define SSC_RUNTIME_LOG_HH
 
 #include <socket/socket.hh>
 #include <iostream>

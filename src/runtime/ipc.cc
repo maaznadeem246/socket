@@ -1,4 +1,7 @@
+#include <socket/utils.hh>
 #include "ipc.hh"
+
+using namespace ssc::utils;
 
 namespace ssc::runtime::ipc {
   Message::Message (const Message& message) {

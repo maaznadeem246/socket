@@ -29,17 +29,17 @@ namespace ssc::runtime {
     return JSON::String(this->str());
   }
 
-  inline String createJavaScriptSource (const String& name, const String& source) {
+  String createJavaScriptSource (const String& name, const String& source) {
     return Script(name, source).str();
   }
 
-  inline String getEmitToRenderProcessJavaScript (
+  String getEmitToRenderProcessJavaScript (
     const String& event,
     const String& value,
     const String& target,
     const JSON::Object& options
   ) {
-    return createJavaScript("emit-to-render-process.js",
+    return createJavaScriptSource("emit-to-render-process.js",
       "const name = decodeURIComponent(`" + event + "`);                   \n"
       "const value = `" + value + "`;                                      \n"
       "const target = " + target + ";                                      \n"
@@ -63,19 +63,19 @@ namespace ssc::runtime {
     );
   }
 
-  inline String getEmitToRenderProcessJavaScript (
+  String getEmitToRenderProcessJavaScript (
     const String& event,
     const String& value
   ) {
     return getEmitToRenderProcessJavaScript(event, value, "window", JSON::Object {});
   }
 
-  inline String getResolveMenuSelectionJavaScript (
+  String getResolveMenuSelectionJavaScript (
     const String& seq,
     const String& title,
     const String& parent
   ) {
-    return createJavaScript("resolve-menu-selection.js",
+    return createJavaScriptSource("resolve-menu-selection.js",
       "const detail = {                                           \n"
       "  title: decodeURIComponent(`" + title + "`),              \n"
       "  parent: decodeURIComponent(`" + parent + "`),            \n"
@@ -96,12 +96,12 @@ namespace ssc::runtime {
     );
   }
 
-  inline String getResolveToRenderProcessJavaScript (
+  String getResolveToRenderProcessJavaScript (
     const String& seq,
     const String& state,
     const String& value
   ) {
-    return createJavaScript("resolve-to-render-process.js",
+    return createJavaScriptSource("resolve-to-render-process.js",
       "const seq = String('" + seq + "');                    \n"
       "const value = '" + value + "';                        \n"
       "const index = window.__args.index;                    \n"
@@ -138,6 +138,4 @@ namespace ssc::runtime {
       "window.dispatchEvent(event);                          \n"
     );
   }
-
 }
-#endif

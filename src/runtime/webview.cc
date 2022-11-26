@@ -1,12 +1,11 @@
-#include <socket/config.hh>
-#include "internal/webview.hh"
-#include "internal/window.hh"
-#include "private.hh"
+#include <socket/utils.hh>
 #include "webview.hh"
 #include "window.hh"
 
-using namespace ssc::core;
-using namespace ssc::core::types;
+using namespace ssc;
+using namespace ssc::runtime;
+using namespace ssc::runtime::window;
+using namespace ssc::runtime::webview;
 
 #if defined(__APPLE__)
 auto constexpr DISPATCH_QUEUE_LABEL = "co.socketsupply.queue.webview";
@@ -85,16 +84,16 @@ class LinuxSchemeTask {
 using SchemeTask = SharedPointer<LinuxSchemeTask>
 #endif
 
-namespace ssc::core::webview {
+namespace ssc::runtime::webview {
   WebViewInternals::WebViewInternals (
-    WebView* coreWebView,
-    Window* coreWindow,
-    DataManager* coreDataManager,
-    IPCSchemeHandler* coreIPCSchemeHandler,
-    const javascript::Script preloadScript
+    WebView* webview,
+    Window* window,
+    DataManager* dataManager,
+    SchemeHandler* ipcSchemeHandler,
+    const Script preloadScript
   ) {
-    this->coreWebView = coreWebView;
-    this->coreWindow = coreWindow;
+    this->webview = webview;
+    this->window = window;
 
   #if defined(__APPLE__)
     auto configuration = [WKWebViewConfiguration new];
@@ -105,7 +104,7 @@ namespace ssc::core::webview {
     // configuration.limitsNavigationsToAppBoundDomains = YES;
 
     [configuration
-      setURLSchemeHandler: (__bridge ::SchemeHandler*) coreIPCSchemeHandler->internal
+      setURLSchemeHandler: (__bridge ::CoreSchemeHandler*) ipcSchemeHandler->internal
              forURLScheme: @"ipc"
     ];
 
@@ -138,35 +137,35 @@ namespace ssc::core::webview {
 
     // Set delegate to window
     [configuration.userContentController
-      addScriptMessageHandler: coreWindow->internals->delegate
+      addScriptMessageHandler: window->internals->coreDelegate
                          name: @"external"
     ];
 
-    this->navigationDelegate = [[NavigationDelegate alloc] init];
+    this->coreNavigationDelegate = [[CoreNavigationDelegate alloc] init];
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
       auto frame = [[UIScreen mainScreen] bounds];
-      this->webview = [[::WebView alloc]
+      this->coreWebView = [[::CoreWKWebView alloc]
         initWithFrame: frame
         configuration: configuration
       ];
     #else
-      this->webview = [[::WebView alloc]
+      this->coreWebView = [[::CoreWKWebView alloc]
         initWithFrame: NSZeroRect
         configuration: configuration
       ];
     #endif
 
-    [this->webview
-      setNavigationDelegate: this->navigationDelegate
+    [this->coreWebView
+      setNavigationDelegate: this->coreNavigationDelegate
     ];
 
-    [this->webview.configuration.preferences
+    [this->coreWebView.configuration.preferences
       setValue: @YES
         forKey: @"allowFileAccessFromFileURLs"
     ];
 
     #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-      this->webview.autoresizingMask = (
+      this->coreWebView.autoresizingMask = (
         UIViewAutoresizingFlexibleWidth |
         UIViewAutoresizingFlexibleHeight
       );
@@ -180,14 +179,14 @@ namespace ssc::core::webview {
     */
 
     /* FIXME
-    [this->webview registerForDraggedTypes:
-      [NSArray arrayWithObject:NSPasteboardTypeFileURL]
+    [this->coreWebView
+      registerForDraggedTypes: [NSArray arrayWithObject:NSPasteboardTypeFileURL]
     ];
     */
 
     /* FIXME
     [[NSNotificationCenter defaultCenter]
-      addObserver: this->webviewwebview
+       addObserver: this->coreWebView
           selector: @selector(systemColorsDidChangeNotification:)
               name: NSSystemColorsDidChangeNotification
             object: nil
@@ -198,31 +197,31 @@ namespace ssc::core::webview {
 
   WebViewInternals::~WebViewInternals () {
   #if defined(__APPLE__)
-    if (this->webview != nullptr) {
+    if (this->coreWebView != nullptr) {
       #if !__has_feature(objc_arc)
-        [this->webview release];
+        [this->coreWebView release];
       #endif
-      this->webview = nullptr;
+      this->coreWebView = nullptr;
     }
   #endif
   }
 
   WebView::WebView (
-    Window* coreWindow,
-    DataManager* coreDataManager,
+    Window* window,
+    DataManager* dataManager,
     IPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback,
-    const javascript::Script preloadScript
+    const Script preloadScript
   ) {
     this->ipcSchemeHandler = new IPCSchemeHandler(
-      coreDataManager,
+      dataManager,
       onIPCSchemeRequestRouteCallback
     );
-    this->coreDataManager = coreDataManager;
-    this->coreWindow = coreWindow;
+    this->dataManager = dataManager;
+    this->window = window;
     this->internals = new WebViewInternals(
       this,
-      coreWindow,
-      coreDataManager,
+      window,
+      dataManager,
       this->ipcSchemeHandler,
       preloadScript
     );
@@ -240,29 +239,29 @@ namespace ssc::core::webview {
 
   SchemeHandler::SchemeHandler (
     const String& scheme,
-    DataManager* coreDataManager,
+    DataManager* dataManager,
     SchemeRequestCallback onSchemeRequestCallback
   ) {
     this->scheme = scheme;
-    this->coreDataManager = coreDataManager;
+    this->dataManager = dataManager;
     this->onSchemeRequestCallback = onSchemeRequestCallback;
 
     #if defined(__APPLE__)
-      auto schemeHandler = [::SchemeHandler new];
+      auto schemeHandler = [::CoreSchemeHandler new];
       schemeHandler.handler = this;
-      schemeHandler.taskManager = new SchemeTaskManager<SchemeTask>();
+      schemeHandler.taskManager = new SchemeTaskManager<CoreSchemeTask>();
       this->internal = (__bridge void*) schemeHandler;
     #elif defined(__linux__) && !defined(__ANDROID__)
       auto schemeHandler = SharedPointer<SchemeHandler>(new SchemeHandler());
       schemeHandler->handler = this;
-      schemeHandler->taskManager = SharedPointer<SchemeTaskManager<SchemeTask>>(new SchemeTaskManager<SchemeTask>());
+      schemeHandler->taskManager = SharedPointer<SchemeTaskManager<CoreSchemeTask>>(new SchemeTaskManager<CoreSchemeTask>());
     #endif
   }
 
   SchemeHandler::~SchemeHandler () {
     #if defined(__APPLE__)
       if (this->internal != nullptr) {
-        auto schemeHandler = (__bridge ::SchemeHandler*) this->internal;
+        auto schemeHandler = (__bridge ::CoreSchemeHandler*) this->internal;
         delete schemeHandler.taskManager;
         #if !__has_feature(objc_arc)
           [schemeHandler release];
@@ -316,7 +315,7 @@ namespace ssc::core::webview {
       }
 
       auto jsonString = this->response.body.json.str();
-      auto task = (__bridge SchemeTask) this->internal;
+      auto task = (__bridge CoreSchemeTask) this->internal;
       auto headerFields = [NSMutableDictionary dictionary];
 
       headerFields[@"access-control-allow-methods"] = @"*";
@@ -369,9 +368,9 @@ namespace ssc::core::webview {
   }
 
   IPCSchemeHandler::IPCSchemeHandler (
-    DataManager* coreDataManager,
+    DataManager* dataManager,
     IPCSchemeRequestRouteCallback onIPCSchemeRequestRouteCallback
-  ) : SchemeHandler("ipc", coreDataManager, nullptr) {
+  ) : SchemeHandler("ipc", dataManager, nullptr) {
     this->onIPCSchemeRequestRouteCallback = onIPCSchemeRequestRouteCallback;
   }
 
@@ -400,7 +399,7 @@ namespace ssc::core::webview {
       } else {
         try {
           auto id = std::stoull(message.get("id", "0"));
-          if (!this->coreDataManager->has(id)) {
+          if (!this->dataManager->has(id)) {
             statusCode = 404;
             body.json = JSON::Object::Entries {
               {"source", "data"},
@@ -416,7 +415,7 @@ namespace ssc::core::webview {
             NSTimeInterval timeout = 0.16;
             auto block = ^(NSTimer* timer) {
               dispatch_async(dispatch_get_main_queue(), ^{
-                this->coreDataManager->remove(id);
+                this->dataManager->remove(id);
               });
             };
 
@@ -438,12 +437,12 @@ namespace ssc::core::webview {
 
     if (message.seq.size() > 0 && message.seq != "-1") {
       #if defined(__APPLE__)
-        auto task = (__bridge SchemeTask) request.internal;
+        auto task = (__bridge CoreSchemeTask) request.internal;
         #if !__has_feature(objc_arc)
           [task retain];
         #endif
 
-        auto schemeHandler = (__bridge ::SchemeHandler*) this->internal;
+        auto schemeHandler = (__bridge ::CoreSchemeHandler*) this->internal;
         schemeHandler.taskManager->put(message.seq, task);
       #endif
     }
@@ -469,10 +468,10 @@ namespace ssc::core::webview {
 }
 
 #if defined(__APPLE__)
-@implementation SchemeHandler
-- (void) webView: (WebView*) webview stopURLSchemeTask: (SchemeTask) task {}
-- (void) webView: (WebView*) webview startURLSchemeTask: (SchemeTask) task {
-  auto request = ssc::core::webview::SchemeRequest {
+@implementation CoreSchemeHandler
+- (void) webView: (CoreWKWebView*) webview stopURLSchemeTask: (CoreSchemeTask) task {}
+- (void) webView: (CoreWKWebView*) webview startURLSchemeTask: (CoreSchemeTask) task {
+  auto request = ssc::runtime::webview::SchemeRequest {
     String(task.request.HTTPMethod.UTF8String),
     String(task.request.URL.absoluteString.UTF8String),
     { nullptr, 0 }
@@ -493,14 +492,14 @@ namespace ssc::core::webview {
   #endif
 
   dispatch_async(dispatchQueue, ^{
-    ssc::core::webview::SchemeRequest req(request);
+    ssc::runtime::webview::SchemeRequest req(request);
     self.handler->onSchemeRequest(req);
   });
 }
 @end
 
-@implementation NavigationDelegate
-- (void) webview: (WebView*) webview
+@implementation CoreNavigationDelegate
+- (void) webview: (CoreWKWebView*) webview
     decidePolicyForNavigationAction: (WKNavigationAction*) navigationAction
                     decisionHandler: (void (^)(WKNavigationActionPolicy)) decisionHandler {
   String base = webview.URL.absoluteString.UTF8String;
@@ -514,7 +513,7 @@ namespace ssc::core::webview {
 }
 @end
 
-@implementation WebView
+@implementation CoreWKWebView
 
 #if !TARGET_OS_IPHONE && !TARGET_OS_IPHONE
 Vector<String> draggablePayload;
@@ -537,7 +536,7 @@ int lastY = 0;
     "\"y\":" + y + "}"
   );
 
-  auto payload = javascript::getEmitToRenderProcessJavaScript("dragend", json);
+  auto payload = getEmitToRenderProcessJavaScript("dragend", json);
   draggablePayload.clear();
 
   [self evaluateJavaScript:
@@ -565,7 +564,7 @@ int lastY = 0;
     "\"y\":" + y + "}"
   );
 
-  auto payload = javascript::getEmitToRenderProcessJavaScript("drag", json);
+  auto payload = getEmitToRenderProcessJavaScript("drag", json);
 
   [self evaluateJavaScript:
     [NSString stringWithUTF8String: payload.c_str()] completionHandler:nil];
@@ -575,7 +574,7 @@ int lastY = 0;
 - (NSDragOperation) draggingEntered: (id<NSDraggingInfo>)info {
   [self draggingUpdated: info];
 
-  auto payload = javascript::getEmitToRenderProcessJavaScript("dragenter", "{}");
+  auto payload = getEmitToRenderProcessJavaScript("dragenter", "{}");
   [self evaluateJavaScript:
     [NSString stringWithUTF8String: payload.c_str()]
     completionHandler:nil];
@@ -619,7 +618,7 @@ int lastY = 0;
     "\"y\":" + std::to_string(y) + "}"
   );
 
-  auto payload = javascript::getEmitToRenderProcessJavaScript("dropin", json);
+  auto payload = getEmitToRenderProcessJavaScript("dropin", json);
 
   [self evaluateJavaScript:
     [NSString stringWithUTF8String: payload.c_str()] completionHandler:nil];
@@ -645,7 +644,7 @@ int lastY = 0;
     "\"y\":" + y + "}"
   );
 
-  auto payload = javascript::getEmitToRenderProcessJavaScript("drag", json);
+  auto payload = getEmitToRenderProcessJavaScript("drag", json);
 
   [self evaluateJavaScript:
     [NSString stringWithUTF8String: payload.c_str()] completionHandler:nil];
@@ -666,7 +665,7 @@ int lastY = 0;
 
   if (significantMoveX || significantMoveY) {
     for (auto path : draggablePayload) {
-      path = string::replace(path, "\"", "'");
+      path = replace(path, "\"", "'");
 
       String json = (
         "{\"src\":\"" + path + "\","
@@ -674,7 +673,7 @@ int lastY = 0;
         "\"y\":" + sy + "}"
       );
 
-      auto payload = javascript::getEmitToRenderProcessJavaScript("drop", json);
+      auto payload = getEmitToRenderProcessJavaScript("drop", json);
 
       [self evaluateJavaScript:
         [NSString stringWithUTF8String: payload.c_str()]
@@ -687,7 +686,7 @@ int lastY = 0;
     "\"y\":" + sy + "}"
   );
 
-  auto payload = javascript::getEmitToRenderProcessJavaScript("dragend", json);
+  auto payload = getEmitToRenderProcessJavaScript("dragend", json);
 
   [self evaluateJavaScript:
     [NSString stringWithUTF8String: payload.c_str()] completionHandler:nil];
@@ -727,7 +726,7 @@ int lastY = 0;
     }
 
     Vector<String> files =
-      string::split(String([result UTF8String]), ';');
+      split(String([result UTF8String]), ';');
 
     if (files.size() == 0) {
       [super mouseDown:event];
@@ -760,7 +759,7 @@ int lastY = 0;
   [[self window] setFrameOrigin:newOrigin]; */
 
   if (!NSPointInRect(location, self.frame)) {
-    auto payload = javascript::getEmitToRenderProcessJavaScript("dragexit", "{}");
+    auto payload = getEmitToRenderProcessJavaScript("dragexit", "{}");
     [self evaluateJavaScript:
       [NSString stringWithUTF8String: payload.c_str()] completionHandler:nil];
   }
@@ -784,7 +783,7 @@ int lastY = 0;
       "\"y\":" + sy + "}"
     );
 
-    auto payload = javascript::getEmitToRenderProcessJavaScript("drag", json);
+    auto payload = getEmitToRenderProcessJavaScript("drag", json);
 
     [self evaluateJavaScript:
       [NSString stringWithUTF8String: payload.c_str()] completionHandler:nil];
@@ -866,7 +865,7 @@ int lastY = 0;
     "\"dest\":\"" + dest + "\"}"
   );
 
-  String js = javascript::getEmitToRenderProcessJavaScript("dropout", json);
+  String js = getEmitToRenderProcessJavaScript("dropout", json);
 
   [self
     evaluateJavaScript: [NSString stringWithUTF8String:js.c_str()]

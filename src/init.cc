@@ -1,16 +1,10 @@
 #include <socket/socket.hh>
 #include <span>
 
-#include "core/config.hh"
-#include "core/types.hh"
-
-using namespace ssc::core::types;
-
 namespace ssc {
-  using config::GlobalConfig;
   static AtomicBool isInitialized = false;
   void init (
-    GlobalConfig& config,
+    Config& config,
     const int argc,
     const char** argv
   ) {

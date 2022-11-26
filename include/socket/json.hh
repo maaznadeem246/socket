@@ -1,5 +1,5 @@
-#ifndef SSC_CORE_JSON_HH
-#define SSC_CORE_JSON_HH
+#ifndef SSC_SOCKET_JSON_HH
+#define SSC_SOCKET_JSON_HH
 
 #include "common.hh"
 

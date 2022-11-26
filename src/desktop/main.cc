@@ -1,33 +1,21 @@
 #include <socket/socket.hh>
+
 #include <filesystem>
 #include <functional>
 #include <span>
 #include <new>
 
-import ssc.application;
-import ssc.config;
-import ssc.env;
-import ssc.ipc;
-import ssc.javascript;
-import ssc.log;
-import ssc.process;
-import ssc.string;
-import ssc.utils;
-import ssc.window;
+#include "application.hh"
 
-using namespace ssc::application;
-using namespace ssc::config;
-using namespace ssc::javascript;
-using namespace ssc::ipc;
-using namespace ssc::platform;
-using namespace ssc::process;
-using namespace ssc::string;
+using namespace ssc;
+using namespace ssc::desktop;
+using namespace ssc::runtime;
+using namespace ssc::runtime::ipc;
 using namespace ssc::utils;
-using namespace ssc::window;
+using namespace ssc::runtime::process;
 
-namespace env = ssc::env;
 namespace fs = std::filesystem;
-namespace log = ssc::log;
+namespace log = ssc::runtime::log;
 
 const PlatformInfo platform;
 
@@ -287,7 +275,7 @@ MAIN {
         return;
       }
 
-      if (message.index > ssc::window::MAX_WINDOWS) {
+      if (message.index > ssc::runtime::window::MAX_WINDOWS) {
         // @TODO: print warning
         return;
       }
@@ -700,7 +688,7 @@ MAIN {
 
   app.callbacks.onExit = shutdownHandler;
 
-  app.windowManager.configure(WindowManagerOptions {
+  app.windowManager.configure(window::WindowManagerOptions {
     .defaultHeight = height,
     .defaultWidth = width,
     .isHeightInPercent = isHeightInPercent,
