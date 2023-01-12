@@ -253,11 +253,13 @@ namespace SSC {
 
   const RemotePeerInfo* Peer::getRemotePeerInfo () {
     Lock lock(this->mutex);
+    this->initRemotePeerInfo();
     return &this->remote;
   }
 
   const LocalPeerInfo* Peer::getLocalPeerInfo () {
     Lock lock(this->mutex);
+    this->initLocalPeerInfo();
     return &this->local;
   }
 
@@ -509,7 +511,6 @@ namespace SSC {
       unsigned flags
     ) {
       auto peer = (Peer *) handle->data;
-
       if (nread <= 0) {
         if (buf && buf->base) {
           free(buf->base);
