@@ -806,6 +806,10 @@ namespace SSC {
                           DWORD actual;
                           HRESULT r;
 
+                          // XXX(@jwerle): get `index` and `seq` query string arguments and look up
+                          // a `ICoreWebView2ExperimentalSharedBuffer` instance the corresponds to them
+                          // use the shared buffer instead of the request body
+
                           req->get_Content(&body_data);
                           // TODO(trevnorris): This assumes the amount of data sent is always less
                           // than 32KB. A check should be added to make sure the amount of data
@@ -919,7 +923,25 @@ namespace SSC {
                       if (onMessage != nullptr) {
                         SSC::WString message_w(messageRaw);
                         SSC::String message = SSC::WStringToString(messageRaw);
+                        auto msg = IPC::Message{message};
                         Window* w = reinterpret_cast<Window*>(GetWindowLongPtr((HWND)window, GWLP_USERDATA));
+                        ICoreWebView2_2* webview2 = nullptr;
+                        ICoreWebView2Environment* env = nullptr;
+
+                        webview->QueryInterface(IID_PPV_ARGS(&webview2));
+                        webview2->get_Environment(&env);
+
+                        // this should only come from `postMessage()`
+                        if (msg.name == "buffer.create") {
+                          auto seq = msg.seq;
+                          auto size = std::stoull(msg.get("size", "0"));
+                          auto index = msg.index;
+                          ICoreWebView2ExperimentalSharedBuffer* sharedBuffer = nullptr;
+                          env->CreateSharedBuffer(size, &sharedBuffer)
+                          // store `sharedBuffer` somewhere addressed by `index` and `seq`
+                          return;
+                        }
+
                         if (!w->bridge->route(message, nullptr, 0)) {
                           onMessage(message);
                         }
