@@ -79,9 +79,42 @@ function initializeXHRIntercept () {
           typeof body !== 'undefined' &&
           typeof seq !== 'undefined'
         ) {
+          if (typeof body === 'string') {
+            body = encoder.encode(body)
+          }
+
           if (/android/i.test(window.__args.os)) {
             await postMessage(`ipc://buffer.map?seq=${seq}`, body)
             body = null
+          }
+
+          if (/win32/i.test(window.__args.os) && body) {
+            // 1. send `ipc://buffer.create`
+            //   - The native side should create a shared buffer for `index` and `seq` pair
+            // 2. wait for 'sharedbufferreceived' event
+            //   - The webview will wait for this event on `window`
+            //   - The event should include "additional data" that is JSON and includes the `index` and `seq` values
+            // 3. filter on `index` and `seq` for this request
+            //   - The webview will filter on the `index` and `seq` values before calling `getBuffer()`
+            // 4. write `body` to _shared_ `buffer`
+            //   - The webview should write all bytes to the buffer
+            // 5. resolve promise
+            //   - After promise resolution, the XHR request will continue
+            //   - The native side should look up the shared buffer for the `index` and `seq` values and use it
+            //     as the bytes for the request when routing the IPC request through the bridge router
+            //   - The native side should release the shared buffer
+            await postMessage(`ipc://buffer.create?index=${index}&seq=${seq}`)
+            await new Promise((resolve) => {
+              window.addEventListener('sharedbufferreceived', function onSharedBufferReceived (event) {
+                const { additionalData } = event
+                if (additionalData.index === index && additionalData.seq === seq) {
+                  const buffer = Uint8Array.from(event.getBuffer())
+                  buffer.set(body)
+                  window.removeEventListener('sharedbufferreceived', onSharedBufferReceived)
+                  resolve()
+                }
+              })
+            })
           }
 
           if (/linux/i.test(window.__args.os)) {
@@ -308,10 +341,6 @@ function maybeMakeError (error, caller) {
 }
 
 function createUri (protocol, command) {
-  if (typeof window === 'object' && window?.__args.os === 'win32') {
-    protocol = 'http:'
-  }
-
   return `${protocol}//${command}`
 }
 
