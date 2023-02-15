@@ -317,12 +317,12 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.access"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -368,12 +368,12 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.chmod"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -434,13 +434,13 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.close"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -495,13 +495,13 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.open"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
 
@@ -511,11 +511,11 @@ namespace SSC {
             {"source", "fs.open"},
             {"data", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"fd", (int) req->result}
+              {"fd", (int) uv_fs_get_result(req)}
             }}
           };
 
-          desc->fd = (int) req->result;
+          desc->fd = (int) uv_fs_get_result(req);
           // insert into `descriptors` map
           Lock lock(desc->core->fs.mutex);
           desc->core->fs.descriptors.insert_or_assign(desc->id, desc);
@@ -559,13 +559,13 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.opendir"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
 
@@ -654,19 +654,19 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.readdir"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
           Vector<JSON::Any> entries;
 
-          for (int i = 0; i < req->result; ++i) {
+          for (int i = 0; i < uv_fs_get_result(req); ++i) {
             auto entry = JSON::Object::Entries {
               {"type", desc->dir->dirents[i].type},
               {"name", desc->dir->dirents[i].name}
@@ -744,13 +744,13 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.closedir"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -906,13 +906,13 @@ namespace SSC {
         auto json = JSON::Object {};
         Post post = {0};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.read"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
 
@@ -923,12 +923,12 @@ namespace SSC {
         } else {
           auto headers = Headers {{
             {"content-type" ,"application/octet-stream"},
-            {"content-length", req->result}
+            {"content-length", uv_fs_get_result(req)}
           }};
 
           post.id = SSC::rand64();
           post.body = ctx->getBuffer(0);
-          post.length = (int) req->result;
+          post.length = uv_fs_get_result(req);
           post.headers = headers.str();
           post.bodyNeedsFree = true;
         }
@@ -989,13 +989,13 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.write"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -1003,7 +1003,7 @@ namespace SSC {
             {"source", "fs.write"},
             {"data", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"result", req->result}
+              {"result", uv_fs_get_result(req)}
             }}
           };
         }
@@ -1042,12 +1042,12 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.stat"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -1103,13 +1103,13 @@ namespace SSC {
         auto desc = ctx->desc;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.fstat"},
             {"err", JSON::Object::Entries {
               {"id", std::to_string(desc->id)},
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -1181,12 +1181,12 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.stat"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
@@ -1226,19 +1226,19 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.unlink"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
           json = JSON::Object::Entries {
             {"source", "fs.unlink"},
             {"data", JSON::Object::Entries {
-              {"result", req->result},
+              {"result", uv_fs_get_result(req)},
             }}
           };
         }
@@ -1278,19 +1278,19 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.rename"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
           json = JSON::Object::Entries {
             {"source", "fs.rename"},
             {"data", JSON::Object::Entries {
-              {"result", req->result},
+              {"result", uv_fs_get_result(req)},
             }}
           };
         }
@@ -1331,19 +1331,19 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.copyFile"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
           json = JSON::Object::Entries {
             {"source", "fs.copyFile"},
             {"data", JSON::Object::Entries {
-              {"result", req->result},
+              {"result", uv_fs_get_result(req)},
             }}
           };
         }
@@ -1381,19 +1381,19 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.rmdir"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
           json = JSON::Object::Entries {
             {"source", "fs.rmdir"},
             {"data", JSON::Object::Entries {
-              {"result", req->result},
+              {"result", uv_fs_get_result(req)},
             }}
           };
         }
@@ -1432,19 +1432,19 @@ namespace SSC {
         auto ctx = (RequestContext *) req->data;
         auto json = JSON::Object {};
 
-        if (req->result < 0) {
+        if (uv_fs_get_result(req) < 0) {
           json = JSON::Object::Entries {
             {"source", "fs.mkdir"},
             {"err", JSON::Object::Entries {
-              {"code", req->result},
-              {"message", String(uv_strerror((int) req->result))}
+              {"code", uv_fs_get_result(req)},
+              {"message", String(uv_strerror(uv_fs_get_result(req)))}
             }}
           };
         } else {
           json = JSON::Object::Entries {
             {"source", "fs.mkdir"},
             {"data", JSON::Object::Entries {
-              {"result", req->result},
+              {"result", uv_fs_get_result(req)},
             }}
           };
         }
