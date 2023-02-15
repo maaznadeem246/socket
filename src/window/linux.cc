@@ -141,10 +141,7 @@ namespace SSC {
       ) {
         auto window = static_cast<Window*>(ptr);
         auto value = webkit_javascript_result_get_js_value(result);
-        gchar* str_val = jsc_value_to_string(value);
-        auto str = String(str_val);
-
-        g_free(str_val);
+        auto str = String(jsc_value_to_string(value));
 
         char *buf = nullptr;
         size_t bufsize = 0;
@@ -171,9 +168,6 @@ namespace SSC {
             delete [] index;
             delete [] seq;
           }
-
-          g_free(data);
-          g_free(bytes);
         }
 
         if (!window->bridge->route(str, buf, bufsize)) {
@@ -181,8 +175,6 @@ namespace SSC {
             window->onMessage(str);
           }
         }
-
-        delete[] buf;
       }),
       this
     );
@@ -300,8 +292,6 @@ namespace SSC {
 
             w->draggablePayload = split(str_value, ';');
             exception = jsc_context_get_exception(jsc_value_get_context(value));
-
-            g_free(str_value);
           },
           w
         );
