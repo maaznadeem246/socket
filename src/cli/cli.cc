@@ -181,23 +181,24 @@ int runApp (const fs::path& path, const String& args, bool headless) {
   //   auto part = s.substr(0, s.find(".app/") + 4);
   //   status = std::system(("open -n " + part + " --args " + args + " --from-ssc").c_str());
   }
-  std::cout << "Running app: " << headlessCommand << prefix << cmd << args + " --from-ssc" << std::endl;
-  auto process = new SSC::Process(
-     headlessCommand + prefix + cmd,
-    args + " --from-ssc",
-    fs::current_path().string(),
-    [](SSC::String const &out) { std::cout << out << std::endl; },
-    [](SSC::String const &out) { std::cerr << out << std::endl; }
-  );
+  // std::cout << "Running app: " << headlessCommand << prefix << cmd << args + " --from-ssc" << std::endl;
+  // auto process = new SSC::Process(
+  //    headlessCommand + prefix + cmd,
+  //   args + " --from-ssc",
+  //   fs::current_path().string(),
+  //   [](SSC::String const &out) { std::cout << out << std::endl; },
+  //   [](SSC::String const &out) { std::cerr << out << std::endl; }
+  // );
 
-  process->open();
-  process->wait();
+  // process->open();
+  // process->wait();
 
-  log("runApp result: " + std::to_string(process->status));
-  // status = std::system((headlessCommand + prefix + cmd + " " + args + " --from-ssc").c_str());
-  // log("runApp result: " + std::to_string(status));
+  // log("runApp result: " + std::to_string(process->status));
+  status = std::system((headlessCommand + prefix + cmd + " " + args + " --from-ssc").c_str());
+  log("runApp result: " + std::to_string(status));
 
-  return process->status;
+  // return process->status;
+  return status;
 }
 
 int runApp (const fs::path& path, const String& args) {
