@@ -354,10 +354,16 @@ function _prepare {
   fi
 
   if [ ! -d "$BUILD_DIR/uv" ]; then
-    git clone --depth=1 https://github.com/socketsupply/libuv.git $BUILD_DIR/uv > /dev/null 2>&1
+    quiet git clone --depth=1 https://github.com/socketsupply/libuv.git $BUILD_DIR/uv
+    die $? git clone failed.
     rm -rf $BUILD_DIR/uv/.git
 
     die $? "not ok - unable to clone. See trouble shooting guide in the README.md file"
+  fi
+
+  if [ ! -d "$BUILD_DIR/uv" ]; then
+    echo "not ok - unable to clone. See trouble shooting guide in the README.md file"
+    exit 1
   fi
 
   echo "ok - directories prepared"
