@@ -67,6 +67,15 @@ if [ ! "$CXX" ]; then
   fi
 fi
 
+if ! command -v git >/dev/null 2>&1; then
+  echo "git not found."
+  exit 1
+fi
+
+if [[ ! -z "$VERBOSE" ]]; then
+  echo "Host: $host"
+fi
+
 export CXX
 
 function quiet () {
