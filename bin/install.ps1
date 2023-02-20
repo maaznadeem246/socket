@@ -260,7 +260,7 @@ Function Install-Requirements {
     if ($shbuild -and $(Found-Command("clang++.exe")) -and $(Found-Command("nmake.exe"))) {
       Write-Output("# Found clang$and_nmake")
       $install_vc_build = $false
-    } elseif ($(Found-Command("clang++.exe"))) {
+    } elseif ((-not $shbuild) -and $(Found-Command("clang++.exe"))) {
       Write-Output("# Found clang")
       $install_vc_build = $false
     } else {
