@@ -358,11 +358,6 @@ namespace SSC {
           }
       };
 
-      class Diagnostics : public Module {
-        public:
-          Diagnostics (auto core) : Module(core) {}
-      };
-
       class DNS : public Module {
         public:
           DNS (auto core) : Module(core) {}
@@ -656,6 +651,26 @@ namespace SSC {
             SendOptions options,
             Module::Callback cb
           );
+      };
+
+      class Diagnostics : public Module {
+        public:
+          class Channel {
+            public:
+              Core* core;
+              UDP::BindOptions options;
+              uint64_t id;
+              Channel (Core* core);
+              void start (String& seq, Module::Callback cb);
+              void stop (String& seq, Module::Callback cb);
+              void publish (String& seq, UDP::SendOptions options, Module::Callback cb);
+          };
+
+          Channel channel;
+          Diagnostics (auto core) : channel(core), Module(core) {}
+          void start (String& seq, Module::Callback cb);
+          void stop (String& seq, Module::Callback cb);
+          void publish (String& seq, UDP::SendOptions options, Module::Callback cb);
       };
 
       Diagnostics diagnostics;

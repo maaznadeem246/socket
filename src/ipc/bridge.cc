@@ -229,6 +229,20 @@ void initFunctionsTable (Router *router) {
   });
 
   /**
+   * Starts the internal diagnostics server.
+   */
+  router->map("diagnostics.start", [=](auto message, auto router, auto reply) {
+    router->core->diagnostics.start(message.seq, RESULT_CALLBACK_FROM_CORE_CALLBACK(message, reply));
+  });
+
+  /**
+   * Stops the internal diagnostics server.
+   */
+  router->map("diagnostics.stop", [=](auto message, auto router, auto reply) {
+    router->core->diagnostics.stop(message.seq, RESULT_CALLBACK_FROM_CORE_CALLBACK(message, reply));
+  });
+
+  /**
    * Look up an IP address by `hostname`.
    * @param hostname Host name to lookup
    * @param family IP address family to resolve [default = 0 (AF_UNSPEC)]

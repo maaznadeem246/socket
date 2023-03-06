@@ -691,8 +691,6 @@ export class Socket extends EventEmitter {
   constructor (options, callback) {
     super()
 
-    this.id = rand64()
-
     if (typeof options === 'string') {
       options = { type: options }
     }
@@ -703,6 +701,7 @@ export class Socket extends EventEmitter {
       throw new ERR_SOCKET_BAD_TYPE()
     }
 
+    this.id = options?.id || rand64()
     this.type = options.type
     this.signal = options?.signal ?? null
 

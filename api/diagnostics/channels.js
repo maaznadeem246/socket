@@ -1,5 +1,6 @@
 import { toString, IllegalConstructor } from '../util.js'
 import process from '../process.js'
+import ipc from '../ipc.js'
 
 /**
  * Used to preallocate a minimum sized array of subscribers for
@@ -13,7 +14,7 @@ export const MIN_CHANNEL_SUBSCRIBER_SIZE = 64
  * hyphens (-), underscores (_), with dots (.).
  * @ignore
  */
-export function normalizeName (group, name) {
+export function normalizeName (group, name = '') {
   if (group && !name) {
     name = group.name || group || ''
   } else if (group && name) {
@@ -39,8 +40,10 @@ export function normalizeName (group, name) {
  * A general interface for diagnostic channels that can be subscribed to.
  */
 export class Channel {
-  subscribers = new Array(MIN_CHANNEL_SUBSCRIBER_SIZE)
   #subscribed = 0
+  subscribers = new Array(MIN_CHANNEL_SUBSCRIBER_SIZE)
+  group = null
+  name = null
 
   constructor (name) {
     this.name = name
@@ -146,9 +149,10 @@ export class Channel {
 
   /**
    * A no-op for `Channel` instances. This function always returns `false`.
+   * @param {any?} [message]
    * @return {boolean}
    */
-  async publish () {
+  async publish (message = null) {
     return false
   }
 
@@ -156,7 +160,7 @@ export class Channel {
    * GC finalizer callback
    * @ignore
    */
-  [Symbol.for('gc.finalizer')] (options) {
+  [Symbol.for('gc.finalizer')] () {
     return {
       args: [this.name, this.subscribers],
       handle (name, subscribers) {
@@ -175,7 +179,7 @@ export class Channel {
    */
   [Symbol.toStringTag] () {
     const { name } = this.constructor
-    return `Diagnostic${name}`
+    return `Diagnostics${name}`
   }
 
   /**
@@ -205,6 +209,8 @@ export class ActiveChannel extends Channel {
     if (this.length === 0) {
       Object.setPrototypeOf(this, Channel.prototype)
     }
+
+    return true
   }
 
   async publish (message) {
@@ -233,9 +239,11 @@ export class ActiveChannel extends Channel {
  * by this group. A `ChannelGroup` can also be a regular channel.
  */
 export class ChannelGroup extends Channel {
+  channels = []
+
   /**
-   * @param {Array<Channel>} channels
    * @param {string} name
+   * @param {Array<Channel>} channels
    */
   constructor (name, channels) {
     super(name)
@@ -435,9 +443,57 @@ export class ChannelGroup extends Channel {
   }
 }
 
+export class SharedChannel extends Channel {
+  static socket = null
+
+  handlers = {}
+
+  constructor () {
+    super('shared')
+  }
+
+  get socket () {
+    return SharedChannel.socket
+  }
+
+  ondata (event) {
+    console.log({ event })
+  }
+
+  onmessage (message) {
+  }
+
+  async start () {
+    if (!SharedChannel.socket) {
+      const result = await ipc.send('diagnostics.start')
+      console.log(result)
+      //const { createSocket } = await import('../dgram.js')
+      //SharedChannel.socket = createSocket()
+    }
+
+    if (!this.handlers.ondata) {
+      this.handlers.ondata = this.ondata.bind(this)
+    }
+
+    if (!this.handlers.onmessage) {
+      this.handlers.onmessage = this.onmessage.bind(this)
+    }
+
+    globalThis?.addEventListener('data', this.handlers.ondata)
+  }
+
+  async stop () {
+    if (this.handlers.ondata) {
+      globalThis?.removeEventListener('data', this.handlers.ondata)
+      delete this.handle.ondata
+    }
+  }
+}
+
 Object.freeze(Channel.prototype)
 Object.freeze(ChannelGroup.prototype)
 Object.freeze(ActiveChannel.prototype)
+Object.freeze(SharedChannel.prototype)
 
 /**
  * An object mapping of named channels to `WeakRef<Channel>` instances.
@@ -501,6 +557,16 @@ export const registry = new class ChannelRegistry {
       )
 
     return new ChannelGroup(name, channels)
+  }
+
+  /**
+   * Creates a new shared channel
+   * @return {SharedChannel}
+   */
+  shared () {
+    const channel = new SharedChannel()
+    channel.start()
+    return channel
   }
 
   /**
