@@ -874,8 +874,8 @@ MAIN {
   String defaultMaxHeight = app.appData["window_max_height"].size() > 0 ? app.appData["window_max_height"] : "100%";
 
   windowManager.configure(WindowManagerOptions {
-    .defaultWidth = defaultWidth,
     .defaultHeight =  defaultHeight,
+    .defaultWidth = defaultWidth,
     .defaultMinWidth = defaultMinWidth,
     .defaultMinHeight = defaultMinHeight,
     .defaultMaxWidth = defaultMaxWidth,
