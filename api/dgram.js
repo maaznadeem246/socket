@@ -126,9 +126,10 @@ function createDataListener (socket) {
       return socket.emit('error', err)
     }
 
-    if (!data || BigInt(data.id) !== socket.id) return
+    if (!data || BigInt(data.id) !== BigInt(socket.id)) return
 
-    if (source === 'udp.readStart') {
+    const dataSource = socket.state.dataSource || source
+    if (source === dataSource) {
       const message = Buffer.from(buffer)
       const info = {
         ...data,
@@ -136,7 +137,10 @@ function createDataListener (socket) {
       }
 
       socket.emit('message', message, info)
-      dc.channel('message').publish({ socket, buffer: message, info })
+
+      if (socket.state.diagnostics !== false) {
+        dc.channel('message').publish({ socket, buffer: message, info })
+      }
     }
 
     if (data.EOF) {
@@ -209,12 +213,12 @@ async function startReading (socket, callback) {
     result = await ipc.send('udp.readStart', {
       id: socket.id
     })
-
-    callback(result.err, result.data)
   } catch (err) {
     callback(err)
+    return { err }
   }
 
+  callback(result.err, result.data)
   return result
 }
 
@@ -250,12 +254,12 @@ async function getRecvBufferSize (socket, callback) {
       id: socket.id,
       buffer: RECV_BUFFER
     })
-
-    callback(result.err, result.data)
   } catch (err) {
     callback(err)
     return { err }
   }
+
+  callback(result.err, result.data)
 
   return result
 }
@@ -272,12 +276,12 @@ async function getSendBufferSize (socket, callback) {
       id: socket.id,
       buffer: SEND_BUFFER
     })
-
-    callback(result.err, result.data)
   } catch (err) {
     callback(err)
     return { err }
   }
+
+  callback(result.err, result.data)
 
   return result
 }
@@ -295,8 +299,6 @@ async function bind (socket, options, callback) {
     options.address = getDefaultAddress(socket)
   }
 
-  socket.state.bindState = BIND_STATE_BINDING
-
   if (typeof options.address === 'string' && !isIPv4(options.address)) {
     try {
       options.address = await dns.lookup(options.address, 4)
@@ -307,55 +309,71 @@ async function bind (socket, options, callback) {
     }
   }
 
-  try {
-    result = await ipc.send('udp.bind', {
-      id: socket.id,
+  if (socket.state.bindState === BIND_STATE_UNBOUND) {
+    socket.state.bindState = BIND_STATE_BINDING
+
+    try {
+      result = await ipc.send('udp.bind', {
+        id: socket.id,
+        port: options.port || 0,
+        address: options.address,
+        ipv6Only: !!options.ipv6Only,
+        reuseAddr: !!options.reuseAddr
+      })
+
+      socket.state.bindState = BIND_STATE_BOUND
+    } catch (err) {
+      socket.state.bindState = BIND_STATE_UNBOUND
+      callback(err)
+      return { err }
+    }
+  }
+
+  if (socket.state.sendBufferSize) {
+    try {
+      await socket.setSendBufferSize(socket.state.sendBufferSize)
+    } catch (err) {
+      callback(err)
+      return { err }
+    }
+  } else {
+    const result = await getSendBufferSize(socket)
+    if (result.err) {
+      callback(result.err)
+      return { err: result.err }
+    }
+
+    socket.state.sendBufferSize = result.data.size
+  }
+
+  if (socket.state.recvBufferSize) {
+    try {
+      await socket.setRecvBufferSize(socket.state.recvBufferSize)
+    } catch (err) {
+      callback(err)
+      return { err }
+    }
+  } else {
+    const result = await getRecvBufferSize(socket)
+    if (result.err) {
+      callback(result.err)
+      return { err: result.err }
+    }
+
+    socket.state.recvBufferSize = result.data.size
+  }
+
+  callback(result?.err || null, result?.data || socket.address())
+
+  if (socket.state.diagnostics !== false) {
+    dc.channel('bind').publish({
+      socket,
       port: options.port || 0,
       address: options.address,
       ipv6Only: !!options.ipv6Only,
       reuseAddr: !!options.reuseAddr
     })
-
-    socket.state.bindState = BIND_STATE_BOUND
-
-    if (socket.state.sendBufferSize) {
-      await socket.setSendBufferSize(socket.state.sendBufferSize)
-    } else {
-      const result = await getSendBufferSize(socket)
-      if (result.err) {
-        callback(result.err)
-        return { err: result.err }
-      }
-
-      socket.state.sendBufferSize = result.data.size
-    }
-
-    if (socket.state.recvBufferSize) {
-      await socket.setRecvBufferSize(socket.state.recvBufferSize)
-    } else {
-      const result = await getRecvBufferSize(socket)
-      if (result.err) {
-        callback(result.err)
-        return { err: result.err }
-      }
-
-      socket.state.recvBufferSize = result.data.size
-    }
-
-    callback(result.err, result.data)
-  } catch (err) {
-    socket.state.bindState = BIND_STATE_UNBOUND
-    callback(err)
-    return { err }
   }
-
-  dc.channel('bind').publish({
-    socket,
-    port: options.port || 0,
-    address: options.address,
-    ipv6Only: !!options.ipv6Only,
-    reuseAddr: !!options.reuseAddr
-  })
 
   return result
 }
@@ -433,11 +451,13 @@ async function connect (socket, options, callback) {
     return { err }
   }
 
-  dc.channel('connect').publish({
-    socket,
-    port: options?.port ?? 0,
-    address: options?.address
-  })
+  if (socket.state.diagnostics !== false) {
+    dc.channel('connect').publish({
+      socket,
+      port: options?.port ?? 0,
+      address: options?.address
+    })
+  }
 
   return result
 }
@@ -464,7 +484,9 @@ function disconnect (socket, callback) {
       return { err }
     }
 
-    dc.channel('disconnect').publish({ socket })
+    if (socket.state.diagnostics !== false) {
+      dc.channel('disconnect').publish({ socket })
+    }
   }
 
   return result
@@ -555,12 +577,14 @@ async function send (socket, options, callback) {
   }
 
   try {
-    dc.channel('send.start').publish({
-      socket,
-      port: options.port,
-      buffer: options.buffer,
-      address: options.address
-    })
+    if (socket.state.diagnostics !== false) {
+      dc.channel('send.start').publish({
+        socket,
+        port: options.port,
+        buffer: options.buffer,
+        address: options.address
+      })
+    }
 
     result = await ipc.write('udp.send', {
       id: socket.id,
@@ -574,19 +598,21 @@ async function send (socket, options, callback) {
     return { err }
   }
 
-  dc.channel('send.end').publish({
-    socket,
-    port: options.port,
-    buffer: options.buffer,
-    address: options.address
-  })
+  if (socket.state.diagnostics !== false) {
+    dc.channel('send.end').publish({
+      socket,
+      port: options.port,
+      buffer: options.buffer,
+      address: options.address
+    })
 
-  dc.channel('send').publish({
-    socket,
-    port: options.port,
-    buffer: options.buffer,
-    address: options.address
-  })
+    dc.channel('send').publish({
+      socket,
+      port: options.port,
+      buffer: options.buffer,
+      address: options.address
+    })
+  }
 
   return result
 }
@@ -609,7 +635,7 @@ async function close (socket, callback) {
       id: socket.id
     })
 
-    gc.unref(socket)
+    socket.unref()
 
     delete socket.state.address
     delete socket.state.remoteAddress
@@ -619,7 +645,10 @@ async function close (socket, callback) {
     return { err }
   }
 
-  dc.channel('close').publish({ socket })
+  if (socket.state.diagnostics !== false) {
+    dc.channel('close').publish({ socket })
+  }
+
   return result
 }
 
@@ -711,7 +740,8 @@ export class Socket extends EventEmitter {
       bindState: BIND_STATE_UNBOUND,
       connectState: CONNECT_STATE_DISCONNECTED,
       reuseAddr: options.reuseAddr === true,
-      ipv6Only: options.ipv6Only === true
+      ipv6Only: options.ipv6Only === true,
+      diagnostics: options.diagnostics !== false
     }
 
     if (isFunction(callback)) {
@@ -726,8 +756,55 @@ export class Socket extends EventEmitter {
       this.signal?.removeEventListener('abort', onabort)
     })
 
-    gc.ref(this, options)
-    dc.channel('socket').publish({ socket: this })
+    if (options?.gc !== false) {
+      this.ref(options)
+    }
+
+    if (options?.diagnostics !== false) {
+      dc.channel('socket').publish({ socket: this })
+    }
+
+    if (options?.id) {
+      this.state.bindState = BIND_STATE_BOUND
+      bind(this, options, (err, info) => {
+        const cb = defaultCallback(this)
+        if (err) {
+          return cb(err)
+        }
+
+        startReading(this, async (err) => {
+          if (err && !/already receiving/i.test(err.message)) {
+            return cb(err)
+          }
+
+          if (this.state.sendBufferSize) {
+            await this.setSendBufferSize(this.state.sendBufferSize)
+          } else {
+            const result = await getSendBufferSize(this)
+            if (result.err) {
+              return cb(result.err)
+            }
+
+            this.state.sendBufferSize = result.data.size
+          }
+
+          if (this.state.recvBufferSize) {
+            await this.setRecvBufferSize(this.state.recvBufferSize)
+          } else {
+            const result = await getRecvBufferSize(this)
+            if (result.err) {
+              return cb(result.err)
+            }
+
+            this.state.recvBufferSize = result.data.size
+          }
+
+          this.dataListener = createDataListener(this)
+          cb(null)
+          this.emit('listening')
+        })
+      })
+    }
   }
 
   /**
@@ -1206,11 +1283,13 @@ export class Socket extends EventEmitter {
     throw new Error('not implemented')
   }
 
-  ref () {
+  ref (...args) {
+    gc.ref(this, ...args)
     return this
   }
 
-  unref () {
+  unref (...args) {
+    gc.unref(this, ...args)
     return this
   }
 }

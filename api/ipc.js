@@ -338,6 +338,9 @@ function maybeMakeError (error, caller) {
     Error.captureStackTrace(err, caller)
   }
 
+  const stack = err.stack.split('\n')
+  err.stack = [stack[0], ...stack.slice(2)].join('\n')
+
   return err
 }
 

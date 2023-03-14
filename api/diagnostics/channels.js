@@ -1,4 +1,4 @@
-import { toString, IllegalConstructor } from '../util.js'
+import { toString, IllegalConstructor, InvertedPromise } from '../util.js'
 import process from '../process.js'
 import ipc from '../ipc.js'
 
@@ -443,50 +443,101 @@ export class ChannelGroup extends Channel {
   }
 }
 
+/**
+ * TODO
+ */
 export class SharedChannel extends Channel {
+  /**
+   * TODO
+   * @type {import('../dgram.js').Socket?}
+   */
   static socket = null
 
-  handlers = {}
+  /**
+   * @ignore
+   * @type {Promise<SharedChannel>}
+   */
+  static ready = new InvertedPromise()
 
+  /**
+   * `SharedChannel` class constructor.
+   * @ignore
+   */
   constructor () {
     super('shared')
   }
 
+  /**
+   * @type {import('../dgram.js').Socket?}
+   */
   get socket () {
     return SharedChannel.socket
   }
 
-  ondata (event) {
-    console.log({ event })
-  }
-
+  /**
+   * @ignore
+   * @type {import('../buffer.js').Buffer}
+   */
   onmessage (message) {
+    console.log({ message })
   }
 
+  /**
+   * Waits for the channel to be ready.
+   * @return {Promise<SharedChannel>}
+   */
+  async ready () {
+    return await SharedChannel.ready
+  }
+
+  /**
+   * TODO
+   * @return {Promise}
+   */
   async start () {
     if (!SharedChannel.socket) {
+      const { createSocket } = await import('../dgram.js')
       const result = await ipc.send('diagnostics.start')
-      console.log(result)
-      //const { createSocket } = await import('../dgram.js')
-      //SharedChannel.socket = createSocket()
+
+      if (result.err) {
+        console.warn('diagnostics.channels.shared.start:', result.err)
+        return
+      }
+
+      SharedChannel.socket = createSocket({
+        id: result.data.id,
+        type: /ipv4/i.test(result.data.family) ? 'udp4' : 'udp6',
+        reuseAddr: true,
+        diagnostics: false
+      })
+
+      SharedChannel.socket.state.dataSource = 'diagnostics.start'
+
+      SharedChannel.socket.on('message', (m) => {
+        this.onmessage(m)
+      })
     }
 
-    if (!this.handlers.ondata) {
-      this.handlers.ondata = this.ondata.bind(this)
-    }
-
-    if (!this.handlers.onmessage) {
-      this.handlers.onmessage = this.onmessage.bind(this)
-    }
-
-    globalThis?.addEventListener('data', this.handlers.ondata)
+    SharedChannel.ready.resolve(this)
   }
 
+  /**
+   * TODO
+   * @return {Promise}
+   */
   async stop () {
-    if (this.handlers.ondata) {
-      globalThis?.removeEventListener('data', this.handlers.ondata)
-      delete this.handle.ondata
+    const result = await ipc.send('diagnostics.stop')
+    if (result.err) {
+      console.warn('diagnostics.channels.shared.stop:', result.err)
     }
+  }
+
+  /**
+   * TODO
+   * @return {Promise}
+   */
+  async publish (buffer) {
+    return await this.socket?.publish(buffer)
   }
 }
 
@@ -563,10 +614,10 @@ export const registry = new class ChannelRegistry {
    * Creates a new shared channel
    * @return {SharedChannel}
    */
-  shared () {
+  async shared () {
     const channel = new SharedChannel()
-    channel.start()
-    return channel
+    await channel.start()
+    return await channel.ready()
   }
 
   /**

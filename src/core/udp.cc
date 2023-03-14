@@ -400,18 +400,6 @@ namespace SSC {
       return cb(seq, json, Post{});
     }
 
-    if (peer->hasState(PEER_STATE_UDP_RECV_STARTED)) {
-      auto json = JSON::Object::Entries {
-        {"source", "udp.readStart"},
-        {"err", JSON::Object::Entries {
-          {"id", std::to_string(peerId)},
-          {"message", "Socket is already receiving"}
-        }}
-      };
-
-      return cb(seq, json, Post{});
-    }
-
     if (peer->isActive()) {
       auto json = JSON::Object::Entries {
         {"source", "udp.readStart"},

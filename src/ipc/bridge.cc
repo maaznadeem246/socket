@@ -229,6 +229,23 @@ void initFunctionsTable (Router *router) {
   });
 
   /**
+   * TODO
+   * @param size The size of the bytes to publish
+   * @param bytes A pointer to the bytes to publish
+   */
+  router->map("diagnostics.publish", [=](auto message, auto router, auto reply) {
+    Core::UDP::SendOptions options;
+    options.size = message.buffer.size;
+    options.bytes = message.buffer.bytes;
+
+    router->core->diagnostics.publish(
+      message.seq,
+      options,
+      RESULT_CALLBACK_FROM_CORE_CALLBACK(message, reply)
+    );
+  });
+
+  /**
    * Starts the internal diagnostics server.
    */
   router->map("diagnostics.start", [=](auto message, auto router, auto reply) {

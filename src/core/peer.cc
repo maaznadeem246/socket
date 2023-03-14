@@ -476,22 +476,26 @@ namespace SSC {
   }
 
   int Peer::recvstart () {
-    if (this->receiveCallback != nullptr) {
-      return this->recvstart(this->receiveCallback);
-    }
-
-    return UV_EINVAL;
+    return this->recvstart(nullptr);
   }
 
-  int Peer::recvstart (Peer::UDPReceiveCallback receiveCallback) {
+  int Peer::recvstart (Peer::UDPReceiveCallback onreceive) {
     Lock lock(this->mutex);
 
+    if (onreceive != nullptr) {
+      Lock lock(this->mutex);
+      this->onreceive.push_back(onreceive);
+    }
+
     if (this->hasState(PEER_STATE_UDP_RECV_STARTED)) {
-      return UV_EALREADY;
+      if (onreceive == nullptr) {
+        return UV_EALREADY;
+      }
+
+      return 0;
     }
 
     this->addState(PEER_STATE_UDP_RECV_STARTED);
-    this->receiveCallback = receiveCallback;
 
     auto allocate = [](uv_handle_t *handle, size_t size, uv_buf_t *buf) {
       if (size > 0) {
@@ -514,7 +518,9 @@ namespace SSC {
         return;
       }
 
-      peer->receiveCallback(nread, buf, addr);
+      for (const auto onreceive : peer->onreceive) {
+        onreceive(nread, buf, addr);
+      }
     };
 
     return uv_udp_recv_start((uv_udp_t *) &this->handle, allocate, receive);

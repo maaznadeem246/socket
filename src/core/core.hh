@@ -201,6 +201,8 @@ namespace SSC {
         const struct sockaddr*
       )>;
 
+      static constexpr auto MAX_LISTENERS = 32;
+
       // uv handles
       union {
         uv_udp_t udp;
@@ -211,7 +213,7 @@ namespace SSC {
       struct sockaddr_in addr;
 
       // callbacks
-      UDPReceiveCallback receiveCallback;
+      std::vector<UDPReceiveCallback> onreceive;
       std::vector<std::function<void()>> onclose;
 
       // instance state
@@ -663,14 +665,23 @@ namespace SSC {
               Channel (Core* core);
               void start (String& seq, Module::Callback cb);
               void stop (String& seq, Module::Callback cb);
-              void publish (String& seq, UDP::SendOptions options, Module::Callback cb);
+              void publish (
+                String& seq,
+                char* bytes,
+                size_t size,
+                Module::Callback cb
+              );
           };
 
           Channel channel;
           Diagnostics (auto core) : channel(core), Module(core) {}
           void start (String& seq, Module::Callback cb);
           void stop (String& seq, Module::Callback cb);
-          void publish (String& seq, UDP::SendOptions options, Module::Callback cb);
+          void publish (
+            String& seq,
+            UDP::SendOptions options,
+            Module::Callback cb
+          );
       };
 
       Diagnostics diagnostics;

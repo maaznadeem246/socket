@@ -17,11 +17,11 @@ namespace SSC::JSON {
     // trim trailing zeros
     if (decimal >= 0) {
       auto i = output.size() - 1;
-      while (output[i] != '0') {
+      while (output[i] == '0') {
         i--;
       }
 
-      return output.substr(0, i + 1);
+      return output.substr(0, i);
     }
 
     return output;

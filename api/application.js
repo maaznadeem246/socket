@@ -141,7 +141,7 @@ export async function getWindow (index) {
  * @return {Promise<ApplicationWindow>}
  */
 export async function getCurrentWindow () {
-  return getWindow(globalThis.__args.index)
+  return getWindow(globalThis.__args?.index || 0)
 }
 
 /**
@@ -300,8 +300,8 @@ export async function setSystemMenuItemEnabled (value) {
 }
 
 export const runtimeVersion = primordials.version
-export const debug = !!globalThis.__args.debug
-export const config = globalThis.__args.config
+export const debug = !!globalThis.__args?.debug
+export const config = globalThis.__args?.config || {}
 
 export const backend = {
   /**
