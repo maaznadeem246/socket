@@ -1402,7 +1402,130 @@ int main (const int argc, const char* argv[]) {
     exit(0);
   });
 
-  createSubcommand("build", { "--platform", "--host", "--port", "--quiet", "-o", "--only-build", "-r", "--run", "--prod", "-p", "-c", "-s", "-e", "-n", "--test", "--headless" }, true, [&](const std::span<const char *>& options) -> void {
+  auto const runOptions = Vector<String> {
+    "--platform",
+    "--host",
+    "--port",
+    "--prod",
+    "--test",
+    "--headless"
+  };
+  createSubcommand("run", runOptions, true, [&](const std::span<const char *>& options) -> void {
+    String argvForward = "";
+    bool isIosSimulator = false;
+    bool flagHeadless = false;
+    bool flagTest = false;
+    String targetPlatform = "";
+    String testFile = "";
+    bool flagRunOnIOS = false;
+    bool flagRunOnAndroid = false;
+    bool flagRunOnAndroidEmulator = false;
+    bool flagRunOnSimulator = false;
+
+    String hostArg = "";
+    String portArg = "";
+    String devHost("localhost");
+    String devPort("0");
+
+    for (auto const& option : options) {
+      if (is(option, "--test")) {
+        flagTest = true;
+      }
+      const auto testFileTmp = optionValue("run", option, "--test");
+      if (testFileTmp.size() > 0) {
+        flagTest = true;
+        testFile = testFileTmp;
+        argvForward += " " + String(option);
+      }
+
+      if (is(option, "--headless") || is(rc["run_headless"], "true")) {
+        argvForward += " --headless";
+        flagHeadless = true;
+      }
+
+      if (targetPlatform.size() == 0) {
+        targetPlatform = optionValue("run", option, "--platform");
+        if (targetPlatform.size() > 0) {
+          if (targetPlatform == "ios") {
+            flagRunOnIOS = true;
+          } else if (targetPlatform == "android") {
+            flagRunOnAndroid = true;
+          } else if (targetPlatform == "android-emulator") {
+            flagRunOnAndroid = true;
+            flagRunOnAndroidEmulator = true;
+          } else if (targetPlatform == "ios-simulator") {
+            flagRunOnIOS = true;
+            flagRunOnSimulator = true;
+          } else {
+            log("Unknown platform: " + targetPlatform);
+            exit(1);
+          }
+        }
+      }
+
+      if (hostArg.size() == 0) {
+        hostArg = optionValue("build", option, "--host");
+        if (hostArg.size() > 0) {
+          devHost = hostArg;
+        } else {
+          if (flagRunOnIOS || flagRunOnAndroid) {
+            auto r = exec((!platform.win)
+              ? "ifconfig | grep -w 'inet' | awk '!match($2, \"^127.\") {print $2; exit}' | tr -d '\n'"
+              : "PowerShell -Command ((Get-NetIPAddress -AddressFamily IPV4).IPAddress ^| Select-Object -first 1)"
+            );
+
+            if (r.exitCode == 0) {
+              devHost = r.output;
+            }
+          }
+        }
+      }
+
+      if (portArg.size() == 0) {
+        portArg = optionValue("build", option, "--port");
+        if (portArg.size() > 0) {
+          devPort = portArg;
+        }
+      }
+    }
+
+    if (flagTest && testFile.size() == 0) {
+      log("ERROR: --test value is required.");
+      exit(1);
+    }
+
+    targetPlatform = targetPlatform.size() > 0 ? targetPlatform : platform.os;
+    Paths paths = getPaths(targetPlatform);
+
+    settings.insert(std::make_pair("host", devHost));
+    settings.insert(std::make_pair("port", devPort));
+
+    if (flagRunOnSimulator) {
+      String app = (settings["build_name"] + ".app");
+      auto pathToApp = paths.platformSpecificOutputPath / app;
+      runIOSSimulator(pathToApp, settings);
+    } else {
+      auto executable = Path(settings["build_name"] + (platform.win ? ".exe" : ""));
+      auto exitCode = runApp(paths.pathBin / executable, argvForward, flagHeadless);
+      exit(exitCode);
+    }
+  });
+
+  auto buildOptions = Vector<String> {
+    "--quiet",
+    "-o",
+    "--only-build",
+    "-r",
+    "--run",
+    "-p",
+    "-c",
+    "-s",
+    "-e",
+    "-n"
+  };
+  // Insert the elements of runOptions into buildOptions
+  buildOptions.insert(buildOptions.end(), runOptions.begin(), runOptions.end());
+  createSubcommand("build", buildOptions, true, [&](const std::span<const char *>& options) -> void {
     bool flagRunUserBuildOnly = false;
     bool flagAppStore = false;
     bool flagCodeSign = false;
@@ -1517,6 +1640,9 @@ int main (const int argc, const char* argv[]) {
           } else if (targetPlatform == "ios-simulator") {
             flagBuildForIOS = true;
             flagBuildForSimulator = true;
+          } else {
+            log("Unknown platform: " + targetPlatform);
+            exit(1);
           }
         }
       }
@@ -3565,62 +3691,6 @@ int main (const int argc, const char* argv[]) {
     }
 
     exit(exitCode);
-  });
-
-  createSubcommand("run", { "--platform", "--prod", "--test",  "--headless" }, true, [&](const std::span<const char *>& options) -> void {
-    String argvForward = "";
-    bool isIosSimulator = false;
-    bool flagHeadless = false;
-    bool flagTest = false;
-    String targetPlatform = "";
-    String testFile = "";
-
-    for (auto const& option : options) {
-      if (is(option, "--test")) {
-        flagTest = true;
-      }
-      const auto testFileTmp = optionValue("run", option, "--test");
-      if (testFileTmp.size() > 0) {
-        flagTest = true;
-        testFile = testFileTmp;
-        argvForward += " " + String(option);
-      }
-
-      if (is(option, "--headless") || is(rc["run_headless"], "true")) {
-        argvForward += " --headless";
-        flagHeadless = true;
-      }
-
-      if (targetPlatform.size() == 0) {
-        targetPlatform = optionValue("run", option, "--platform");
-        if (targetPlatform.size() > 0) {
-          if (targetPlatform == "ios-simulator") {
-            isIosSimulator = true;
-          } else {
-            log("Unknown platform: " + targetPlatform);
-            exit(1);
-          }
-        }
-      }
-    }
-
-    if (flagTest && testFile.size() == 0) {
-      log("ERROR: --test value is required.");
-      exit(1);
-    }
-
-    targetPlatform = targetPlatform.size() > 0 ? targetPlatform : platform.os;
-    Paths paths = getPaths(targetPlatform);
-
-    if (isIosSimulator) {
-      String app = (settings["build_name"] + ".app");
-      auto pathToApp = paths.platformSpecificOutputPath / app;
-      runIOSSimulator(pathToApp, settings);
-    } else {
-      auto executable = Path(settings["build_name"] + (platform.win ? ".exe" : ""));
-      auto exitCode = runApp(paths.pathBin / executable, argvForward, flagHeadless);
-      exit(exitCode);
-    }
   });
 
   createSubcommand("env", { }, true, [&](const std::span<const char *>& options) -> void {
